@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.files.storage import FileSystemStorage
-from core.models import Person
+from django.contrib.auth.models import User
+from core.models import Person, UserProfile
 
 fs = FileSystemStorage(location='media/school_logos/')
 
@@ -12,8 +13,10 @@ class School(models.Model):
     address = models.TextField()
     contact_phone = models.CharField(max_length=20, blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
-    principal = models.CharField(max_length=200, blank=True, null=True)
+    principal_name = models.CharField(max_length=200, blank=True, null=True)
+    principal_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='administered_schools')
     logo = models.ImageField(upload_to='school_logos/', blank=True, null=True, storage=fs)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -57,8 +60,11 @@ class Teacher(Person):
         ('Prof', 'Prof'),
     ]
 
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='teacher_profile')
     title = models.CharField(max_length=10, choices=TITLE_CHOICES)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='teachers')
+    contact_email = models.EmailField(blank=False, null=False)  # Override to make email required
+    transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about teacher transfers")
 
     class Meta:
         ordering = ['last_name', 'first_name']
@@ -73,6 +79,7 @@ class Student(Person):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='students')
     date_of_birth = models.DateField()
     parent_name = models.CharField(max_length=200, help_text="Full name of parent or guardian")
+    transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about student transfers")
 
     class Meta:
         ordering = ['last_name', 'first_name']
