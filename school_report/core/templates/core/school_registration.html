@@ -3,6 +3,8 @@
 
 {% block title %}Register School - School Report System{% endblock %}
 
+{% block register_school_active %}active{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
@@ -13,26 +15,26 @@
             <div class="card-body">
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
-                    
+
                     <div class="mb-4">
                         <h5>School Information</h5>
                         <hr>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-12">
                             <label for="id_name" class="form-label">School Name</label>
                             <input type="text" name="name" id="id_name" class="form-control" required>
                         </div>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-12">
                             <label for="id_address" class="form-label">School Address</label>
                             <textarea name="address" id="id_address" class="form-control" rows="3" required></textarea>
                         </div>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="id_contact_phone" class="form-label">School Phone</label>
@@ -43,14 +45,14 @@
                             <input type="email" name="contact_email" id="id_contact_email" class="form-control">
                         </div>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-12">
                             <label for="id_principal_name" class="form-label">Principal Name</label>
                             <input type="text" name="principal_name" id="id_principal_name" class="form-control">
                         </div>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-12">
                             <label for="id_logo" class="form-label">School Logo</label>
@@ -58,43 +60,13 @@
                             <div class="form-text">Optional. Upload your school logo or monogram.</div>
                         </div>
                     </div>
-                    
+
                     <div class="mb-4 mt-4">
-                        <h5>Principal Account Information</h5>
+                        <h5>Principal Information</h5>
                         <hr>
-                        <p class="text-muted">Create an account for the school principal to manage the system.</p>
+                        <p class="text-muted">You are registering this school as: <strong>{{ user.get_full_name|default:user.username }}</strong></p>
                     </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="id_first_name" class="form-label">First Name</label>
-                            <input type="text" name="first_name" id="id_first_name" class="form-control" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="id_last_name" class="form-label">Last Name</label>
-                            <input type="text" name="last_name" id="id_last_name" class="form-control" required>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label for="id_email" class="form-label">Email Address</label>
-                            <input type="email" name="email" id="id_email" class="form-control" required>
-                            <div class="form-text">This will be your username for logging in.</div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="id_password" class="form-label">Password</label>
-                            <input type="password" name="password" id="id_password" class="form-control" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="id_password_confirm" class="form-label">Confirm Password</label>
-                            <input type="password" name="password_confirm" id="id_password_confirm" class="form-control" required>
-                        </div>
-                    </div>
-                    
+
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Register School</button>
                         <a href="{% url 'core:home' %}" class="btn btn-outline-secondary">Cancel</a>
@@ -107,20 +79,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Password confirmation validation
-        const passwordField = document.getElementById('id_password');
-        const confirmField = document.getElementById('id_password_confirm');
-        const form = document.querySelector('form');
-        
-        form.addEventListener('submit', function(e) {
-            if (passwordField.value !== confirmField.value) {
-                e.preventDefault();
-                alert('Passwords do not match!');
-                confirmField.focus();
-            }
-        });
-    });
-</script>
 {% endblock %}

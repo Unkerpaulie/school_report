@@ -1,0 +1,73 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Assign Teacher to Class - School Report System{% endblock %}
+
+{% block classes_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0 text-gray-800">Assign Teacher to Class</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Teacher Assignment</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_teacher" class="form-label">Teacher</label>
+                            <select name="teacher" id="id_teacher" class="form-select" required>
+                                <option value="">Select Teacher</option>
+                                {% for teacher in form.fields.teacher.queryset %}
+                                <option value="{{ teacher.id }}">{{ teacher }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_standard" class="form-label">Class</label>
+                            <select name="standard" id="id_standard" class="form-select" required>
+                                <option value="">Select Class</option>
+                                {% for standard in form.fields.standard.queryset %}
+                                <option value="{{ standard.id }}">{{ standard.name }} {% if standard.section %}({{ standard.section }}){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">Assign Teacher</button>
+                        <a href="{% url 'schools:standard_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Help</h6>
+            </div>
+            <div class="card-body">
+                <p>Assigning a teacher to a class will:</p>
+                <ul>
+                    <li>Make the teacher responsible for the class</li>
+                    <li>Allow the teacher to manage students in the class</li>
+                    <li>Enable the teacher to record test scores and attendance</li>
+                    <li>Permit the teacher to generate reports for the class</li>
+                </ul>
+                <p class="mb-0 text-muted">Note: A class can have multiple teachers assigned to it.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

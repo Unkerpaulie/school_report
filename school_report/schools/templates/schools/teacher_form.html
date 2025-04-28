@@ -1,0 +1,94 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Add Teacher - School Report System{% endblock %}
+
+{% block teachers_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0 text-gray-800">Add New Teacher</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Teacher Information</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="id_title" class="form-label">Title</label>
+                            <select name="title" id="id_title" class="form-select" required>
+                                <option value="">Select Title</option>
+                                <option value="Mr">Mr</option>
+                                <option value="Mrs">Mrs</option>
+                                <option value="Ms">Ms</option>
+                                <option value="Dr">Dr</option>
+                                <option value="Prof">Prof</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="id_first_name" class="form-label">First Name</label>
+                            <input type="text" name="first_name" id="id_first_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="id_last_name" class="form-label">Last Name</label>
+                            <input type="text" name="last_name" id="id_last_name" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_contact_email" class="form-label">Email Address</label>
+                            <input type="email" name="contact_email" id="id_contact_email" class="form-control" required>
+                            <div class="form-text">This will be used as the teacher's login username.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_contact_phone" class="form-label">Phone Number</label>
+                            <input type="text" name="contact_phone" id="id_contact_phone" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> A user account will be created for this teacher with the default password "ChangeMe!". The teacher will be prompted to change this password on first login.
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">Add Teacher</button>
+                        <a href="{% url 'schools:teacher_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Help</h6>
+            </div>
+            <div class="card-body">
+                <p>Adding a teacher will:</p>
+                <ul>
+                    <li>Create a teacher profile in your school</li>
+                    <li>Create a user account for the teacher</li>
+                    <li>Send an email with login instructions (coming soon)</li>
+                </ul>
+                <p>Teachers will be able to:</p>
+                <ul>
+                    <li>Manage their assigned students</li>
+                    <li>Record test scores and attendance</li>
+                    <li>Generate reports for their class</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

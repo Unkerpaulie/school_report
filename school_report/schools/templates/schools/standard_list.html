@@ -1,0 +1,97 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Classes - School Report System{% endblock %}
+
+{% block classes_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0 text-gray-800">Classes</h1>
+        {% if user.profile.user_type == 'principal' %}
+        <div>
+            <a href="#" class="btn btn-primary me-2">
+                <i class="bi bi-plus-circle"></i> Add Class
+            </a>
+            <a href="{% url 'schools:assign_teacher' %}" class="btn btn-outline-primary">
+                <i class="bi bi-person-plus"></i> Assign Teacher
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold">Class List</h6>
+            </div>
+            <div class="card-body">
+                {% if standards %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="standardsTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Section</th>
+                                <th>Class Teacher</th>
+                                <th>Students</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for standard in standards %}
+                            <tr>
+                                <td>{{ standard.name }}</td>
+                                <td>{{ standard.section|default:"-" }}</td>
+                                <td>
+                                    {% for assignment in standard.standardteacher_set.all %}
+                                        {% if assignment.is_active %}
+                                            {{ assignment.teacher }}
+                                            {% if not forloop.last %}, {% endif %}
+                                        {% endif %}
+                                    {% empty %}
+                                        <span class="text-muted">Not assigned</span>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ standard.student_set.count }}</td>
+                                <td>
+                                    <a href="{% url 'schools:standard_detail' standard.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="lead text-muted">No classes found.</p>
+                    {% if user.profile.user_type == 'principal' %}
+                    <a href="#" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add Your First Class
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize DataTable if it exists
+        if (document.getElementById('standardsTable')) {
+            $('#standardsTable').DataTable({
+                "order": [[0, "asc"]]
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Students - School Report System{% endblock %}
+
+{% block students_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0 text-gray-800">Students</h1>
+        {% if user.profile.user_type == 'principal' or user.profile.user_type == 'teacher' %}
+        <a href="#" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Add Student
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold">Student List</h6>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="filterDropdown">
+                        <li><a class="dropdown-item" href="#">All Students</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">By Class</h6></li>
+                        {% for standard in standards %}
+                        <li><a class="dropdown-item" href="#">{{ standard.name }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if students %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="studentsTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Roll No</th>
+                                <th>Name</th>
+                                <th>Class</th>
+                                <th>Gender</th>
+                                <th>Date of Birth</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students %}
+                            <tr>
+                                <td>{{ student.roll_number|default:"-" }}</td>
+                                <td>{{ student.first_name }} {{ student.last_name }}</td>
+                                <td>
+                                    {% for enrollment in student.enrollment_set.all %}
+                                        {% if enrollment.is_active %}
+                                            {{ enrollment.standard.name }}
+                                            {% if enrollment.standard.section %}({{ enrollment.standard.section }}){% endif %}
+                                        {% endif %}
+                                    {% empty %}
+                                        <span class="text-muted">Not enrolled</span>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ student.get_gender_display }}</td>
+                                <td>{{ student.date_of_birth|date:"d M Y"|default:"-" }}</td>
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-info">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="lead text-muted">No students found.</p>
+                    {% if user.profile.user_type == 'principal' or user.profile.user_type == 'teacher' %}
+                    <a href="#" class="btn btn-primary">
+                        <i class="bi bi-person-plus"></i> Add Your First Student
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize DataTable if it exists
+        if (document.getElementById('studentsTable')) {
+            $('#studentsTable').DataTable({
+                "order": [[0, "asc"]]
+            });
+        }
+    });
+</script>
+{% endblock %}
