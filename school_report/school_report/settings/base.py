@@ -91,5 +91,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Authentication settings
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = '/'  # This will be handled by HomeView which redirects to school dashboard
 LOGOUT_REDIRECT_URL = '/'

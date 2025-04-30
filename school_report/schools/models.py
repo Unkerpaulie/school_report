@@ -1,6 +1,9 @@
 from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.contrib.auth.models import User
+from django.utils.text import slugify
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from core.models import Person, UserProfile
 
 fs = FileSystemStorage(location='media/school_logos/')
@@ -10,6 +13,7 @@ class School(models.Model):
     Represents a primary school in the system
     """
     name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True, help_text="URL-friendly version of the school name")
     address = models.TextField()
     contact_phone = models.CharField(max_length=20, blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
@@ -22,6 +26,20 @@ class School(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Generate slug from name if not provided
+        if not self.slug:
+            self.slug = slugify(self.name)
+
+        # Ensure slug is unique
+        original_slug = self.slug
+        counter = 1
+        while School.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            self.slug = f"{original_slug}-{counter}"
+            counter += 1
+
+        super().save(*args, **kwargs)
 
 class Standard(models.Model):
     """
@@ -83,3 +101,18 @@ class Student(Person):
 
     class Meta:
         ordering = ['last_name', 'first_name']
+
+
+# Signal to create standard classes when a school is created
+@receiver(post_save, sender=School)
+def create_standard_classes(sender, instance, created, **kwargs):
+    """
+    Create standard classes for a newly created school
+    """
+    if created:
+        # Create all standard classes for the school
+        for standard_code, standard_name in Standard.STANDARD_CHOICES:
+            Standard.objects.create(
+                school=instance,
+                name=standard_code
+            )

@@ -21,7 +21,7 @@
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="id_title" class="form-label">Title</label>
@@ -43,23 +43,30 @@
                             <input type="text" name="last_name" id="id_last_name" class="form-control" required>
                         </div>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="id_contact_email" class="form-label">Email Address</label>
-                            <input type="email" name="contact_email" id="id_contact_email" class="form-control" required>
-                            <div class="form-text">This will be used as the teacher's login username.</div>
+                            <label for="id_username" class="form-label">Username</label>
+                            <input type="text" name="username" id="id_username" class="form-control" required>
+                            <div class="form-text">{{ form.username.help_text }}</div>
                         </div>
                         <div class="col-md-6">
                             <label for="id_contact_phone" class="form-label">Phone Number</label>
                             <input type="text" name="contact_phone" id="id_contact_phone" class="form-control">
                         </div>
                     </div>
-                    
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="id_contact_email" class="form-label">Email Address</label>
+                            <input type="email" name="contact_email" id="id_contact_email" class="form-control" required>
+                        </div>
+                    </div>
+
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i> A user account will be created for this teacher with the default password "ChangeMe!". The teacher will be prompted to change this password on first login.
                     </div>
-                    
+
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Add Teacher</button>
                         <a href="{% url 'schools:teacher_list' %}" class="btn btn-outline-secondary">Cancel</a>
@@ -68,7 +75,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-4">
         <div class="card shadow mb-4">
             <div class="card-header py-3">

@@ -46,12 +46,7 @@
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label for="id_principal_name" class="form-label">Principal Name</label>
-                            <input type="text" name="principal_name" id="id_principal_name" class="form-control">
-                        </div>
-                    </div>
+
 
                     <div class="row mb-3">
                         <div class="col-md-12">
@@ -65,6 +60,7 @@
                         <h5>Principal Information</h5>
                         <hr>
                         <p class="text-muted">You are registering this school as: <strong>{{ user.get_full_name|default:user.username }}</strong></p>
+                        <p class="text-muted small">Your name will be automatically set as the principal name for the school.</p>
                     </div>
 
                     <div class="mt-4">

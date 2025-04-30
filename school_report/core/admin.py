@@ -8,6 +8,9 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = 'User Profile'
 
+    # Make phone_number more prominent
+    fields = ('user_type', 'phone_number', 'must_change_password')
+
     def get_formset(self, request, obj=None, **kwargs):
         """
         Override to ensure a profile is always created for new users
@@ -16,12 +19,31 @@ class UserProfileInline(admin.StackedInline):
         if not obj:  # This is a new user being created
             # Set default values for new profiles
             formset.form.base_fields['user_type'].initial = 'staff'
+            # Make phone_number required for principals
+            if 'user_type' in formset.form.base_fields and formset.form.base_fields['user_type'].initial == 'principal':
+                formset.form.base_fields['phone_number'].required = True
         return formset
 
 # Extend the default UserAdmin
 class CustomUserAdmin(UserAdmin):
     inlines = (UserProfileInline,)
     list_display = ('username', 'email', 'first_name', 'last_name', 'get_user_type', 'is_staff')
+
+    # Make first name, last name, and email required in the admin
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email'), 'classes': ('wide',)}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+    )
+
+    # Make first name, last name, and email required in the add form
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email'),
+        }),
+    )
 
     def get_user_type(self, obj):
         try:
