@@ -14,7 +14,7 @@
             <a href="#" class="btn btn-primary me-2">
                 <i class="bi bi-plus-circle"></i> Add Class
             </a>
-            <a href="{% url 'schools:assign_teacher' %}" class="btn btn-outline-primary">
+            <a href="{% url 'schools:assign_teacher' school_slug=school.slug %}" class="btn btn-outline-primary">
                 <i class="bi bi-person-plus"></i> Assign Teacher
             </a>
         </div>
@@ -58,7 +58,7 @@
                                 </td>
                                 <td>{{ standard.student_set.count }}</td>
                                 <td>
-                                    <a href="{% url 'schools:standard_detail' standard.id %}" class="btn btn-sm btn-primary">
+                                    <a href="{% url 'schools:standard_detail' school_slug=school.slug pk=standard.id %}" class="btn btn-sm btn-primary">
                                         <i class="bi bi-eye"></i> View
                                     </a>
                                 </td>

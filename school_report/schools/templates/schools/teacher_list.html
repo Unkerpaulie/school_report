@@ -9,7 +9,7 @@
 <div class="row mb-4">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="h3 mb-0 text-gray-800">Teachers</h1>
-        <a href="{% url 'schools:teacher_add' %}" class="btn btn-primary">
+        <a href="{% url 'schools:teacher_add' school_slug=school.slug %}" class="btn btn-primary">
             <i class="bi bi-person-plus"></i> Add Teacher
         </a>
     </div>
@@ -63,7 +63,7 @@
                 {% else %}
                 <div class="text-center py-4">
                     <p class="lead text-muted">No teachers found.</p>
-                    <a href="{% url 'schools:teacher_add' %}" class="btn btn-primary">
+                    <a href="{% url 'schools:teacher_add' school_slug=school.slug %}" class="btn btn-primary">
                         <i class="bi bi-person-plus"></i> Add Your First Teacher
                     </a>
                 </div>

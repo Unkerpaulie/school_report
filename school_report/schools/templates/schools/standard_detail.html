@@ -11,7 +11,7 @@
         <h1 class="h3 mb-0 text-gray-800">{{ standard.name }} {% if standard.section %}({{ standard.section }}){% endif %}</h1>
         {% if user.profile.user_type == 'principal' %}
         <div>
-            <a href="{% url 'schools:assign_teacher' %}" class="btn btn-primary">
+            <a href="{% url 'schools:assign_teacher' school_slug=school.slug %}" class="btn btn-primary">
                 <i class="bi bi-person-plus"></i> Assign Teacher
             </a>
         </div>
@@ -49,7 +49,7 @@
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                 <h6 class="m-0 font-weight-bold">Assigned Teachers</h6>
                 {% if user.profile.user_type == 'principal' %}
-                <a href="{% url 'schools:assign_teacher' %}" class="btn btn-sm btn-primary">
+                <a href="{% url 'schools:assign_teacher' school_slug=school.slug %}" class="btn btn-sm btn-primary">
                     <i class="bi bi-person-plus"></i> Assign Teacher
                 </a>
                 {% endif %}
@@ -92,7 +92,7 @@
                 <div class="text-center py-4">
                     <p class="text-muted">No teachers assigned to this class.</p>
                     {% if user.profile.user_type == 'principal' %}
-                    <a href="{% url 'schools:assign_teacher' %}" class="btn btn-primary">
+                    <a href="{% url 'schools:assign_teacher' school_slug=school.slug %}" class="btn btn-primary">
                         <i class="bi bi-person-plus"></i> Assign Teacher
                     </a>
                     {% endif %}

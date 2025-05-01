@@ -12,7 +12,7 @@ urlpatterns = [
 
     # Authentication routes
     path('register/', SchoolRegistrationView.as_view(), name='register_school'),
-    path('profile/', ProfileView.as_view(), name='profile'),
+    path('<slug:school_slug>/profile/', ProfileView.as_view(), name='profile'),
     path('logout/', CustomLogoutView.as_view(), name='custom_logout'),
 
     # School-specific routes

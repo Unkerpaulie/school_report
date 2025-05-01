@@ -45,7 +45,7 @@
                     
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Assign Teacher</button>
-                        <a href="{% url 'schools:standard_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'schools:standard_list' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

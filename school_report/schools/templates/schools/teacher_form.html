@@ -69,7 +69,7 @@
 
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Add Teacher</button>
-                        <a href="{% url 'schools:teacher_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'schools:teacher_list' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

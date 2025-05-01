@@ -72,7 +72,7 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                 <h6 class="m-0 font-weight-bold">Classes</h6>
-                <a href="{% url 'schools:standard_list' %}" class="btn btn-sm btn-primary">View All</a>
+                <a href="{% url 'schools:standard_list' school_slug=school.slug %}" class="btn btn-sm btn-primary">View All</a>
             </div>
             <div class="card-body">
                 <div class="table-responsive">

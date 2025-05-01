@@ -81,7 +81,13 @@ class ProfileView(LoginRequiredMixin, UpdateView):
     template_name = 'core/profile.html'
     fields = ['phone_number']
     success_url = reverse_lazy('core:profile')
-
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        school_slug = self.kwargs.get('school_slug')  # Access the slug from the URL
+        school = get_object_or_404(School, slug=school_slug)  # Fetch the school object
+        context['school'] = school  # Add the school to the context
+        return context
     def get_object(self):
         return self.request.user.profile
 
