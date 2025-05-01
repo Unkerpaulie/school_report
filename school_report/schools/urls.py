@@ -20,6 +20,6 @@ urlpatterns = [
 
     # Class/Standard URLs
     path('classes/', StandardListView.as_view(), name='standard_list'),
-    path('classes/assign-teacher/', TeacherAssignmentCreateView.as_view(), name='assign_teacher'),
+    path('classes/assign-teacher/<int:pk>/', TeacherAssignmentCreateView.as_view(), name='assign_teacher'),
     path('classes/<int:pk>/', StandardDetailView.as_view(), name='standard_detail'),
 ]

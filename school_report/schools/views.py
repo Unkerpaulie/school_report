@@ -19,6 +19,17 @@ class TeacherListView(LoginRequiredMixin, ListView):
     template_name = 'schools/teacher_list.html'
     context_object_name = 'teachers'
 
+    def get_queryset(self):
+        # Get all active teachers for this school
+        queryset = super().get_queryset()
+        queryset = queryset.filter(
+            school=self.school,
+            is_active=True
+        ).select_related('assigned_standard')
+        
+        # Annotate with current assignment status
+        return queryset
+
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
         self.school_slug = kwargs.get('school_slug')
@@ -316,18 +327,16 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
     """
     model = StandardTeacher
     template_name = 'schools/teacher_assignment_form.html'
-    fields = ['teacher', 'standard']
+    fields = ['standard']  # Only need to select the standard
 
     def get_success_url(self):
-        return reverse_lazy('schools:standard_detail', kwargs={
-            'school_slug': self.school_slug,
-            'pk': self.object.standard.pk
-        })
+        return reverse_lazy('schools:teacher_list', kwargs={'school_slug': self.school_slug})
 
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
         self.school_slug = kwargs.get('school_slug')
         self.school = get_object_or_404(School, slug=self.school_slug)
+        self.teacher_id = kwargs.get('pk')
 
         # Check if user has access to this school
         if request.user.profile.user_type == 'principal':
@@ -336,50 +345,44 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
                 messages.error(request, "You do not have access to this school.")
                 return redirect('core:home')
         else:
-            messages.error(request, "Only principals can assign teachers to classes.")
+            messages.error(request, "Only principals can assign teachers.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-
-        # Filter teachers and standards to only those in this school
-        form.fields['teacher'].queryset = Teacher.objects.filter(school=self.school, is_active=True)
+        # Filter standards to only show those from the current school
         form.fields['standard'].queryset = Standard.objects.filter(school=self.school)
-
         return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['school'] = self.school
         context['school_slug'] = self.school_slug
+        context['teacher'] = get_object_or_404(Teacher, pk=self.teacher_id)
         return context
 
     def form_valid(self, form):
-        assignment = form.save(commit=False)
-
-        # Get the current academic year (or create one if it doesn't exist)
-        current_year = Year.objects.filter().order_by('-start_year').first()
+        # Get the teacher from the URL parameter
+        teacher = get_object_or_404(Teacher, pk=self.teacher_id)
+        
+        # Set the current academic year
+        current_year = Year.objects.filter(
+            term1_start_date__lte=self.request.user.date_joined,
+            term3_end_date__gte=self.request.user.date_joined
+        ).first()
+        
         if not current_year:
-            # Create a default year if none exists
-            from datetime import date
-            today = date.today()
-            current_year = Year.objects.create(
-                start_year=today.year,
-                term1_start_date=date(today.year, 1, 1),
-                term1_end_date=date(today.year, 4, 30),
-                term1_school_days=80,
-                term2_start_date=date(today.year, 5, 1),
-                term2_end_date=date(today.year, 8, 31),
-                term2_school_days=80,
-                term3_start_date=date(today.year, 9, 1),
-                term3_end_date=date(today.year, 12, 31),
-                term3_school_days=80
-            )
+            messages.error(self.request, "No active academic year found.")
+            return self.form_invalid(form)
 
+        # Create the assignment
+        assignment = form.save(commit=False)
         assignment.year = current_year
+        assignment.teacher = teacher
+        assignment.is_active = True
         assignment.save()
 
-        messages.success(self.request, f"{assignment.teacher} has been assigned to {assignment.standard}.")
+        messages.success(self.request, f"Teacher {teacher} has been assigned to the class successfully!")
         return redirect(self.get_success_url())

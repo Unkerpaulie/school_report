@@ -102,7 +102,6 @@ class Student(Person):
     class Meta:
         ordering = ['last_name', 'first_name']
 
-
 # Signal to create standard classes when a school is created
 @receiver(post_save, sender=School)
 def create_standard_classes(sender, instance, created, **kwargs):

@@ -24,13 +24,10 @@
                     
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="id_teacher" class="form-label">Teacher</label>
-                            <select name="teacher" id="id_teacher" class="form-select" required>
-                                <option value="">Select Teacher</option>
-                                {% for teacher in form.fields.teacher.queryset %}
-                                <option value="{{ teacher.id }}">{{ teacher }}</option>
-                                {% endfor %}
-                            </select>
+                            <label class="form-label">Teacher</label>
+                            <div class="form-control-plaintext">
+                                {{ teacher }}
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label for="id_standard" class="form-label">Class</label>
@@ -45,7 +42,7 @@
                     
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Assign Teacher</button>
-                        <a href="{% url 'schools:standard_list' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'schools:teacher_list' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>
@@ -65,7 +62,7 @@
                     <li>Enable the teacher to record test scores and attendance</li>
                     <li>Permit the teacher to generate reports for the class</li>
                 </ul>
-                <p class="mb-0 text-muted">Note: A class can have multiple teachers assigned to it.</p>
+                <p class="mb-0 text-muted">Note: A teacher can only be assigned to one class at a time.</p>
             </div>
         </div>
     </div>
