@@ -16,7 +16,7 @@ urlpatterns = [
     path('logout/', CustomLogoutView.as_view(), name='custom_logout'),
 
     # School-specific routes
-    path('my-school/', SchoolRedirectView.as_view(), name='my_school'),
+    # path('my-school/', SchoolRedirectView.as_view(), name='my_school'),
 
 
 ]

@@ -10,6 +10,8 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.http import HttpResponseRedirect, Http404
 from .models import UserProfile
 from schools.models import School
+from academics.models import Year
+from academics.views import get_current_school_year_and_term
 
 class HomeView(TemplateView):
     """Home page view"""
@@ -84,9 +86,16 @@ class ProfileView(LoginRequiredMixin, UpdateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        school_slug = self.kwargs.get('school_slug')  # Access the slug from the URL
-        school = get_object_or_404(School, slug=school_slug)  # Fetch the school object
-        context['school'] = school  # Add the school to the context
+        school_slug = self.kwargs.get('school_slug')
+        school = get_object_or_404(School, slug=school_slug)
+        context['school'] = school
+
+        # Get current school year and term
+        current_year_term = get_current_school_year_and_term(self.request)
+        context['current_year'] = current_year_term['current_year']
+        context['current_term'] = current_year_term['current_term']
+        context['is_on_vacation'] = current_year_term['is_on_vacation']
+        
         return context
     def get_object(self):
         return self.request.user.profile

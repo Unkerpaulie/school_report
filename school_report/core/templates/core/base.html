@@ -44,7 +44,9 @@
                 {% if user.profile.user_type == 'principal' %}
                     {% if user.administered_schools.exists %}
                     <li class="{% block school_active %}{% endblock %}">
-                        <a href="#"><i class="bi bi-building"></i> My School</a>
+                        <a href="{% url 'academics:school_year_setup' school_slug=school.slug %}" class="nav-link">
+                            <i class="bi bi-building"></i> My School
+                        </a>
                     </li>
                     <li class="{% block teachers_active %}{% endblock %}">
                         <a href="{% url 'schools:teacher_list' school_slug=school.slug %}"><i class="bi bi-person-badge"></i> Teachers</a>
@@ -90,6 +92,9 @@
 
                     {% if school %}
                     <span class="ms-3 h5 mb-0">{{ school.name }}</span>
+                    {% if current_year and current_term %}
+                    <span class="ms-3 text-muted">{{ current_year.start_year }}-{{ current_year.start_year|add:1 }} Academic Year, Term {{ current_term }}</span>
+                    {% endif %}
                     {% endif %}
                     {% endif %}
 

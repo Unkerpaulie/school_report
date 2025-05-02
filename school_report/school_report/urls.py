@@ -39,6 +39,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # Include schools app URLs under school slug
     path('', include(('core.urls', 'core'), namespace='core')),
+    path('<slug:school_slug>/', include(('academics.urls', 'academics'), namespace='academics')),
     path('<slug:school_slug>/', include('schools.urls', namespace='schools')),
 
 ]
