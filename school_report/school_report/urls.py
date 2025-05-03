@@ -35,12 +35,18 @@ urlpatterns = [
     path('accounts/reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('accounts/reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
 
-    # Core URLs
+    # Admin URLs
     path('admin/', admin.site.urls),
-    # Include schools app URLs under school slug
-    path('', include(('core.urls', 'core'), namespace='core')),
-    path('<slug:school_slug>/', include(('academics.urls', 'academics'), namespace='academics')),
+
+    # Include app URLs in order of specificity
+    # Schools app URLs must come first since they handle the main school dashboard
     path('<slug:school_slug>/', include('schools.urls', namespace='schools')),
+
+    # Academics app URLs - these will be matched only if the URL doesn't match any schools URLs
+    path('<slug:school_slug>/academics/', include('academics.urls', namespace='academics')),
+
+    # Core URLs - these should be last as they handle the root paths
+    path('', include(('core.urls', 'core'), namespace='core')),
 
 ]
 

@@ -1,6 +1,10 @@
 {% extends 'core/base.html' %}
 {% load static %}
 
+{% block extra_js %}
+<script src="{% static 'js/count_weekdays.js' %}"></script>
+{% endblock %}
+
 {% block title %}Set Up School Year - School Report System{% endblock %}
 
 {% block content %}
@@ -19,7 +23,7 @@
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="id_start_year" class="form-label">Start Year</label>
@@ -29,52 +33,52 @@
 
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="id_term1_start_date" class="form-label">Term 1 Start Date</label>
-                            <input type="date" class="form-control" id="id_term1_start_date" name="term1_start_date" required>
+                            <label for="term1_start_date" class="form-label">Term 1 Start Date</label>
+                            <input type="date" class="form-control" id="term1_start_date" name="term1_start_date" onchange="calc_weekdays('term1')" required>
                         </div>
                         <div class="col-md-4">
-                            <label for="id_term1_end_date" class="form-label">Term 1 End Date</label>
-                            <input type="date" class="form-control" id="id_term1_end_date" name="term1_end_date" required>
+                            <label for="term1_end_date" class="form-label">Term 1 End Date</label>
+                            <input type="date" class="form-control" id="term1_end_date" name="term1_end_date" onchange="calc_weekdays('term1')" required>
                         </div>
                         <div class="col-md-4">
-                            <label for="id_term1_school_days" class="form-label">Term 1 School Days</label>
-                            <input type="number" class="form-control" id="id_term1_school_days" name="term1_school_days" required>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label for="id_term2_start_date" class="form-label">Term 2 Start Date</label>
-                            <input type="date" class="form-control" id="id_term2_start_date" name="term2_start_date" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="id_term2_end_date" class="form-label">Term 2 End Date</label>
-                            <input type="date" class="form-control" id="id_term2_end_date" name="term2_end_date" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="id_term2_school_days" class="form-label">Term 2 School Days</label>
-                            <input type="number" class="form-control" id="id_term2_school_days" name="term2_school_days" required>
+                            <label for="term1_weekdays" class="form-label">Term 1 School Days</label>
+                            <input type="number" class="form-control" id="term1_weekdays" name="term1_school_days" required>
                         </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="id_term3_start_date" class="form-label">Term 3 Start Date</label>
-                            <input type="date" class="form-control" id="id_term3_start_date" name="term3_start_date" required>
+                            <label for="term2_start_date" class="form-label">Term 2 Start Date</label>
+                            <input type="date" class="form-control" id="term2_start_date" name="term2_start_date" onchange="calc_weekdays('term2')" required>
                         </div>
                         <div class="col-md-4">
-                            <label for="id_term3_end_date" class="form-label">Term 3 End Date</label>
-                            <input type="date" class="form-control" id="id_term3_end_date" name="term3_end_date" required>
+                            <label for="term2_end_date" class="form-label">Term 2 End Date</label>
+                            <input type="date" class="form-control" id="term2_end_date" name="term2_end_date" onchange="calc_weekdays('term2')" required>
                         </div>
                         <div class="col-md-4">
-                            <label for="id_term3_school_days" class="form-label">Term 3 School Days</label>
-                            <input type="number" class="form-control" id="id_term3_school_days" name="term3_school_days" required>
+                            <label for="term2_weekdays" class="form-label">Term 2 School Days</label>
+                            <input type="number" class="form-control" id="term2_weekdays" name="term2_school_days" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="term3_start_date" class="form-label">Term 3 Start Date</label>
+                            <input type="date" class="form-control" id="term3_start_date" name="term3_start_date" onchange="calc_weekdays('term3')" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="term3_end_date" class="form-label">Term 3 End Date</label>
+                            <input type="date" class="form-control" id="term3_end_date" name="term3_end_date" onchange="calc_weekdays('term3')" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="term3_weekdays" class="form-label">Term 3 School Days</label>
+                            <input type="number" class="form-control" id="term3_weekdays" name="term3_school_days" required>
                         </div>
                     </div>
 
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Save School Year</button>
-                        <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'schools:dashboard' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>
