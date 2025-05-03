@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from .models import UserProfile
+from schools.models import AdministrationStaff
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
@@ -27,7 +28,7 @@ class UserProfileInline(admin.StackedInline):
 # Extend the default UserAdmin
 class CustomUserAdmin(UserAdmin):
     inlines = (UserProfileInline,)
-    list_display = ('username', 'email', 'first_name', 'last_name', 'get_user_type', 'is_staff')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'get_user_type', 'get_school', 'is_staff')
 
     # Make first name, last name, and email required in the admin
     fieldsets = (
@@ -51,6 +52,30 @@ class CustomUserAdmin(UserAdmin):
         except UserProfile.DoesNotExist:
             return '-'
     get_user_type.short_description = 'User Type'
+
+    def get_school(self, obj):
+        """
+        Get the school associated with the user
+        """
+        try:
+            # For principals
+            if obj.profile.user_type == 'principal' and hasattr(obj, 'administered_schools'):
+                school = obj.administered_schools.first()
+                if school:
+                    return school.name
+
+            # For teachers
+            elif obj.profile.user_type == 'teacher' and hasattr(obj, 'teacher_profile'):
+                return obj.teacher_profile.school.name
+
+            # For administration staff
+            elif obj.profile.user_type == 'administration' and hasattr(obj, 'admin_profile'):
+                return obj.admin_profile.school.name
+
+            return '-'
+        except Exception:
+            return '-'
+    get_school.short_description = 'School'
 
     def save_model(self, request, obj, form, change):
         """

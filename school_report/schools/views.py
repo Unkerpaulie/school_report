@@ -8,27 +8,20 @@ from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
 from core.models import UserProfile
 from academics.models import Year, StandardTeacher, Enrollment
-from .models import School, Teacher, Standard, Student
+from .models import School, Teacher, Standard, Student, AdministrationStaff
 
 
-class TeacherListView(LoginRequiredMixin, ListView):
+class StaffListView(LoginRequiredMixin, ListView):
     """
-    View for listing teachers in a school
+    View for listing all staff (teachers and administration) in a school
     """
     model = Teacher
-    template_name = 'schools/teacher_list.html'
-    context_object_name = 'teachers'
+    template_name = 'schools/staff_list.html'
+    context_object_name = 'staff_members'
 
     def get_queryset(self):
-        # Get all active teachers for this school
-        queryset = super().get_queryset()
-        queryset = queryset.filter(
-            school=self.school,
-            is_active=True
-        ).select_related('assigned_standard')
-        
-        # Annotate with current assignment status
-        return queryset
+        # This method is overridden below
+        pass
 
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
@@ -41,6 +34,11 @@ class TeacherListView(LoginRequiredMixin, ListView):
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
                 messages.error(request, "You do not have access to this school.")
                 return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
@@ -50,7 +48,47 @@ class TeacherListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return Teacher.objects.filter(school=self.school)
+        # Get teachers from this school
+        teachers = Teacher.objects.filter(school=self.school)
+
+        # Get administration staff from this school
+        admin_staff = AdministrationStaff.objects.filter(school=self.school)
+
+        # Create a list to hold all staff members with their type
+        staff_list = []
+
+        # Add teachers with their type
+        for teacher in teachers:
+            staff_list.append({
+                'id': teacher.id,
+                'name': str(teacher),
+                'email': teacher.contact_email,
+                'phone': teacher.contact_phone,
+                'type': 'Teacher',
+                'is_teacher': True,
+                'is_active': teacher.is_active,
+                'assigned_standard': getattr(teacher, 'assigned_standard', None),
+                'obj': teacher
+            })
+
+        # Add administration staff with their type
+        for admin in admin_staff:
+            staff_list.append({
+                'id': admin.id,
+                'name': str(admin),
+                'email': admin.contact_email,
+                'phone': admin.contact_phone,
+                'type': f'Administration ({admin.position})',
+                'is_teacher': False,
+                'is_active': admin.is_active,
+                'assigned_standard': None,
+                'obj': admin
+            })
+
+        # Sort the combined list by name
+        staff_list.sort(key=lambda x: x['name'])
+
+        return staff_list
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -78,7 +116,7 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
         return form
 
     def get_success_url(self):
-        return reverse_lazy('schools:teacher_list', kwargs={'school_slug': self.school_slug})
+        return reverse_lazy('schools:staff_list', kwargs={'school_slug': self.school_slug})
 
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
@@ -91,8 +129,13 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
                 messages.error(request, "You do not have access to this school.")
                 return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
         else:
-            messages.error(request, "Only principals can add teachers.")
+            messages.error(request, "Only principals and administration can add staff.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -166,6 +209,11 @@ class StudentListView(LoginRequiredMixin, ListView):
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
                 messages.error(request, "You do not have access to this school.")
                 return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
@@ -175,8 +223,8 @@ class StudentListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        # For principals, show all students in the school
-        if self.request.user.profile.user_type == 'principal':
+        # For principals and administration, show all students in the school
+        if self.request.user.profile.user_type in ['principal', 'administration']:
             return Student.objects.filter(school=self.school)
 
         # For teachers, show only students in their class
@@ -200,7 +248,7 @@ class StudentListView(LoginRequiredMixin, ListView):
         context['school_slug'] = self.school_slug
 
         # Add standards for filtering
-        if self.request.user.profile.user_type == 'principal':
+        if self.request.user.profile.user_type in ['principal', 'administration']:
             context['standards'] = Standard.objects.filter(school=self.school)
         elif self.request.user.profile.user_type == 'teacher':
             teacher = self.request.user.teacher_profile
@@ -232,6 +280,11 @@ class StandardListView(LoginRequiredMixin, ListView):
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
                 messages.error(request, "You do not have access to this school.")
                 return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
@@ -241,8 +294,8 @@ class StandardListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        # For principals, show all standards in the school
-        if self.request.user.profile.user_type == 'principal':
+        # For principals and administration, show all standards in the school
+        if self.request.user.profile.user_type in ['principal', 'administration']:
             return Standard.objects.filter(school=self.school)
 
         # For teachers, show only their assigned standard
@@ -280,6 +333,11 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
                 messages.error(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
@@ -330,7 +388,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
     fields = ['standard']  # Only need to select the standard
 
     def get_success_url(self):
-        return reverse_lazy('schools:teacher_list', kwargs={'school_slug': self.school_slug})
+        return reverse_lazy('schools:staff_list', kwargs={'school_slug': self.school_slug})
 
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
@@ -344,8 +402,13 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
                 messages.error(request, "You do not have access to this school.")
                 return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
         else:
-            messages.error(request, "Only principals can assign teachers.")
+            messages.error(request, "Only principals and administration can assign teachers.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -366,13 +429,13 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         # Get the teacher from the URL parameter
         teacher = get_object_or_404(Teacher, pk=self.teacher_id)
-        
+
         # Set the current academic year
         current_year = Year.objects.filter(
             term1_start_date__lte=self.request.user.date_joined,
             term3_end_date__gte=self.request.user.date_joined
         ).first()
-        
+
         if not current_year:
             messages.error(self.request, "No active academic year found.")
             return self.form_invalid(form)
@@ -385,4 +448,97 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         assignment.save()
 
         messages.success(self.request, f"Teacher {teacher} has been assigned to the class successfully!")
+        return redirect(self.get_success_url())
+
+
+class AdminStaffCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new administration staff member
+    """
+    model = AdministrationStaff
+    template_name = 'schools/admin_staff_form.html'
+    fields = ['title', 'first_name', 'last_name', 'contact_phone', 'contact_email', 'position']
+
+    # Add username field to the form
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Add username field
+        form.fields['username'] = forms.CharField(
+            max_length=150,
+            help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+        )
+        return form
+
+    def get_success_url(self):
+        return reverse_lazy('schools:staff_list', kwargs={'school_slug': self.school_slug})
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        self.school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=self.school_slug)
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
+        else:
+            messages.error(request, "Only principals and administration can add staff.")
+            return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+        return context
+
+    def form_valid(self, form):
+        # Create the administration staff
+        admin_staff = form.save(commit=False)
+        admin_staff.school = self.school
+
+        # Get username and email from form
+        username = form.cleaned_data['username']
+        email = form.cleaned_data['contact_email']
+        password = "ChangeMe!"  # Default password that must be changed
+
+        # Check if user with this username already exists
+        if User.objects.filter(username=username).exists():
+            messages.error(self.request, f"A user with the username '{username}' already exists.")
+            return self.form_invalid(form)
+
+        # Check if user with this email already exists
+        if User.objects.filter(email=email).exists():
+            messages.error(self.request, f"A user with the email '{email}' already exists.")
+            return self.form_invalid(form)
+
+        # Create the user
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=form.cleaned_data['first_name'],
+            last_name=form.cleaned_data['last_name']
+        )
+
+        # Update the user profile to be administration
+        profile = user.profile
+        profile.user_type = 'administration'
+        profile.phone_number = form.cleaned_data['contact_phone']
+        profile.must_change_password = True  # Force password change on first login
+        profile.save()
+
+        # Link the administration staff to the user
+        admin_staff.user = user
+        admin_staff.save()
+
+        messages.success(self.request, f"Administration staff {admin_staff} has been added successfully!")
         return redirect(self.get_success_url())

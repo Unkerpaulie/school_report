@@ -1,0 +1,107 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Add Administration Staff - School Report System{% endblock %}
+
+{% block staff_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0 text-gray-800">Add Administration Staff</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Administration Staff Information</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="id_title" class="form-label">Title</label>
+                            <select name="title" id="id_title" class="form-select" required>
+                                <option value="" selected disabled>Select title</option>
+                                {% for value, text in form.fields.title.choices %}
+                                <option value="{{ value }}" {% if form.title.value == value %}selected{% endif %}>{{ text }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="id_first_name" class="form-label">First Name</label>
+                            <input type="text" name="first_name" id="id_first_name" class="form-control" value="{{ form.first_name.value|default:'' }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="id_last_name" class="form-label">Last Name</label>
+                            <input type="text" name="last_name" id="id_last_name" class="form-control" value="{{ form.last_name.value|default:'' }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_contact_email" class="form-label">Email</label>
+                            <input type="email" name="contact_email" id="id_contact_email" class="form-control" value="{{ form.contact_email.value|default:'' }}" required>
+                            <div class="form-text">This email will be used for login and communication.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_contact_phone" class="form-label">Phone</label>
+                            <input type="tel" name="contact_phone" id="id_contact_phone" class="form-control" value="{{ form.contact_phone.value|default:'' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_position" class="form-label">Position</label>
+                            <input type="text" name="position" id="id_position" class="form-control" value="{{ form.position.value|default:'' }}" required>
+                            <div class="form-text">E.g., School Secretary, Office Manager, Registrar, etc.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_username" class="form-label">Username</label>
+                            <input type="text" name="username" id="id_username" class="form-control" value="{{ form.username.value|default:'' }}" required>
+                            <div class="form-text">{{ form.username.help_text }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">Login Information</h5>
+                        <p>A user account will be created with the following details:</p>
+                        <ul>
+                            <li><strong>Username:</strong> As specified above</li>
+                            <li><strong>Email:</strong> The contact email provided</li>
+                            <li><strong>Password:</strong> A temporary password that must be changed on first login</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">Add Administration Staff</button>
+                        <a href="{% url 'schools:staff_list' school_slug=school_slug %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">About Administration Staff</h6>
+            </div>
+            <div class="card-body">
+                <p>Administration staff members:</p>
+                <ul>
+                    <li>Have access to manage the school's data</li>
+                    <li>Can add and edit teachers, students, and classes</li>
+                    <li>Can view and generate reports</li>
+                    <li>Cannot be assigned to teach classes</li>
+                </ul>
+                <p class="mb-0 text-muted">Each administration staff member is assigned to a specific school.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Staff - School Report System{% endblock %}
+
+{% block staff_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0 text-gray-800">Staff</h1>
+        <div>
+            <a href="{% url 'schools:teacher_add' school_slug=school.slug %}" class="btn btn-primary">
+                <i class="bi bi-person-plus"></i> Add Teacher
+            </a>
+            <a href="{% url 'schools:admin_staff_add' school_slug=school.slug %}" class="btn btn-info">
+                <i class="bi bi-person-plus"></i> Add Administration Staff
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold">Staff List</h6>
+            </div>
+            <div class="card-body">
+                {% if staff_members %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="staffTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Staff Type</th>
+                                <th>Assigned To</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for staff in staff_members %}
+                            <tr>
+                                <td>{{ staff.name }}</td>
+                                <td>{{ staff.email }}</td>
+                                <td>{{ staff.phone|default:"-" }}</td>
+                                <td>{{ staff.type }}</td>
+                                <td>
+                                    {% if staff.assigned_standard %}
+                                    <span class="badge bg-info">
+                                        {{ staff.assigned_standard.get_name_display }}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Not Applicable</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if staff.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if staff.is_teacher %}
+                                        {% if staff.assigned_standard %}
+                                        <a href="#"
+                                           class="btn btn-sm btn-warning"
+                                           onclick="return confirm('Are you sure you want to unassign this teacher from their class?')">
+                                            <i class="bi bi-x-circle"></i> Unassign
+                                        </a>
+                                        {% else %}
+                                        <a href="{% url 'schools:assign_teacher' school_slug=school.slug pk=staff.obj.pk %}"
+                                           class="btn btn-sm btn-success">
+                                            <i class="bi bi-check-circle"></i> Assign Class
+                                        </a>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">No actions</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="lead text-muted">No staff members found.</p>
+                    <div class="mt-3">
+                        <a href="{% url 'schools:teacher_add' school_slug=school.slug %}" class="btn btn-primary mx-2">
+                            <i class="bi bi-person-plus"></i> Add Teacher
+                        </a>
+                        <a href="{% url 'schools:admin_staff_add' school_slug=school.slug %}" class="btn btn-info mx-2">
+                            <i class="bi bi-person-plus"></i> Add Administration Staff
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">About Staff Management</h6>
+            </div>
+            <div class="card-body">
+                <p>The staff management system allows you to:</p>
+                <ul>
+                    <li>Add and manage teachers and administration staff</li>
+                    <li>Assign teachers to specific classes</li>
+                    <li>Track staff contact information</li>
+                </ul>
+                <p class="mb-0 text-muted">Only principals and administration staff can manage staff members.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Staff Types</h6>
+            </div>
+            <div class="card-body">
+                <ul>
+                    <li><strong>Teachers:</strong> Can be assigned to classes and manage students</li>
+                    <li><strong>Administration:</strong> Handle administrative tasks for the school</li>
+                </ul>
+                <p class="mb-0 text-muted">Each staff member has their own login credentials to access the system.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize DataTable if it exists
+        if (document.getElementById('staffTable')) {
+            $('#staffTable').DataTable({
+                "order": [[0, "asc"]]
+            });
+        }
+    });
+</script>
+{% endblock %}

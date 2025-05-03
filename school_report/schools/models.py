@@ -102,6 +102,32 @@ class Student(Person):
     class Meta:
         ordering = ['last_name', 'first_name']
 
+
+class AdministrationStaff(Person):
+    """
+    Represents an administration staff member in the school system
+    """
+    TITLE_CHOICES = [
+        ('Mr', 'Mr'),
+        ('Mrs', 'Mrs'),
+        ('Ms', 'Ms'),
+        ('Dr', 'Dr'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_profile')
+    title = models.CharField(max_length=10, choices=TITLE_CHOICES)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='admin_staff')
+    contact_email = models.EmailField(blank=False, null=False)  # Override to make email required
+    position = models.CharField(max_length=100, help_text="Position or role in the school administration")
+
+    class Meta:
+        ordering = ['last_name', 'first_name']
+        verbose_name = 'Administration Staff'
+        verbose_name_plural = 'Administration Staff'
+
+    def __str__(self):
+        return f"{self.title} {self.first_name} {self.last_name} ({self.position})"
+
 # Signal to create standard classes when a school is created
 @receiver(post_save, sender=School)
 def create_standard_classes(sender, instance, created, **kwargs):

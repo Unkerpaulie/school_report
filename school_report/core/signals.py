@@ -17,8 +17,8 @@ def create_user_profile(sender, instance, created, raw, **kwargs):
 
     # Check if a profile already exists
     if created and not hasattr(instance, 'profile'):
-        # Default to staff user type if not specified
-        UserProfile.objects.create(user=instance, user_type='staff')
+        # Default to administration user type if not specified
+        UserProfile.objects.create(user=instance, user_type='administration')
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, created, raw, **kwargs):
