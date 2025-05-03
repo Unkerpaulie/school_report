@@ -1,0 +1,123 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Academic Years - School Report System{% endblock %}
+
+{% block academic_years_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h1 class="h3 mb-0 text-gray-800">Academic Years</h1>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <a href="{% url 'academics:school_year_setup' school_slug=school_slug %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add New Year
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold">Academic Years</h6>
+            </div>
+            <div class="card-body">
+                {% if years %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Academic Year</th>
+                                <th>Term 1</th>
+                                <th>Term 2</th>
+                                <th>Term 3</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for year in years %}
+                            <tr {% if current_year and current_year.id == year.id %}class="table-primary"{% endif %}>
+                                <td>
+                                    {{ year }}
+                                    {% if current_year and current_year.id == year.id %}
+                                    <span class="badge bg-primary">Current</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ year.term1_start_date|date:"M d, Y" }} - {{ year.term1_end_date|date:"M d, Y" }}
+                                    <br>
+                                    <small class="text-muted">{{ year.term1_school_days }} school days</small>
+                                </td>
+                                <td>
+                                    {{ year.term2_start_date|date:"M d, Y" }} - {{ year.term2_end_date|date:"M d, Y" }}
+                                    <br>
+                                    <small class="text-muted">{{ year.term2_school_days }} school days</small>
+                                </td>
+                                <td>
+                                    {{ year.term3_start_date|date:"M d, Y" }} - {{ year.term3_end_date|date:"M d, Y" }}
+                                    <br>
+                                    <small class="text-muted">{{ year.term3_school_days }} school days</small>
+                                </td>
+                                <td>
+                                    <a href="{% url 'academics:year_update' school_slug=school_slug pk=year.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
+                                    <a href="{% url 'academics:year_delete' school_slug=school_slug pk=year.id %}" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No academic years have been set up yet.</p>
+                    <a href="{% url 'academics:school_year_setup' school_slug=school_slug %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Set Up Academic Year
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">About Academic Years</h6>
+            </div>
+            <div class="card-body">
+                <p>Academic years in the School Report System:</p>
+                <ul>
+                    <li>Define the start and end dates for each term</li>
+                    <li>Determine the number of school days for attendance tracking</li>
+                    <li>Are used to organize student enrollments, teacher assignments, and reports</li>
+                </ul>
+                <p class="mb-0 text-muted">The current academic year is highlighted in blue.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul>
+                    <li>Set up the academic year before the school year begins</li>
+                    <li>Make sure term dates don't overlap</li>
+                    <li>The system automatically calculates school days based on weekdays (Monday-Friday)</li>
+                    <li>You can adjust the school days count to account for holidays</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

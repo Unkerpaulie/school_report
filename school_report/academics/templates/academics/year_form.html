@@ -5,12 +5,12 @@
 <script src="{% static 'js/count_weekdays.js' %}"></script>
 {% endblock %}
 
-{% block title %}Add New Academic Year - School Report System{% endblock %}
+{% block title %}Edit Academic Year - School Report System{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="h3 mb-0 text-gray-800">Add New Academic Year</h1>
+        <h1 class="h3 mb-0 text-gray-800">Edit Academic Year</h1>
     </div>
 </div>
 
@@ -18,7 +18,7 @@
     <div class="col-lg-8">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold">School Year Configuration</h6>
+                <h6 class="m-0 font-weight-bold">Academic Year Configuration</h6>
             </div>
             <div class="card-body">
                 <form method="post">
@@ -27,57 +27,60 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="id_start_year" class="form-label">Start Year</label>
-                            <input type="number" class="form-control" id="id_start_year" name="start_year" value="{{ form.start_year.value|default:current_year }}" required>
+                            <input type="number" class="form-control" id="id_start_year" name="start_year" value="{{ form.start_year.value }}" required>
                         </div>
                     </div>
 
+                    <h5 class="mt-4 mb-3">Term 1</h5>
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="term1_start_date" class="form-label">Term 1 Start Date</label>
-                            <input type="date" class="form-control" id="term1_start_date" name="term1_start_date" onchange="calc_weekdays('term1')" required>
+                            <input type="date" class="form-control" id="term1_start_date" name="term1_start_date" value="{{ form.term1_start_date.value|date:'Y-m-d' }}" onchange="calc_weekdays('term1')" required>
                         </div>
                         <div class="col-md-4">
                             <label for="term1_end_date" class="form-label">Term 1 End Date</label>
-                            <input type="date" class="form-control" id="term1_end_date" name="term1_end_date" onchange="calc_weekdays('term1')" required>
+                            <input type="date" class="form-control" id="term1_end_date" name="term1_end_date" value="{{ form.term1_end_date.value|date:'Y-m-d' }}" onchange="calc_weekdays('term1')" required>
                         </div>
                         <div class="col-md-4">
                             <label for="term1_weekdays" class="form-label">Term 1 School Days</label>
-                            <input type="number" class="form-control" id="term1_weekdays" name="term1_school_days" required>
+                            <input type="number" class="form-control" id="term1_weekdays" name="term1_school_days" value="{{ form.term1_school_days.value }}" required>
                         </div>
                     </div>
 
+                    <h5 class="mt-4 mb-3">Term 2</h5>
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="term2_start_date" class="form-label">Term 2 Start Date</label>
-                            <input type="date" class="form-control" id="term2_start_date" name="term2_start_date" onchange="calc_weekdays('term2')" required>
+                            <input type="date" class="form-control" id="term2_start_date" name="term2_start_date" value="{{ form.term2_start_date.value|date:'Y-m-d' }}" onchange="calc_weekdays('term2')" required>
                         </div>
                         <div class="col-md-4">
                             <label for="term2_end_date" class="form-label">Term 2 End Date</label>
-                            <input type="date" class="form-control" id="term2_end_date" name="term2_end_date" onchange="calc_weekdays('term2')" required>
+                            <input type="date" class="form-control" id="term2_end_date" name="term2_end_date" value="{{ form.term2_end_date.value|date:'Y-m-d' }}" onchange="calc_weekdays('term2')" required>
                         </div>
                         <div class="col-md-4">
                             <label for="term2_weekdays" class="form-label">Term 2 School Days</label>
-                            <input type="number" class="form-control" id="term2_weekdays" name="term2_school_days" required>
+                            <input type="number" class="form-control" id="term2_weekdays" name="term2_school_days" value="{{ form.term2_school_days.value }}" required>
                         </div>
                     </div>
 
+                    <h5 class="mt-4 mb-3">Term 3</h5>
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="term3_start_date" class="form-label">Term 3 Start Date</label>
-                            <input type="date" class="form-control" id="term3_start_date" name="term3_start_date" onchange="calc_weekdays('term3')" required>
+                            <input type="date" class="form-control" id="term3_start_date" name="term3_start_date" value="{{ form.term3_start_date.value|date:'Y-m-d' }}" onchange="calc_weekdays('term3')" required>
                         </div>
                         <div class="col-md-4">
                             <label for="term3_end_date" class="form-label">Term 3 End Date</label>
-                            <input type="date" class="form-control" id="term3_end_date" name="term3_end_date" onchange="calc_weekdays('term3')" required>
+                            <input type="date" class="form-control" id="term3_end_date" name="term3_end_date" value="{{ form.term3_end_date.value|date:'Y-m-d' }}" onchange="calc_weekdays('term3')" required>
                         </div>
                         <div class="col-md-4">
                             <label for="term3_weekdays" class="form-label">Term 3 School Days</label>
-                            <input type="number" class="form-control" id="term3_weekdays" name="term3_school_days" required>
+                            <input type="number" class="form-control" id="term3_weekdays" name="term3_school_days" value="{{ form.term3_school_days.value }}" required>
                         </div>
                     </div>
 
                     <div class="mt-4">
-                        <button type="submit" class="btn btn-primary">Add Academic Year</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
                         <a href="{% url 'academics:year_list' school_slug=school_slug %}" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
@@ -91,13 +94,13 @@
                 <h6 class="m-0 font-weight-bold">Help</h6>
             </div>
             <div class="card-body">
-                <p>Set up the school year by:</p>
+                <p>Edit the academic year by:</p>
                 <ul>
-                    <li>Entering the start year of the academic year</li>
-                    <li>Setting the start and end dates for each term</li>
-                    <li>Specifying the number of school days for each term</li>
+                    <li>Updating the start year of the academic year</li>
+                    <li>Adjusting the start and end dates for each term</li>
+                    <li>Modifying the number of school days for each term</li>
                 </ul>
-                <p class="mb-0 text-muted">Note: The school year will be used to track academic progress and generate reports.</p>
+                <p class="mb-0 text-muted">Note: Changes to the academic year will affect all related records.</p>
             </div>
         </div>
     </div>

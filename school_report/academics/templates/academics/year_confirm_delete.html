@@ -1,0 +1,67 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Delete Academic Year - School Report System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0 text-gray-800">Delete Academic Year</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Confirm Deletion</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading">Warning!</h5>
+                    <p>You are about to delete the academic year <strong>{{ object }}</strong>.</p>
+                    <p>This action cannot be undone. All data associated with this academic year will be permanently deleted.</p>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        Academic Year Details
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <tr>
+                                <th>Academic Year:</th>
+                                <td>{{ object }}</td>
+                            </tr>
+                            <tr>
+                                <th>Term 1:</th>
+                                <td>{{ object.term1_start_date|date:"M d, Y" }} - {{ object.term1_end_date|date:"M d, Y" }} ({{ object.term1_school_days }} school days)</td>
+                            </tr>
+                            <tr>
+                                <th>Term 2:</th>
+                                <td>{{ object.term2_start_date|date:"M d, Y" }} - {{ object.term2_end_date|date:"M d, Y" }} ({{ object.term2_school_days }} school days)</td>
+                            </tr>
+                            <tr>
+                                <th>Term 3:</th>
+                                <td>{{ object.term3_start_date|date:"M d, Y" }} - {{ object.term3_end_date|date:"M d, Y" }} ({{ object.term3_school_days }} school days)</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'academics:year_list' school_slug=school_slug %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Delete Academic Year
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
