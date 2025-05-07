@@ -9,7 +9,7 @@ from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import HttpResponseRedirect, Http404
 from .models import UserProfile
-from schools.models import School
+from schools.models import School, AdministrationStaff
 from academics.models import Year
 from academics.views import get_current_school_year_and_term
 
@@ -29,6 +29,12 @@ class HomeView(TemplateView):
             # Check if user is a teacher with a school
             elif request.user.profile.user_type == 'teacher' and hasattr(request.user, 'teacher_profile'):
                 school = request.user.teacher_profile.school
+                if school:
+                    return redirect('schools:dashboard', school_slug=school.slug)
+
+            # Check if user is administration staff with a school
+            elif request.user.profile.user_type == 'administration' and hasattr(request.user, 'admin_profile'):
+                school = request.user.admin_profile.school
                 if school:
                     return redirect('schools:dashboard', school_slug=school.slug)
 
@@ -83,7 +89,7 @@ class ProfileView(LoginRequiredMixin, UpdateView):
     template_name = 'core/profile.html'
     fields = ['phone_number']
     success_url = reverse_lazy('core:profile')
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         school_slug = self.kwargs.get('school_slug')
@@ -95,7 +101,7 @@ class ProfileView(LoginRequiredMixin, UpdateView):
         context['current_year'] = current_year_term['current_year']
         context['current_term'] = current_year_term['current_term']
         context['is_on_vacation'] = current_year_term['is_on_vacation']
-        
+
         return context
     def get_object(self):
         return self.request.user.profile
@@ -172,6 +178,12 @@ class SchoolRedirectView(LoginRequiredMixin, RedirectView):
         # If user is a teacher, redirect to their assigned school
         elif user.profile.user_type == 'teacher' and hasattr(user, 'teacher_profile'):
             school = user.teacher_profile.school
+            if school:
+                return reverse('schools:dashboard', kwargs={'school_slug': school.slug})
+
+        # If user is administration staff, redirect to their assigned school
+        elif user.profile.user_type == 'administration' and hasattr(user, 'admin_profile'):
+            school = user.admin_profile.school
             if school:
                 return reverse('schools:dashboard', kwargs={'school_slug': school.slug})
 

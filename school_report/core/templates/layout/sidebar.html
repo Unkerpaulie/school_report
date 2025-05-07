@@ -7,9 +7,9 @@
     <ul class="list-unstyled components">
         <li class="{% block dashboard_active %}{% endblock %}">
             {% if school %}
-            <a href="{% url 'schools:dashboard' school_slug=school.slug %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                <a href="{% url 'schools:dashboard' school_slug=school.slug %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
             {% else %}
-            <a href="{% url 'core:home' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                <a href="{% url 'core:home' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
             {% endif %}
         </li>
 
@@ -19,11 +19,6 @@
                 <a href="{% url 'core:register_school' %}"><i class="bi bi-building-add"></i> Register School</a>
             </li>
             {% elif user.profile.user_type == 'principal' and user.administered_schools.exists or user.profile.user_type == 'administration' and user.admin_profile %}
-            <li class="{% block school_active %}{% endblock %}">
-                <a href="{% url 'schools:dashboard' school_slug=school.slug %}" class="nav-link">
-                    <i class="bi bi-building"></i> School Dashboard
-                </a>
-            </li>
             <li class="{% block academic_years_active %}{% endblock %}">
                 <a href="{% url 'academics:year_list' school_slug=school.slug %}" class="nav-link">
                     <i class="bi bi-calendar3"></i> Academic Years
