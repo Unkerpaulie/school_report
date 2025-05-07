@@ -67,10 +67,9 @@
                                 <td>
                                     {% if staff.is_teacher %}
                                         {% if staff.assigned_standard %}
-                                        <a href="#"
-                                           class="btn btn-sm btn-warning"
-                                           onclick="return confirm('Are you sure you want to unassign this teacher from their class?')">
-                                            <i class="bi bi-x-circle"></i> Unassign
+                                        <a href="{% url 'schools:unassign_teacher' school_slug=school.slug assignment_id=staff.assignment_id %}"
+                                           class="btn btn-sm btn-warning">
+                                            <i class="bi bi-x-circle"></i> Remove Class
                                         </a>
                                         {% else %}
                                         <a href="{% url 'schools:assign_teacher' school_slug=school.slug pk=staff.obj.pk %}"

@@ -1,10 +1,10 @@
-from django.views.generic import ListView, CreateView, UpdateView, DetailView
+from django.views.generic import ListView, CreateView, UpdateView, DetailView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.urls import reverse_lazy
 from django import forms
 from django.http import Http404
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
 from core.models import UserProfile
 from academics.models import Year, StandardTeacher, Enrollment
@@ -57,8 +57,35 @@ class StaffListView(LoginRequiredMixin, ListView):
         # Create a list to hold all staff members with their type
         staff_list = []
 
-        # Add teachers with their type
+        # Get the current academic year
+        current_year = Year.objects.filter(
+            term1_start_date__lte=self.request.user.date_joined,
+            term3_end_date__gte=self.request.user.date_joined
+        ).first()
+
+        # Get all active teacher assignments for the current year
+        teacher_assignments = {}
+        if current_year:
+            assignments = StandardTeacher.objects.filter(
+                year=current_year,
+                is_active=True,
+                teacher__school=self.school
+            ).select_related('standard', 'teacher')
+
+            # Create a dictionary of teacher_id -> standard for quick lookup
+            for assignment in assignments:
+                teacher_assignments[assignment.teacher_id] = {
+                    'standard': assignment.standard,
+                    'assignment_id': assignment.id
+                }
+
+        # Add teachers with their type and assignment info
         for teacher in teachers:
+            # Check if this teacher has an assignment
+            assignment_info = teacher_assignments.get(teacher.id)
+            assigned_standard = assignment_info['standard'] if assignment_info else None
+            assignment_id = assignment_info['assignment_id'] if assignment_info else None
+
             staff_list.append({
                 'id': teacher.id,
                 'name': str(teacher),
@@ -67,7 +94,8 @@ class StaffListView(LoginRequiredMixin, ListView):
                 'type': 'Teacher',
                 'is_teacher': True,
                 'is_active': teacher.is_active,
-                'assigned_standard': getattr(teacher, 'assigned_standard', None),
+                'assigned_standard': assigned_standard,
+                'assignment_id': assignment_id,
                 'obj': teacher
             })
 
@@ -187,7 +215,7 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
         teacher.save()
 
         messages.success(self.request, f"Teacher {teacher} has been added successfully!")
-        return redirect(self.success_url)
+        return redirect(self.get_success_url())
 
 
 class StudentListView(LoginRequiredMixin, ListView):
@@ -415,8 +443,51 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
+        teacher = get_object_or_404(Teacher, pk=self.teacher_id)
+
+        # Get the current academic year
+        current_year = Year.objects.filter(
+            term1_start_date__lte=self.request.user.date_joined,
+            term3_end_date__gte=self.request.user.date_joined
+        ).first()
+
+        if not current_year:
+            # If no current year, show no standards
+            form.fields['standard'].queryset = Standard.objects.none()
+            messages.error(self.request, "No active academic year found. Please set up the academic year first.")
+            return form
+
+        # Check if the teacher is already assigned to a class
+        existing_assignment = StandardTeacher.objects.filter(
+            teacher=teacher,
+            year=current_year,
+            is_active=True
+        ).first()
+
+        if existing_assignment:
+            # If teacher is already assigned, show no standards
+            form.fields['standard'].queryset = Standard.objects.none()
+            messages.error(self.request, f"This teacher is already assigned to {existing_assignment.standard}.")
+            return form
+
         # Filter standards to only show those from the current school
-        form.fields['standard'].queryset = Standard.objects.filter(school=self.school)
+        # and exclude standards that already have a teacher assigned
+        assigned_standards = StandardTeacher.objects.filter(
+            year=current_year,
+            is_active=True
+        ).values_list('standard_id', flat=True)
+
+        available_standards = Standard.objects.filter(
+            school=self.school
+        ).exclude(
+            id__in=assigned_standards
+        )
+
+        form.fields['standard'].queryset = available_standards
+
+        if not available_standards.exists():
+            messages.warning(self.request, "There are no available classes for assignment. All classes already have teachers assigned.")
+
         return form
 
     def get_context_data(self, **kwargs):
@@ -430,6 +501,11 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         # Get the teacher from the URL parameter
         teacher = get_object_or_404(Teacher, pk=self.teacher_id)
 
+        # Verify teacher belongs to this school
+        if teacher.school != self.school:
+            messages.error(self.request, "This teacher does not belong to this school.")
+            return self.form_invalid(form)
+
         # Set the current academic year
         current_year = Year.objects.filter(
             term1_start_date__lte=self.request.user.date_joined,
@@ -440,6 +516,36 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
             messages.error(self.request, "No active academic year found.")
             return self.form_invalid(form)
 
+        # Get the selected standard
+        standard = form.cleaned_data['standard']
+
+        # Verify standard belongs to this school
+        if standard.school != self.school:
+            messages.error(self.request, "This class does not belong to this school.")
+            return self.form_invalid(form)
+
+        # Check if the teacher is already assigned to a class
+        existing_teacher_assignment = StandardTeacher.objects.filter(
+            teacher=teacher,
+            year=current_year,
+            is_active=True
+        ).first()
+
+        if existing_teacher_assignment:
+            messages.error(self.request, f"This teacher is already assigned to {existing_teacher_assignment.standard}.")
+            return self.form_invalid(form)
+
+        # Check if the class already has a teacher assigned
+        existing_class_assignment = StandardTeacher.objects.filter(
+            standard=standard,
+            year=current_year,
+            is_active=True
+        ).first()
+
+        if existing_class_assignment:
+            messages.error(self.request, f"This class already has {existing_class_assignment.teacher} assigned to it.")
+            return self.form_invalid(form)
+
         # Create the assignment
         assignment = form.save(commit=False)
         assignment.year = current_year
@@ -447,8 +553,91 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         assignment.is_active = True
         assignment.save()
 
-        messages.success(self.request, f"Teacher {teacher} has been assigned to the class successfully!")
+        messages.success(self.request, f"Teacher {teacher} has been assigned to {standard} successfully!")
         return redirect(self.get_success_url())
+
+
+class TeacherUnassignView(LoginRequiredMixin, View):
+    """
+    View for unassigning a teacher from a standard/class
+    """
+    def get(self, request, *args, **kwargs):
+        # Get the school by slug
+        school_slug = kwargs.get('school_slug')
+        school = get_object_or_404(School, slug=school_slug)
+        assignment_id = kwargs.get('assignment_id')
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=school.pk).exists():
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
+        else:
+            messages.error(request, "Only principals and administration can unassign teachers.")
+            return redirect('core:home')
+
+        # Get the assignment
+        assignment = get_object_or_404(StandardTeacher, pk=assignment_id)
+
+        # Verify the assignment belongs to a teacher in this school
+        if assignment.teacher.school != school:
+            messages.error(request, "This assignment does not belong to a teacher in this school.")
+            return redirect('schools:staff_list', school_slug=school_slug)
+
+        # Show confirmation page
+        return render(request, 'schools/teacher_unassign_confirm.html', {
+            'school': school,
+            'school_slug': school_slug,
+            'assignment': assignment,
+            'teacher': assignment.teacher,
+            'standard': assignment.standard
+        })
+
+    def post(self, request, *args, **kwargs):
+        # Get the school by slug
+        school_slug = kwargs.get('school_slug')
+        school = get_object_or_404(School, slug=school_slug)
+        assignment_id = kwargs.get('assignment_id')
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=school.pk).exists():
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != school.pk:
+                messages.error(request, "You do not have access to this school.")
+                return redirect('core:home')
+        else:
+            messages.error(request, "Only principals and administration can unassign teachers.")
+            return redirect('core:home')
+
+        # Get the assignment
+        assignment = get_object_or_404(StandardTeacher, pk=assignment_id)
+
+        # Verify the assignment belongs to a teacher in this school
+        if assignment.teacher.school != school:
+            messages.error(request, "This assignment does not belong to a teacher in this school.")
+            return redirect('schools:staff_list', school_slug=school_slug)
+
+        # Store teacher and standard for the success message
+        teacher = assignment.teacher
+        standard = assignment.standard
+
+        # Deactivate the assignment (don't delete it to preserve history)
+        assignment.is_active = False
+        assignment.save()
+
+        messages.success(request, f"Teacher {teacher} has been unassigned from {standard} successfully!")
+        return redirect('schools:staff_list', school_slug=school_slug)
 
 
 class AdminStaffCreateView(LoginRequiredMixin, CreateView):

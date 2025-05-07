@@ -21,7 +21,7 @@
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Teacher</label>
@@ -39,16 +39,16 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Assign Teacher</button>
-                        <a href="{% url 'schools:teacher_list' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'schools:staff_list' school_slug=school_slug %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-4">
         <div class="card shadow mb-4">
             <div class="card-header py-3">

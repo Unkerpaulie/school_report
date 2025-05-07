@@ -3,7 +3,7 @@
 
 {% block title %}Add Teacher - School Report System{% endblock %}
 
-{% block teachers_active %}active{% endblock %}
+{% block staff_active %}active{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -69,7 +69,7 @@
 
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Add Teacher</button>
-                        <a href="{% url 'schools:teacher_list' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'schools:staff_list' school_slug=school.slug %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

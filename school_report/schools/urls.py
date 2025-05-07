@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     StaffListView, TeacherCreateView, AdminStaffCreateView, StudentListView,
-    StandardListView, StandardDetailView, TeacherAssignmentCreateView
+    StandardListView, StandardDetailView, TeacherAssignmentCreateView,
+    TeacherUnassignView
 )
 from .dashboard import SchoolDashboardView
 
@@ -22,5 +23,6 @@ urlpatterns = [
     # Class/Standard URLs
     path('classes/', StandardListView.as_view(), name='standard_list'),
     path('classes/assign-teacher/<int:pk>/', TeacherAssignmentCreateView.as_view(), name='assign_teacher'),
+    path('classes/unassign-teacher/<int:assignment_id>/', TeacherUnassignView.as_view(), name='unassign_teacher'),
     path('classes/<int:pk>/', StandardDetailView.as_view(), name='standard_detail'),
 ]

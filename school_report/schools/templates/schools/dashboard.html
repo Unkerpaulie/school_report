@@ -1,5 +1,6 @@
 {% extends 'layout/base.html' %}
 {% load static %}
+{% load school_tags %}
 
 {% block title %}{{ school.name }} Dashboard - School Report System{% endblock %}
 
@@ -8,18 +9,12 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="h3 mb-0 text-gray-800">
-            {% if user_type == 'teacher' %}
-                My Dashboard
-            {% else %}
-                {{ school.name }} Dashboard
-            {% endif %}
-        </h1>
+        <h1 class="h3 mb-0 text-gray-800">{{ school.name }} Dashboard</h1>
     </div>
 </div>
 
-<!-- School Information Card (shown to all users) -->
 <div class="row">
+    <!-- School Information Card -->
     <div class="col-xl-4 col-md-6 mb-4">
         <div class="card border-left-primary shadow h-100 py-2">
             <div class="card-body">
@@ -37,9 +32,6 @@
         </div>
     </div>
 
-    {% if show_school_stats %}
-    <!-- For Principals and Administration: School-wide stats -->
-
     <!-- Teachers Card -->
     <div class="col-xl-4 col-md-6 mb-4">
         <div class="card border-left-success shadow h-100 py-2">
@@ -47,7 +39,11 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Staff</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ teacher_count }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ teacher_count|add:admin_staff_count }}</div>
+                        <div class="small text-muted">
+                            <span class="mr-2">{{ teacher_count }} Teachers</span>
+                            <span>{{ admin_staff_count }} Administration</span>
+                        </div>
                     </div>
                     <div class="col-auto">
                         <i class="bi bi-people fa-2x text-gray-300"></i>
@@ -64,18 +60,20 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Students</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ student_count }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ school.students.count }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="bi bi-mortarboard fa-2x text-gray-300"></i>
+                        <i class="bi bi-people fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
+<div class="row">
     <!-- Classes Overview -->
-    <div class="col-lg-6 mt-4">
+    <div class="col-lg-6">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                 <h6 class="m-0 font-weight-bold">Classes</h6>
@@ -92,25 +90,18 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for standard in school.standards.all|slice:":5" %}
+                            {% for standard in school.standards.all %}
                             <tr>
                                 <td>{{ standard.get_name_display }}</td>
                                 <td>
-                                    {% for assignment in standard.standardteacher_set.all %}
-                                        {% if assignment.is_active %}
-                                            {{ assignment.teacher }}
-                                            {% if not forloop.last %}, {% endif %}
-                                        {% endif %}
-                                    {% empty %}
+                                    {% if teacher_assignments and standard.id in teacher_assignments %}
+                                        {{ teacher_assignments|get_item:standard.id }}
+                                    {% else %}
                                         <span class="text-muted">Not assigned</span>
-                                    {% endfor %}
+                                    {% endif %}
                                 </td>
                                 <td>{{ standard.student_set.count }}</td>
                             </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="3" class="text-center">No classes found</td>
-                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -119,122 +110,8 @@
         </div>
     </div>
 
-    <!-- Staff Overview -->
-    <div class="col-lg-6 mt-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold">Staff</h6>
-                <a href="{% url 'schools:staff_list' school_slug=school.slug %}" class="btn btn-sm btn-primary">View All</a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Role</th>
-                                <th>Contact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for teacher in school.teachers.all|slice:":5" %}
-                            <tr>
-                                <td>{{ teacher }}</td>
-                                <td>Teacher</td>
-                                <td>{{ teacher.contact_email }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="3" class="text-center">No staff found</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {% elif show_teacher_stats %}
-    <!-- For Teachers: Class-specific stats -->
-
-    <!-- My Classes Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">My Classes</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ assigned_classes|length }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-mortarboard fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- My Students Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">My Students</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ student_count }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-people fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- My Classes Overview -->
-    <div class="col-12 mt-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold">My Classes</h6>
-                <a href="{% url 'schools:standard_list' school_slug=school.slug %}" class="btn btn-sm btn-primary">View All</a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>Class</th>
-                                <th>Students</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for assignment in assigned_classes %}
-                            <tr>
-                                <td>{{ assignment.standard.get_name_display }}</td>
-                                <td>{{ assignment.standard.student_set.count }}</td>
-                                <td>
-                                    <a href="{% url 'schools:standard_detail' school_slug=school.slug pk=assignment.standard.id %}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-eye"></i> View
-                                    </a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="3" class="text-center">You are not assigned to any classes</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Recent Activity (shown to all users) -->
-    <div class="col-12 mt-4">
+    <!-- Recent Activity -->
+    <div class="col-lg-6">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold">Recent Activity</h6>
