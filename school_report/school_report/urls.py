@@ -38,15 +38,15 @@ urlpatterns = [
     # Admin URLs
     path('admin/', admin.site.urls),
 
+    # Core URLs - these should be last as they handle the root paths
+    path('', include(('core.urls', 'core'), namespace='core')),
+
     # Include app URLs in order of specificity
     # Schools app URLs must come first since they handle the main school dashboard
     path('<slug:school_slug>/', include('schools.urls', namespace='schools')),
 
     # Academics app URLs - these will be matched only if the URL doesn't match any schools URLs
     path('<slug:school_slug>/academics/', include('academics.urls', namespace='academics')),
-
-    # Core URLs - these should be last as they handle the root paths
-    path('', include(('core.urls', 'core'), namespace='core')),
 
 ]
 

@@ -1,0 +1,41 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        {% if user.is_authenticated %}
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="bi bi-list"></i>
+        </button>
+
+        {% if school %}
+        <span class="ms-3 h5 mb-0">{{ school.name }}</span>
+        {% if current_year and current_term %}
+        <span class="ms-3 text-muted">{{ current_year.start_year }}-{{ current_year.start_year|add:1 }} Academic Year, Term {{ current_term }}</span>
+        {% endif %}
+        {% endif %}
+        {% endif %}
+
+        <div class="ms-auto d-flex">
+            {% if user.is_authenticated %}
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li><a class="dropdown-item" href="{% url 'core:profile' school_slug=school.slug %}"><i class="bi bi-person"></i> Profile</a></li>
+                    <li><a class="dropdown-item" href="{% url 'password_change' %}"><i class="bi bi-key"></i> Change Password</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="post" action="{% url 'core:custom_logout' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            {% else %}
+            <a href="{% url 'login' %}" class="btn btn-outline-primary"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
