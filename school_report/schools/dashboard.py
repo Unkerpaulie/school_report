@@ -18,12 +18,12 @@ class SchoolDashboardView(LoginRequiredMixin, TemplateView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)

@@ -1,0 +1,187 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Student Details - School Report System{% endblock %}
+
+{% block students_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0 text-gray-800">Student Details</h1>
+        <div>
+            <a href="{% url 'schools:student_edit' school_slug=school_slug pk=student.id %}" class="btn btn-info">
+                <i class="bi bi-pencil"></i> Edit Student
+            </a>
+            <a href="{% url 'schools:student_enroll' school_slug=school_slug student_id=student.id %}" class="btn btn-primary">
+                <i class="bi bi-mortarboard"></i> Enroll in Class
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Student Information Card -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Personal Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h5 class="font-weight-bold">{{ student.first_name }} {{ student.last_name }}</h5>
+                    {% if not student.is_active %}
+                    <span class="badge bg-warning text-dark">Inactive</span>
+                    {% endif %}
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Date of Birth:</div>
+                    <div class="col-7">{{ student.date_of_birth|date:"d M Y" }}</div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Parent/Guardian:</div>
+                    <div class="col-7">{{ student.parent_name }}</div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Contact Phone:</div>
+                    <div class="col-7">{{ student.contact_phone|default:"Not provided" }}</div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Created:</div>
+                    <div class="col-7">{{ student.created_at|date:"d M Y" }}</div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Last Updated:</div>
+                    <div class="col-7">{{ student.updated_at|date:"d M Y" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Enrollment Card -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Current Enrollment</h6>
+            </div>
+            <div class="card-body">
+                {% if current_enrollment %}
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Class:</div>
+                    <div class="col-7">{{ current_enrollment.standard.get_name_display }}</div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Academic Year:</div>
+                    <div class="col-7">{{ current_enrollment.year }}</div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Teacher:</div>
+                    <div class="col-7">
+                        {% for assignment in current_enrollment.standard.teacher_assignments.all %}
+                            {% if assignment.is_active and assignment.year == current_enrollment.year %}
+                                {{ assignment.teacher }}
+                            {% endif %}
+                        {% empty %}
+                            <span class="text-muted">Not assigned</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-5 text-muted">Enrolled On:</div>
+                    <div class="col-7">{{ current_enrollment.created_at|date:"d M Y" }}</div>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="{% url 'schools:student_enroll' school_slug=school_slug student_id=student.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-repeat"></i> Change Class
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">Student is not currently enrolled in any class.</p>
+                    <a href="{% url 'schools:student_enroll' school_slug=school_slug student_id=student.id %}" class="btn btn-primary">
+                        <i class="bi bi-mortarboard"></i> Enroll in Class
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Academic Performance Card -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Academic Performance</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-4">
+                    <p class="text-muted">No academic records available yet.</p>
+                    {% if current_enrollment %}
+                    <a href="#" class="btn btn-primary">
+                        <i class="bi bi-file-earmark-text"></i> View Reports
+                    </a>
+                    {% else %}
+                    <p class="small text-muted">Student must be enrolled in a class to view academic records.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enrollment History -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Enrollment History</h6>
+            </div>
+            <div class="card-body">
+                {% if enrollments %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Academic Year</th>
+                                <th>Class</th>
+                                <th>Status</th>
+                                <th>Enrolled On</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for enrollment in enrollments %}
+                            <tr>
+                                <td>{{ enrollment.year }}</td>
+                                <td>{{ enrollment.standard.get_name_display }}</td>
+                                <td>
+                                    {% if enrollment.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ enrollment.created_at|date:"d M Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No enrollment history available.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

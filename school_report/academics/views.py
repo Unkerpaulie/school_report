@@ -5,9 +5,41 @@ from django.contrib import messages
 from django.utils import timezone
 from django.urls import reverse_lazy
 from django.db.models import Q
+from django import forms
+from django.core.exceptions import ValidationError
 from .models import Year
 from schools.models import School
 from core.mixins import SchoolAdminRequiredMixin, SchoolAccessRequiredMixin
+
+
+class YearForm(forms.ModelForm):
+    """
+    Custom form for Year model with additional validation
+    """
+    class Meta:
+        model = Year
+        fields = ['start_year', 'term1_start_date', 'term1_end_date', 'term1_school_days',
+                  'term2_start_date', 'term2_end_date', 'term2_school_days',
+                  'term3_start_date', 'term3_end_date', 'term3_school_days']
+
+    def clean_start_year(self):
+        """
+        Validate that start_year is unique
+        """
+        start_year = self.cleaned_data.get('start_year')
+
+        # Check if this is an update
+        instance = getattr(self, 'instance', None)
+        if instance and instance.pk:
+            # If this is an update, exclude the current instance from the check
+            if Year.objects.filter(start_year=start_year).exclude(pk=instance.pk).exists():
+                raise ValidationError("An academic year with this start year already exists.")
+        else:
+            # If this is a new instance, check if the start_year already exists
+            if Year.objects.filter(start_year=start_year).exists():
+                raise ValidationError("An academic year with this start year already exists.")
+
+        return start_year
 
 class YearListView(LoginRequiredMixin, SchoolAdminRequiredMixin, ListView):
     """
@@ -37,9 +69,7 @@ class YearUpdateView(LoginRequiredMixin, SchoolAdminRequiredMixin, UpdateView):
     """
     model = Year
     template_name = 'academics/year_form.html'
-    fields = ['start_year', 'term1_start_date', 'term1_end_date', 'term1_school_days',
-              'term2_start_date', 'term2_end_date', 'term2_school_days',
-              'term3_start_date', 'term3_end_date', 'term3_school_days']
+    form_class = YearForm
 
     def get_success_url(self):
         return reverse_lazy('academics:year_list', kwargs={'school_slug': self.school_slug})
@@ -77,7 +107,7 @@ class YearDeleteView(LoginRequiredMixin, SchoolAdminRequiredMixin, DeleteView):
             year.enrollments.exists() or
             year.standard_subjects.exists() or
             year.term_tests.exists()):
-            messages.error(request, "Cannot delete this academic year because it has related records.")
+            messages.warning(request, "Cannot delete this academic year because it has related records.")
             return redirect(self.get_success_url())
 
         # If no related records, proceed with deletion
@@ -91,26 +121,9 @@ class SchoolYearSetupView(LoginRequiredMixin, SchoolAdminRequiredMixin, CreateVi
     """
     model = Year
     template_name = 'academics/school_year_setup.html'
-    fields = ['start_year', 'term1_start_date', 'term1_end_date', 'term1_school_days',
-              'term2_start_date', 'term2_end_date', 'term2_school_days',
-              'term3_start_date', 'term3_end_date', 'term3_school_days']
+    form_class = YearForm
 
-    def dispatch(self, request, *args, **kwargs):
-        # Get the school by slug
-        self.school_slug = kwargs.get('school_slug')
-        self.school = get_object_or_404(School, slug=self.school_slug)
 
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
-                return redirect('core:home')
-        else:
-            messages.error(request, "Only principals can set up school year.")
-            return redirect('core:home')
-
-        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

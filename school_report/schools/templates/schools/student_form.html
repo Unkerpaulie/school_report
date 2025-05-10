@@ -1,0 +1,135 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}{% if is_update %}Edit{% else %}Add{% endif %} Student - School Report System{% endblock %}
+
+{% block students_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0 text-gray-800">{% if is_update %}Edit{% else %}Add{% endif %} Student</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Student Information</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_first_name" class="form-label">First Name</label>
+                            <input type="text" name="first_name" id="id_first_name" class="form-control" value="{{ form.first_name.value|default:'' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_last_name" class="form-label">Last Name</label>
+                            <input type="text" name="last_name" id="id_last_name" class="form-control" value="{{ form.last_name.value|default:'' }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_date_of_birth" class="form-label">Date of Birth</label>
+                            <input type="date" name="date_of_birth" id="id_date_of_birth" class="form-control" value="{{ form.date_of_birth.value|date:'Y-m-d'|default:'' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_contact_phone" class="form-label">Contact Phone</label>
+                            <input type="tel" name="contact_phone" id="id_contact_phone" class="form-control" value="{{ form.contact_phone.value|default:'' }}">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="id_parent_name" class="form-label">Parent/Guardian Name</label>
+                            <input type="text" name="parent_name" id="id_parent_name" class="form-control" value="{{ form.parent_name.value|default:'' }}" required>
+                        </div>
+                    </div>
+
+                    {% if is_update %}
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="id_is_active" {% if form.is_active.value %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_active">
+                                    Active Student
+                                </label>
+                                <div class="form-text">Inactive students are not shown in class lists and reports.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if current_enrollment %}
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">Current Enrollment</h5>
+                        <p>This student is currently enrolled in <strong>{{ current_enrollment.standard.get_name_display }}</strong>.</p>
+                        <p>To change the student's class, use the <a href="{% url 'schools:student_enroll' school_slug=school_slug student_id=student.id %}" class="alert-link">Enroll in Class</a> option.</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">No Current Enrollment</h5>
+                        <p>This student is not currently enrolled in any class.</p>
+                        <p>To enroll the student, use the <a href="{% url 'schools:student_enroll' school_slug=school_slug student_id=student.id %}" class="alert-link">Enroll in Class</a> option.</p>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_academic_year" class="form-label">Academic Year</label>
+                            <select name="academic_year" id="id_academic_year" class="form-select" required>
+                                <option value="" selected disabled>Select academic year</option>
+                                {% for year in form.fields.academic_year.queryset %}
+                                <option value="{{ year.id }}" {% if form.academic_year.value == year.id %}selected{% endif %}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">{{ form.academic_year.help_text }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_standard" class="form-label">Class</label>
+                            <select name="standard" id="id_standard" class="form-select" required>
+                                <option value="" selected disabled>Select class</option>
+                                {% for standard in form.fields.standard.queryset %}
+                                <option value="{{ standard.id }}" {% if form.standard.value == standard.id %}selected{% endif %}>{{ standard.get_name_display }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">{{ form.standard.help_text }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            {% if is_update %}Update{% else %}Add{% endif %} Student
+                        </button>
+                        <a href="{% url 'schools:student_list' school_slug=school_slug %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">About Students</h6>
+            </div>
+            <div class="card-body">
+                <p>Students are enrolled in classes for each academic year.</p>
+                <ul>
+                    <li>Each student must have a first name, last name, and date of birth</li>
+                    <li>Parent/guardian information is required for communication</li>
+                    <li>Students can be enrolled in only one class at a time</li>
+                    <li>Inactive students are not shown in class lists and reports</li>
+                </ul>
+                <p class="mb-0 text-muted">Students can be transferred between classes during the academic year if needed.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,14 +1,18 @@
 from django.views.generic import ListView, CreateView, UpdateView, DetailView, View
+from django.views.generic.edit import FormView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.urls import reverse_lazy
 from django import forms
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
+from django.core.validators import FileExtensionValidator
 from core.models import UserProfile
 from academics.models import Year, StandardTeacher, Enrollment
 from .models import School, Teacher, Standard, Student, AdministrationStaff
+import csv
+from datetime import datetime
 
 
 class StaffListView(LoginRequiredMixin, ListView):
@@ -32,17 +36,17 @@ class StaffListView(LoginRequiredMixin, ListView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -155,15 +159,15 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         else:
-            messages.error(request, "Only principals and administration can add staff.")
+            messages.warning(request, "Only principals and administration can add staff.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -186,12 +190,12 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
 
         # Check if user with this username already exists
         if User.objects.filter(username=username).exists():
-            messages.error(self.request, f"A user with the username '{username}' already exists.")
+            messages.warning(self.request, f"A user with the username '{username}' already exists.")
             return self.form_invalid(form)
 
         # Check if user with this email already exists
         if User.objects.filter(email=email).exists():
-            messages.error(self.request, f"A user with the email '{email}' already exists.")
+            messages.warning(self.request, f"A user with the email '{email}' already exists.")
             return self.form_invalid(form)
 
         # Create the user
@@ -235,17 +239,17 @@ class StudentListView(LoginRequiredMixin, ListView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -306,17 +310,17 @@ class StandardListView(LoginRequiredMixin, ListView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -361,17 +365,17 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'teacher':
             # Teachers should only access their assigned school
             if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -428,15 +432,15 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         else:
-            messages.error(request, "Only principals and administration can assign teachers.")
+            messages.warning(request, "Only principals and administration can assign teachers.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -454,7 +458,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         if not current_year:
             # If no current year, show no standards
             form.fields['standard'].queryset = Standard.objects.none()
-            messages.error(self.request, "No active academic year found. Please set up the academic year first.")
+            messages.warning(self.request, "No active academic year found. Please set up the academic year first.")
             return form
 
         # Check if the teacher is already assigned to a class
@@ -467,7 +471,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         if existing_assignment:
             # If teacher is already assigned, show no standards
             form.fields['standard'].queryset = Standard.objects.none()
-            messages.error(self.request, f"This teacher is already assigned to {existing_assignment.standard}.")
+            messages.warning(self.request, f"This teacher is already assigned to {existing_assignment.standard}.")
             return form
 
         # Filter standards to only show those from the current school
@@ -503,7 +507,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
 
         # Verify teacher belongs to this school
         if teacher.school != self.school:
-            messages.error(self.request, "This teacher does not belong to this school.")
+            messages.warning(self.request, "This teacher does not belong to this school.")
             return self.form_invalid(form)
 
         # Set the current academic year
@@ -513,7 +517,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         ).first()
 
         if not current_year:
-            messages.error(self.request, "No active academic year found.")
+            messages.warning(self.request, "No active academic year found.")
             return self.form_invalid(form)
 
         # Get the selected standard
@@ -521,7 +525,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
 
         # Verify standard belongs to this school
         if standard.school != self.school:
-            messages.error(self.request, "This class does not belong to this school.")
+            messages.warning(self.request, "This class does not belong to this school.")
             return self.form_invalid(form)
 
         # Check if the teacher is already assigned to a class
@@ -532,7 +536,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         ).first()
 
         if existing_teacher_assignment:
-            messages.error(self.request, f"This teacher is already assigned to {existing_teacher_assignment.standard}.")
+            messages.warning(self.request, f"This teacher is already assigned to {existing_teacher_assignment.standard}.")
             return self.form_invalid(form)
 
         # Check if the class already has a teacher assigned
@@ -543,7 +547,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         ).first()
 
         if existing_class_assignment:
-            messages.error(self.request, f"This class already has {existing_class_assignment.teacher} assigned to it.")
+            messages.warning(self.request, f"This class already has {existing_class_assignment.teacher} assigned to it.")
             return self.form_invalid(form)
 
         # Create the assignment
@@ -571,15 +575,15 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         else:
-            messages.error(request, "Only principals and administration can unassign teachers.")
+            messages.warning(request, "Only principals and administration can unassign teachers.")
             return redirect('core:home')
 
         # Get the assignment
@@ -587,7 +591,7 @@ class TeacherUnassignView(LoginRequiredMixin, View):
 
         # Verify the assignment belongs to a teacher in this school
         if assignment.teacher.school != school:
-            messages.error(request, "This assignment does not belong to a teacher in this school.")
+            messages.warning(request, "This assignment does not belong to a teacher in this school.")
             return redirect('schools:staff_list', school_slug=school_slug)
 
         # Show confirmation page
@@ -609,15 +613,15 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         else:
-            messages.error(request, "Only principals and administration can unassign teachers.")
+            messages.warning(request, "Only principals and administration can unassign teachers.")
             return redirect('core:home')
 
         # Get the assignment
@@ -625,7 +629,7 @@ class TeacherUnassignView(LoginRequiredMixin, View):
 
         # Verify the assignment belongs to a teacher in this school
         if assignment.teacher.school != school:
-            messages.error(request, "This assignment does not belong to a teacher in this school.")
+            messages.warning(request, "This assignment does not belong to a teacher in this school.")
             return redirect('schools:staff_list', school_slug=school_slug)
 
         # Store teacher and standard for the success message
@@ -638,6 +642,563 @@ class TeacherUnassignView(LoginRequiredMixin, View):
 
         messages.success(request, f"Teacher {teacher} has been unassigned from {standard} successfully!")
         return redirect('schools:staff_list', school_slug=school_slug)
+
+
+class StudentCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new student
+    """
+    model = Student
+    template_name = 'schools/student_form.html'
+    fields = ['first_name', 'last_name', 'date_of_birth', 'parent_name', 'contact_phone']
+
+    def get_success_url(self):
+        return reverse_lazy('schools:student_list', kwargs={'school_slug': self.school_slug})
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        self.school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=self.school_slug)
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'teacher':
+            # Teachers should only access their assigned school
+            if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        else:
+            messages.warning(request, "You do not have permission to add students.")
+            return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Add standard field for enrollment
+        from academics.models import Year, Standard
+
+        # Add academic year field
+        form.fields['academic_year'] = forms.ModelChoiceField(
+            queryset=Year.objects.all().order_by('-start_year'),
+            required=True,
+            label="Academic Year",
+            help_text="Select the academic year for enrollment"
+        )
+
+        # Add standard field
+        form.fields['standard'] = forms.ModelChoiceField(
+            queryset=Standard.objects.filter(school=self.school),
+            required=True,
+            label="Class",
+            help_text="Select the class to enroll the student in"
+        )
+
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+        return context
+
+    def form_valid(self, form):
+        # Create the student
+        student = form.save(commit=False)
+        student.school = self.school
+        student.is_active = True
+        student.save()
+
+        # Enroll the student if a standard was selected
+        if 'standard' in form.cleaned_data and form.cleaned_data['standard'] and 'academic_year' in form.cleaned_data and form.cleaned_data['academic_year']:
+            from academics.models import Enrollment
+            standard = form.cleaned_data['standard']
+            academic_year = form.cleaned_data['academic_year']
+
+            # Create enrollment
+            enrollment = Enrollment.objects.create(
+                year=academic_year,
+                standard=standard,
+                student=student,
+                is_active=True
+            )
+
+            messages.success(self.request, f"Student {student} has been added and enrolled in {standard.get_name_display()} for the {academic_year} academic year.")
+        else:
+            messages.success(self.request, f"Student {student} has been added successfully!")
+
+        return redirect(self.get_success_url())
+
+
+class StudentUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating an existing student
+    """
+    model = Student
+    template_name = 'schools/student_form.html'
+    fields = ['first_name', 'last_name', 'date_of_birth', 'parent_name', 'contact_phone', 'is_active']
+    context_object_name = 'student'
+
+    def get_success_url(self):
+        return reverse_lazy('schools:student_list', kwargs={'school_slug': self.school_slug})
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        self.school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=self.school_slug)
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'teacher':
+            # Teachers should only access their assigned school
+            if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        else:
+            messages.warning(request, "You do not have permission to edit students.")
+            return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        # Get the student by ID and ensure it belongs to the correct school
+        student = super().get_object(queryset)
+        if student.school != self.school:
+            raise Http404("Student not found in this school")
+        return student
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+        context['is_update'] = True
+
+        # Get current enrollment
+        from academics.models import Enrollment, Year
+
+        # Get current academic year
+        current_year = Year.objects.filter(
+            term1_start_date__lte=self.request.user.date_joined,
+            term3_end_date__gte=self.request.user.date_joined
+        ).first()
+
+        if current_year:
+            current_enrollment = Enrollment.objects.filter(
+                student=self.object,
+                year=current_year,
+                is_active=True
+            ).first()
+
+            if current_enrollment:
+                context['current_enrollment'] = current_enrollment
+
+        return context
+
+    def form_valid(self, form):
+        # Update the student
+        student = form.save()
+        messages.success(self.request, f"Student {student} has been updated successfully!")
+        return redirect(self.get_success_url())
+
+
+class StudentDetailView(LoginRequiredMixin, DetailView):
+    """
+    View for showing details of a student
+    """
+    model = Student
+    template_name = 'schools/student_detail.html'
+    context_object_name = 'student'
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        self.school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=self.school_slug)
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'teacher':
+            # Teachers should only access their assigned school
+            if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        # Get the student by ID and ensure it belongs to the correct school
+        student = super().get_object(queryset)
+        if student.school != self.school:
+            raise Http404("Student not found in this school")
+        return student
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+
+        # Get enrollment history
+        from academics.models import Enrollment
+
+        enrollments = Enrollment.objects.filter(
+            student=self.object
+        ).select_related('year', 'standard').order_by('-year__start_year')
+
+        context['enrollments'] = enrollments
+
+        # Get current enrollment
+        current_enrollment = enrollments.filter(is_active=True).first()
+        if current_enrollment:
+            context['current_enrollment'] = current_enrollment
+
+        return context
+
+
+class EnrollmentCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for enrolling a student in a class
+    """
+    model = Enrollment
+    template_name = 'schools/enrollment_form.html'
+    fields = ['standard']
+
+    def get_success_url(self):
+        return reverse_lazy('schools:student_detail', kwargs={
+            'school_slug': self.school_slug,
+            'pk': self.student.pk
+        })
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        self.school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=self.school_slug)
+
+        # Get the student
+        self.student_id = kwargs.get('student_id')
+        self.student = get_object_or_404(Student, pk=self.student_id, school=self.school)
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        else:
+            messages.warning(request, "Only principals and administration can enroll students.")
+            return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+
+        # Add academic year field
+        from academics.models import Year
+
+        form.fields['academic_year'] = forms.ModelChoiceField(
+            queryset=Year.objects.all().order_by('-start_year'),
+            required=True,
+            label="Academic Year",
+            help_text="Select the academic year for enrollment"
+        )
+
+        # Filter standards to only show those from the current school
+        form.fields['standard'].queryset = Standard.objects.filter(school=self.school)
+
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+        context['student'] = self.student
+        return context
+
+    def form_valid(self, form):
+        academic_year = form.cleaned_data['academic_year']
+
+        # Deactivate any existing enrollments for this student in the selected year
+        existing_enrollments = Enrollment.objects.filter(
+            student=self.student,
+            year=academic_year,
+            is_active=True
+        )
+
+        for enrollment in existing_enrollments:
+            enrollment.is_active = False
+            enrollment.save()
+
+        # Create the new enrollment
+        enrollment = form.save(commit=False)
+        enrollment.year = academic_year
+        enrollment.student = self.student
+        enrollment.is_active = True
+        enrollment.save()
+
+        messages.success(self.request, f"Student {self.student} has been enrolled in {enrollment.standard.get_name_display()} for the {academic_year} academic year.")
+        return redirect(self.get_success_url())
+
+
+class StudentBulkUploadForm(forms.Form):
+    """
+    Form for uploading a CSV file of students
+    """
+    file = forms.FileField(
+        label='Select a CSV file',
+        help_text='Max. 5 megabytes',
+        validators=[FileExtensionValidator(allowed_extensions=['csv'])]
+    )
+    standard = forms.ModelChoiceField(
+        queryset=Standard.objects.none(),  # Will be populated in the view
+        label='Class',
+        help_text='Select the class to enroll these students in'
+    )
+    academic_year = forms.ModelChoiceField(
+        queryset=Year.objects.all().order_by('-start_year'),
+        label='Academic Year',
+        help_text='Select the academic year for enrollment'
+    )
+
+
+class StudentBulkUploadView(LoginRequiredMixin, FormView):
+    """
+    View for bulk uploading students from a CSV file
+    """
+    template_name = 'schools/student_bulk_upload.html'
+    form_class = StudentBulkUploadForm
+    success_url = None  # Will be set dynamically
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        self.school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=self.school_slug)
+
+        # Check if user has access to this school
+        if request.user.profile.user_type == 'principal':
+            # Principals should only access their own school
+            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        elif request.user.profile.user_type == 'administration':
+            # Administration users can only access their assigned school
+            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
+                messages.warning(request, "You do not have access to this school.")
+                return redirect('core:home')
+        else:
+            messages.warning(request, "Only principals and administration can upload students.")
+            return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Populate the standard choices with classes from this school
+        form.fields['standard'].queryset = Standard.objects.filter(school=self.school)
+        return form
+
+    def get_success_url(self):
+        return reverse_lazy('schools:student_list', kwargs={'school_slug': self.school_slug})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+
+        # Clear any previous import errors when displaying the form
+        if 'import_errors' in self.request.session:
+            del self.request.session['import_errors']
+
+        return context
+
+    def form_valid(self, form):
+        # Get the uploaded file, selected class and academic year
+        csv_file = form.cleaned_data['file']
+        standard = form.cleaned_data['standard']
+        academic_year = form.cleaned_data['academic_year']
+
+        # Check if it's a CSV file
+        if not csv_file.name.endswith('.csv'):
+            messages.warning(self.request, "Please upload a CSV file.")
+            return self.form_invalid(form)
+
+        # Process the file
+        decoded_file = csv_file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+
+        # Convert to list to ensure we can iterate multiple times if needed
+        rows = list(reader)
+
+        # Check if file is empty or has no data rows
+        if not rows or len(rows) == 1:
+            messages.warning(self.request, "The uploaded CSV file is empty or has no data rows.")
+            return self.form_invalid(form)
+
+        # Track results
+        success_count = 0
+        error_records = []
+
+        # Process each row
+        from django.db import transaction
+        for row_num, row in enumerate(rows, start=2):  # Start at 2 to account for header row
+            try:
+                # Validate required fields
+                required_fields = ['first_name', 'last_name', 'date_of_birth', 'parent_name']
+                for field in required_fields:
+                    if not row.get(field) or row.get(field).strip() == '':
+                        raise ValueError(f"Missing required field: {field}")
+
+                # Validate date format - try multiple formats
+                date_str = row['date_of_birth'].strip()
+                date_of_birth = None
+
+                # Try different date formats
+                date_formats = ['%Y-%m-%d', '%d/%m/%Y']
+                for date_format in date_formats:
+                    try:
+                        date_of_birth = datetime.strptime(date_str, date_format).date()
+                        break  # Exit the loop if successful
+                    except ValueError:
+                        continue  # Try the next format
+
+                # If all formats failed
+                if date_of_birth is None:
+                    raise ValueError("Invalid date format. Accepted formats: YYYY-MM-DD or DD/MM/YYYY.")
+
+                # Create the student with transaction
+                with transaction.atomic():
+                    # Create the student
+                    student = Student.objects.create(
+                        school=self.school,
+                        first_name=row['first_name'].strip(),
+                        last_name=row['last_name'].strip(),
+                        date_of_birth=date_of_birth,
+                        parent_name=row['parent_name'].strip(),
+                        contact_phone=row.get('contact_phone', '').strip(),
+                        is_active=True
+                    )
+
+                    # Enroll the student in the selected class for the selected academic year
+                    Enrollment.objects.create(
+                        year=academic_year,
+                        standard=standard,
+                        student=student,
+                        is_active=True
+                    )
+
+                # Increment success count
+                success_count += 1
+
+            except Exception as e:
+                # Add to error records
+                error_records.append({
+                    'row': row_num,
+                    'data': row,
+                    'error': str(e)
+                })
+                # Continue processing the next row
+
+        # Display results
+        if success_count > 0:
+            messages.success(
+                self.request,
+                f"Successfully imported {success_count} students into {standard.get_name_display()} for the {academic_year} academic year."
+            )
+
+        if error_records:
+            # Store error records in session for display
+            self.request.session['import_errors'] = error_records
+            err_table = """
+                <table class="table"><thead><tr>
+                    <th scope="col">first_name</th>
+                    <th scope="col">last_name</th>
+                    <th scope="col">date_of_birth</th>
+                    <th scope="col">parent_name</th>
+                    <th scope="col">contact_phone</th>
+                    <th scope="col"><i class="bi bi-exclamation-circle text-danger"></i><span class="text-danger">Error</span></th>
+                </tr></thead><tbody>"""
+            for error in error_records:
+                err_table += f"""
+                <tr>
+                    <td>{error['data']['first_name']}</td>
+                    <td>{error['data']['last_name']}</td>
+                    <td>{error['data']['date_of_birth']}</td>
+                    <td>{error['data']['parent_name']}</td>
+                    <td>{error['data']['contact_phone']}</td>
+                    <td class="text-danger">{error['error']}</td>
+                </tr>"""
+            err_table += "</tbody></table>"
+            from django.utils.safestring import mark_safe
+            messages.warning(
+                self.request,
+                mark_safe(f"Encountered {len(error_records)} errors during import. "
+                f"<button type='button' class='btn btn-link p-0 m-0 align-baseline' "
+                f"data-bs-toggle='collapse' data-bs-target='#csv-errors' aria-expanded='false'>View details</button>"
+                f'<div class="collapse" id="csv-errors">'
+                f'<div class="card card-body">'
+                f'{err_table}'
+                f'</div></div>'
+                )
+            )
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        # Check for file validation errors (example)
+        if 'file' in form.errors:
+            for error in form.errors['file']:
+                messages.warning(self.request, error)
+
+        # Alternatively, show a generic error
+        # messages.error(self.request, "Please correct the errors below.")
+
+        return super().form_invalid(form)
+
+
+def student_csv_template(request, school_slug=None):
+    """
+    View for downloading a CSV template for student bulk upload
+    """
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="student_template.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['first_name', 'last_name', 'date_of_birth', 'parent_name', 'contact_phone'])
+
+    # Add a sample row
+    writer.writerow(['John', 'Doe', '2015-05-12', 'Jane Doe', '555-1234'])
+
+    return response
 
 
 class AdminStaffCreateView(LoginRequiredMixin, CreateView):
@@ -670,15 +1231,15 @@ class AdminStaffCreateView(LoginRequiredMixin, CreateView):
         if request.user.profile.user_type == 'principal':
             # Principals should only access their own school
             if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         elif request.user.profile.user_type == 'administration':
             # Administration users can only access their assigned school
             if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.error(request, "You do not have access to this school.")
+                messages.warning(request, "You do not have access to this school.")
                 return redirect('core:home')
         else:
-            messages.error(request, "Only principals and administration can add staff.")
+            messages.warning(request, "Only principals and administration can add staff.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -701,12 +1262,12 @@ class AdminStaffCreateView(LoginRequiredMixin, CreateView):
 
         # Check if user with this username already exists
         if User.objects.filter(username=username).exists():
-            messages.error(self.request, f"A user with the username '{username}' already exists.")
+            messages.warning(self.request, f"A user with the username '{username}' already exists.")
             return self.form_invalid(form)
 
         # Check if user with this email already exists
         if User.objects.filter(email=email).exists():
-            messages.error(self.request, f"A user with the email '{email}' already exists.")
+            messages.warning(self.request, f"A user with the email '{email}' already exists.")
             return self.form_invalid(form)
 
         # Create the user

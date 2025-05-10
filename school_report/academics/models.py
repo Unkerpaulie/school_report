@@ -6,7 +6,7 @@ class Year(models.Model):
     """
     Represents an academic year with three terms
     """
-    start_year = models.PositiveIntegerField()
+    start_year = models.PositiveIntegerField(unique=True)
 
     # Term 1
     term1_start_date = models.DateField()
@@ -31,6 +31,36 @@ class Year(models.Model):
 
     def __str__(self):
         return f"{self.start_year}-{self.start_year + 1} Academic Year"
+
+    def clean(self):
+        """
+        Validate that term dates don't overlap and are in the correct order
+        """
+        from django.core.exceptions import ValidationError
+
+        # Check that term1 end date is after start date
+        if self.term1_start_date and self.term1_end_date and self.term1_start_date > self.term1_end_date:
+            raise ValidationError({'term1_end_date': 'Term 1 end date must be after the start date.'})
+
+        # Check that term2 start date is after term1 end date
+        if self.term1_end_date and self.term2_start_date and self.term1_end_date >= self.term2_start_date:
+            raise ValidationError({'term2_start_date': 'Term 2 start date must be after Term 1 end date.'})
+
+        # Check that term2 end date is after start date
+        if self.term2_start_date and self.term2_end_date and self.term2_start_date > self.term2_end_date:
+            raise ValidationError({'term2_end_date': 'Term 2 end date must be after the start date.'})
+
+        # Check that term3 start date is after term2 end date
+        if self.term2_end_date and self.term3_start_date and self.term2_end_date >= self.term3_start_date:
+            raise ValidationError({'term3_start_date': 'Term 3 start date must be after Term 2 end date.'})
+
+        # Check that term3 end date is after start date
+        if self.term3_start_date and self.term3_end_date and self.term3_start_date > self.term3_end_date:
+            raise ValidationError({'term3_end_date': 'Term 3 end date must be after the start date.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 class Subject(models.Model):
     """

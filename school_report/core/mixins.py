@@ -42,7 +42,7 @@ class SchoolAdminRequiredMixin:
             return super().dispatch(request, *args, **kwargs)
 
         # If not, show an error message and redirect
-        messages.error(request, "You do not have permission to access this page.")
+        messages.warning(request, "You do not have permission to access this page.")
         return redirect('core:home')
 
     def get_context_data(self, **kwargs):
@@ -68,7 +68,7 @@ class PrincipalRequiredMixin:
 
         # Check if user is a principal
         if request.user.profile.user_type != 'principal':
-            messages.error(request, "Only principals can access this page.")
+            messages.warning(request, "Only principals can access this page.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -103,7 +103,7 @@ class SchoolPrincipalRequiredMixin:
             return super().dispatch(request, *args, **kwargs)
 
         # If not, show an error message and redirect
-        messages.error(request, "Only the principal of this school can access this page.")
+        messages.warning(request, "Only the principal of this school can access this page.")
         return redirect('core:home')
 
     def get_context_data(self, **kwargs):
@@ -157,7 +157,7 @@ class SchoolAccessRequiredMixin:
             return super().dispatch(request, *args, **kwargs)
 
         # If not, show an error message and redirect
-        messages.error(request, "You do not have permission to access this page.")
+        messages.warning(request, "You do not have permission to access this page.")
         return redirect('core:home')
 
     def get_context_data(self, **kwargs):

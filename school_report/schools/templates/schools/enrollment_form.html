@@ -1,0 +1,78 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Enroll Student - School Report System{% endblock %}
+
+{% block students_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0 text-gray-800">Enroll Student in Class</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Enrollment Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-4">
+                    <h5 class="alert-heading">Student: {{ student.first_name }} {{ student.last_name }}</h5>
+                    <p class="mb-0">Select an academic year and class to enroll this student.</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_academic_year" class="form-label">Academic Year</label>
+                            <select name="academic_year" id="id_academic_year" class="form-select" required>
+                                <option value="" selected disabled>Select academic year</option>
+                                {% for year in form.fields.academic_year.queryset %}
+                                <option value="{{ year.id }}" {% if form.academic_year.value == year.id %}selected{% endif %}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">{{ form.academic_year.help_text }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_standard" class="form-label">Class</label>
+                            <select name="standard" id="id_standard" class="form-select" required>
+                                <option value="" selected disabled>Select class</option>
+                                {% for standard in form.fields.standard.queryset %}
+                                <option value="{{ standard.id }}" {% if form.standard.value == standard.id %}selected{% endif %}>{{ standard.get_name_display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">Enroll Student</button>
+                        <a href="{% url 'schools:student_detail' school_slug=school_slug pk=student.id %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">About Enrollment</h6>
+            </div>
+            <div class="card-body">
+                <p>Enrolling a student assigns them to a specific class for a selected academic year.</p>
+                <ul>
+                    <li>Students can only be enrolled in one class at a time</li>
+                    <li>Changing a student's class will deactivate their previous enrollment</li>
+                    <li>Enrollment history is preserved for record-keeping</li>
+                </ul>
+                <p class="mb-0 text-muted">Students must be enrolled in a class to appear in class lists and reports.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -53,12 +53,12 @@ class SchoolRegistrationView(LoginRequiredMixin, CreateView):
     def dispatch(self, request, *args, **kwargs):
         # Check if the user is a principal
         if not request.user.profile.user_type == 'principal':
-            messages.error(request, "Only principals can register schools.")
+            messages.warning(request, "Only principals can register schools.")
             return redirect('core:home')
 
         # Check if the principal already has a school
         if hasattr(request.user, 'administered_schools') and request.user.administered_schools.exists():
-            messages.error(request, "You already have a registered school.")
+            messages.warning(request, "You already have a registered school.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)

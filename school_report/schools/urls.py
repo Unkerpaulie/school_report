@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     StaffListView, TeacherCreateView, AdminStaffCreateView, StudentListView,
     StandardListView, StandardDetailView, TeacherAssignmentCreateView,
-    TeacherUnassignView
+    TeacherUnassignView, StudentCreateView, StudentUpdateView, StudentDetailView,
+    EnrollmentCreateView, StudentBulkUploadView, student_csv_template
 )
 from .dashboard import SchoolDashboardView
 
@@ -19,6 +20,12 @@ urlpatterns = [
 
     # Student URLs
     path('students/', StudentListView.as_view(), name='student_list'),
+    path('students/add/', StudentCreateView.as_view(), name='student_add'),
+    path('students/upload/', StudentBulkUploadView.as_view(), name='student_upload'),
+    path('students/csv-template/', student_csv_template, name='student_csv_template'),
+    path('students/<int:pk>/', StudentDetailView.as_view(), name='student_detail'),
+    path('students/<int:pk>/edit/', StudentUpdateView.as_view(), name='student_edit'),
+    path('students/<int:student_id>/enroll/', EnrollmentCreateView.as_view(), name='student_enroll'),
 
     # Class/Standard URLs
     path('classes/', StandardListView.as_view(), name='standard_list'),
