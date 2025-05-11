@@ -108,6 +108,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static "js/datatables.js" %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize DataTable if it exists
@@ -115,7 +116,7 @@
             $('#studentsTable').DataTable({
                 "order": [[0, "asc"]]
             });
-        }
+       }
     });
 </script>
 {% endblock %}

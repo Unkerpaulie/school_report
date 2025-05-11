@@ -178,4 +178,82 @@
     });
 </script>
 {% endif %}
+
+{% if request.session.duplicate_records %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-warning">Duplicate Students</h6>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" type="button" data-bs-toggle="collapse" data-bs-target="#duplicates" aria-expanded="false">
+                        Toggle Details
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" id="copyDuplicatesBtn" type="button">
+                        <i class="bi bi-clipboard"></i> Copy Duplicates
+                    </button>
+                </div>
+            </div>
+            <div class="collapse" id="duplicates">
+                <div class="card-body">
+                    <div class="alert alert-warning mb-3">
+                        <p class="mb-0">These students already exist in the system and were not imported to avoid duplicates. You can view the existing student records by clicking the links.</p>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="duplicateTable">
+                            <thead>
+                                <tr>
+                                    <th>Row</th>
+                                    <th>Data</th>
+                                    <th>Existing Student</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for duplicate in request.session.duplicate_records %}
+                                <tr>
+                                    <td>{{ duplicate.row }}</td>
+                                    <td>
+                                        <code>{{ duplicate.data.first_name }},{{ duplicate.data.last_name }},{{ duplicate.data.date_of_birth }},{{ duplicate.data.parent_name }},{{ duplicate.data.contact_phone|default:"" }}</code>
+                                    </td>
+                                    <td class="text-warning">
+                                        Student already exists (ID: {{ duplicate.existing_student.id }}) -
+                                        <a href="{% url 'schools:student_detail' school_slug=school_slug pk=duplicate.existing_student.id %}">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add functionality to copy duplicate data
+        document.getElementById('copyDuplicatesBtn').addEventListener('click', function() {
+            // Create a string with all duplicate data
+            let duplicateData = '';
+            const rows = document.querySelectorAll('#duplicateTable tbody tr');
+
+            rows.forEach(row => {
+                const dataCell = row.querySelector('td:nth-child(2) code');
+                if (dataCell) {
+                    duplicateData += dataCell.textContent + '\n';
+                }
+            });
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(duplicateData).then(() => {
+                alert('Duplicate data copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy data. Please try selecting and copying manually.');
+            });
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}

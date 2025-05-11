@@ -2,7 +2,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DetailView, V
 from django.views.generic.edit import FormView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django import forms
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, get_object_or_404, render
@@ -1041,9 +1041,12 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
         context['school'] = self.school
         context['school_slug'] = self.school_slug
 
-        # Clear any previous import errors when displaying the form
+        # Clear any previous import errors and duplicates when displaying the form
         if 'import_errors' in self.request.session:
             del self.request.session['import_errors']
+
+        if 'duplicate_records' in self.request.session:
+            del self.request.session['duplicate_records']
 
         return context
 
@@ -1073,6 +1076,7 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
         # Track results
         success_count = 0
         error_records = []
+        duplicate_records = []
 
         # Process each row
         from django.db import transaction
@@ -1101,15 +1105,38 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 if date_of_birth is None:
                     raise ValueError("Invalid date format. Accepted formats: YYYY-MM-DD or DD/MM/YYYY.")
 
+                # Check for duplicate students
+                first_name = row['first_name'].strip()
+                last_name = row['last_name'].strip()
+                parent_name = row['parent_name'].strip()
+
+                # Check if a student with the same details already exists
+                existing_student = Student.objects.filter(
+                    school=self.school,
+                    first_name__iexact=first_name,
+                    last_name__iexact=last_name,
+                    date_of_birth=date_of_birth,
+                    parent_name__iexact=parent_name
+                ).first()
+
+                if existing_student:
+                    # Add to duplicate records
+                    duplicate_records.append({
+                        'row': row_num,
+                        'data': row,
+                        'existing_student': existing_student
+                    })
+                    continue  # Skip to the next row
+
                 # Create the student with transaction
                 with transaction.atomic():
                     # Create the student
                     student = Student.objects.create(
                         school=self.school,
-                        first_name=row['first_name'].strip(),
-                        last_name=row['last_name'].strip(),
+                        first_name=first_name,
+                        last_name=last_name,
                         date_of_birth=date_of_birth,
-                        parent_name=row['parent_name'].strip(),
+                        parent_name=parent_name,
                         contact_phone=row.get('contact_phone', '').strip(),
                         is_active=True
                     )
@@ -1141,6 +1168,7 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 f"Successfully imported {success_count} students into {standard.get_name_display()} for the {academic_year} academic year."
             )
 
+        # Handle error records
         if error_records:
             # Store error records in session for display
             self.request.session['import_errors'] = error_records
@@ -1160,7 +1188,7 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                     <td>{error['data']['last_name']}</td>
                     <td>{error['data']['date_of_birth']}</td>
                     <td>{error['data']['parent_name']}</td>
-                    <td>{error['data']['contact_phone']}</td>
+                    <td>{error['data'].get('contact_phone', '')}</td>
                     <td class="text-danger">{error['error']}</td>
                 </tr>"""
             err_table += "</tbody></table>"
@@ -1173,6 +1201,47 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 f'<div class="collapse" id="csv-errors">'
                 f'<div class="card card-body">'
                 f'{err_table}'
+                f'</div></div>'
+                )
+            )
+
+        # Handle duplicate records
+        if duplicate_records:
+            # Store duplicate records in session for display
+            self.request.session['duplicate_records'] = duplicate_records
+            dup_table = """
+                <table class="table"><thead><tr>
+                    <th scope="col">first_name</th>
+                    <th scope="col">last_name</th>
+                    <th scope="col">date_of_birth</th>
+                    <th scope="col">parent_name</th>
+                    <th scope="col">contact_phone</th>
+                    <th scope="col"><i class="bi bi-exclamation-triangle text-warning"></i><span class="text-warning">Existing Student</span></th>
+                </tr></thead><tbody>"""
+            for duplicate in duplicate_records:
+                existing = duplicate['existing_student']
+                dup_table += f"""
+                <tr>
+                    <td>{duplicate['data']['first_name']}</td>
+                    <td>{duplicate['data']['last_name']}</td>
+                    <td>{duplicate['data']['date_of_birth']}</td>
+                    <td>{duplicate['data']['parent_name']}</td>
+                    <td>{duplicate['data'].get('contact_phone', '')}</td>
+                    <td class="text-warning">
+                        Student already exists (ID: {existing.id}) -
+                        <a href="{reverse('schools:student_detail', kwargs={'school_slug': self.school_slug, 'pk': existing.id})}">View</a>
+                    </td>
+                </tr>"""
+            dup_table += "</tbody></table>"
+            from django.utils.safestring import mark_safe
+            messages.warning(
+                self.request,
+                mark_safe(f"Found {len(duplicate_records)} duplicate students during import. These records were not imported. "
+                f"<button type='button' class='btn btn-link p-0 m-0 align-baseline' "
+                f"data-bs-toggle='collapse' data-bs-target='#csv-duplicates' aria-expanded='false'>View details</button>"
+                f'<div class="collapse" id="csv-duplicates">'
+                f'<div class="card card-body">'
+                f'{dup_table}'
                 f'</div></div>'
                 )
             )

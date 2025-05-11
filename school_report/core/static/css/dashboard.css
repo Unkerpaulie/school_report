@@ -70,7 +70,7 @@
 }
 
 .content.active {
-    margin-left: -250px;
+    margin-left: 0;
 }
 
 /* Navbar */
