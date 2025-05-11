@@ -328,15 +328,21 @@ class StandardListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         # For principals and administration, show all standards in the school
         if self.request.user.profile.user_type in ['principal', 'administration']:
-            return Standard.objects.filter(school=self.school)
+            return Standard.objects.filter(school=self.school).prefetch_related(
+                'teacher_assignments__teacher',
+                'student_enrollments__student'
+            )
 
         # For teachers, show only their assigned standard
         elif self.request.user.profile.user_type == 'teacher':
             teacher = self.request.user.teacher_profile
             return Standard.objects.filter(
                 school=self.school,
-                standardteacher__teacher=teacher,
-                standardteacher__is_active=True
+                teacher_assignments__teacher=teacher,
+                teacher_assignments__is_active=True
+            ).prefetch_related(
+                'teacher_assignments__teacher',
+                'student_enrollments__student'
             ).distinct()
 
         return Standard.objects.none()
@@ -404,8 +410,8 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
         # Get students enrolled in this standard
         context['enrolled_students'] = Student.objects.filter(
             school=standard.school,
-            enrollment__standard=standard,
-            enrollment__is_active=True
+            standard_enrollments__standard=standard,
+            standard_enrollments__is_active=True
         ).distinct()
 
         return context

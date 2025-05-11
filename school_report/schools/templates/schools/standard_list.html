@@ -44,10 +44,10 @@
                         <tbody>
                             {% for standard in standards %}
                             <tr>
-                                <td>{{ standard.name }}</td>
+                                <td>{{ standard.get_name_display }}</td>
                                 <td>{{ standard.section|default:"-" }}</td>
                                 <td>
-                                    {% for assignment in standard.standardteacher_set.all %}
+                                    {% for assignment in standard.teacher_assignments.all %}
                                         {% if assignment.is_active %}
                                             {{ assignment.teacher }}
                                             {% if not forloop.last %}, {% endif %}
@@ -56,7 +56,11 @@
                                         <span class="text-muted">Not assigned</span>
                                     {% endfor %}
                                 </td>
-                                <td>{{ standard.student_set.count }}</td>
+                                <td>
+                                    {% with enrolled_students=standard.student_enrollments.all %}
+                                        {{ enrolled_students|length }}
+                                    {% endwith %}
+                                </td>
                                 <td>
                                     <a href="{% url 'schools:standard_detail' school_slug=school.slug pk=standard.id %}" class="btn btn-sm btn-primary">
                                         <i class="bi bi-eye"></i> View
