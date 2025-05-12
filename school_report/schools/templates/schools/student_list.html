@@ -69,7 +69,7 @@
                                         <span class="text-muted">Not enrolled</span>
                                     {% endfor %}
                                 </td>
-                                <td>{{ student.date_of_birth|date:"d M Y"|default:"-" }}</td>
+                                <td>{{ student.date_of_birth|date:"Y, M d"|default:"-" }}</td>
                                 <td>{{ student.parent_name }}</td>
                                 <td>
                                     <a href="{% url 'schools:student_detail' school_slug=school_slug pk=student.id %}" class="btn btn-sm btn-primary">

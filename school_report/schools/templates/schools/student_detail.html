@@ -37,7 +37,7 @@
                 
                 <div class="row mb-2">
                     <div class="col-5 text-muted">Date of Birth:</div>
-                    <div class="col-7">{{ student.date_of_birth|date:"d M Y" }}</div>
+                    <div class="col-7">{{ student.date_of_birth|date:"Y, M d" }}</div>
                 </div>
                 
                 <div class="row mb-2">
@@ -52,12 +52,12 @@
                 
                 <div class="row mb-2">
                     <div class="col-5 text-muted">Created:</div>
-                    <div class="col-7">{{ student.created_at|date:"d M Y" }}</div>
+                    <div class="col-7">{{ student.created_at|date:"Y, M d" }}</div>
                 </div>
                 
                 <div class="row mb-2">
                     <div class="col-5 text-muted">Last Updated:</div>
-                    <div class="col-7">{{ student.updated_at|date:"d M Y" }}</div>
+                    <div class="col-7">{{ student.updated_at|date:"Y, M d" }}</div>
                 </div>
             </div>
         </div>

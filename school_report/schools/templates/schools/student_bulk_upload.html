@@ -216,8 +216,12 @@
                                         <code>{{ duplicate.data.first_name }},{{ duplicate.data.last_name }},{{ duplicate.data.date_of_birth }},{{ duplicate.data.parent_name }},{{ duplicate.data.contact_phone|default:"" }}</code>
                                     </td>
                                     <td class="text-warning">
-                                        Student already exists (ID: {{ duplicate.existing_student.id }}) -
-                                        <a href="{% url 'schools:student_detail' school_slug=school_slug pk=duplicate.existing_student.id %}">View</a>
+                                        {% if duplicate.same_school %}
+                                            Student already exists in this school (ID: {{ duplicate.existing_student_id }}, {{ duplicate.existing_student_name }}) -
+                                        {% else %}
+                                            Student already exists in another school: {{ duplicate.school_name }} (ID: {{ duplicate.existing_student_id }}, {{ duplicate.existing_student_name }}) -
+                                        {% endif %}
+                                        <a href="{% url 'schools:student_detail' school_slug=school_slug|default:duplicate.school_slug pk=duplicate.existing_student_id %}">View</a>
                                     </td>
                                 </tr>
                                 {% endfor %}

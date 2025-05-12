@@ -1110,9 +1110,8 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 last_name = row['last_name'].strip()
                 parent_name = row['parent_name'].strip()
 
-                # Check if a student with the same details already exists
+                # Check if a student with the same details already exists in ANY school
                 existing_student = Student.objects.filter(
-                    school=self.school,
                     first_name__iexact=first_name,
                     last_name__iexact=last_name,
                     date_of_birth=date_of_birth,
@@ -1120,11 +1119,20 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 ).first()
 
                 if existing_student:
-                    # Add to duplicate records
+                    # Check if the student is in the current school or a different school
+                    same_school = existing_student.school.id == self.school.id
+                    school_name = existing_student.school.name if not same_school else None
+                    school_slug = existing_student.school.slug if not same_school else None
+
+                    # Add to duplicate records - store only necessary info, not the entire object
                     duplicate_records.append({
                         'row': row_num,
                         'data': row,
-                        'existing_student': existing_student
+                        'existing_student_id': existing_student.id,
+                        'existing_student_name': f"{existing_student.first_name} {existing_student.last_name}",
+                        'same_school': same_school,
+                        'school_name': school_name,
+                        'school_slug': school_slug
                     })
                     continue  # Skip to the next row
 
@@ -1219,7 +1227,17 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                     <th scope="col"><i class="bi bi-exclamation-triangle text-warning"></i><span class="text-warning">Existing Student</span></th>
                 </tr></thead><tbody>"""
             for duplicate in duplicate_records:
-                existing = duplicate['existing_student']
+                student_id = duplicate['existing_student_id']
+                student_name = duplicate['existing_student_name']
+                same_school = duplicate['same_school']
+                school_name = duplicate['school_name']
+
+                # Prepare the message based on whether the student is in the same school or a different one
+                if same_school:
+                    duplicate_message = f"Student already exists in this school (ID: {student_id}, {student_name})"
+                else:
+                    duplicate_message = f"Student already exists in another school: {school_name} (ID: {student_id}, {student_name})"
+
                 dup_table += f"""
                 <tr>
                     <td>{duplicate['data']['first_name']}</td>
@@ -1228,8 +1246,8 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                     <td>{duplicate['data']['parent_name']}</td>
                     <td>{duplicate['data'].get('contact_phone', '')}</td>
                     <td class="text-warning">
-                        Student already exists (ID: {existing.id}) -
-                        <a href="{reverse('schools:student_detail', kwargs={'school_slug': self.school_slug, 'pk': existing.id})}">View</a>
+                        {duplicate_message} -
+                        <a href="{reverse('schools:student_detail', kwargs={'school_slug': self.school_slug if same_school else duplicate['school_slug'], 'pk': student_id})}">View</a>
                     </td>
                 </tr>"""
             dup_table += "</tbody></table>"
