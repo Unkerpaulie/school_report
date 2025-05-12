@@ -263,11 +263,11 @@ class StudentListView(LoginRequiredMixin, ListView):
         elif self.request.user.profile.user_type == 'teacher':
             teacher = self.request.user.teacher_profile
             # Get current year and standard assignments
-            # This would need to be expanded with actual enrollment logic
             return Student.objects.filter(
                 school=self.school,
-                enrollment__standard__standardteacher__teacher=teacher,
-                enrollment__standard__standardteacher__is_active=True
+                standard_enrollments__standard__teacher_assignments__teacher=teacher,
+                standard_enrollments__standard__teacher_assignments__is_active=True,
+                standard_enrollments__is_active=True
             ).distinct()
 
         return Student.objects.none()
@@ -286,8 +286,8 @@ class StudentListView(LoginRequiredMixin, ListView):
             teacher = self.request.user.teacher_profile
             context['standards'] = Standard.objects.filter(
                 school=self.school,
-                standardteacher__teacher=teacher,
-                standardteacher__is_active=True
+                teacher_assignments__teacher=teacher,
+                teacher_assignments__is_active=True
             ).distinct()
 
         return context

@@ -106,7 +106,7 @@
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                 <h6 class="m-0 font-weight-bold">Enrolled Students</h6>
                 {% if user.profile.user_type == 'principal' or user.profile.user_type == 'teacher' %}
-                <a href="{% url 'schools:student_create' school_slug=school_slug %}" class="btn btn-sm btn-primary">
+                <a href="{% url 'schools:student_add' school_slug=school_slug %}" class="btn btn-sm btn-primary">
                     <i class="bi bi-person-plus"></i> Add Student
                 </a>
                 {% endif %}
@@ -128,7 +128,7 @@
                             {% for student in enrolled_students %}
                             <tr>
                                 <td>{{ student.first_name }} {{ student.last_name }}</td>
-                                <td>{{ student.date_of_birth|date:"d M Y"|default:"-" }}</td>
+                                <td>{{ student.date_of_birth|date:"Y, M d"|default:"-" }}</td>
                                 <td>{{ student.parent_name }}</td>
                                 <td>{{ student.contact_phone|default:"-" }}</td>
                                 <td>
