@@ -1,0 +1,70 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Delete Test - {{ test.name }} - School Report System{% endblock %}
+
+{% block tests_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Delete Test</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 text-gray-800">Delete Test: {{ test.name }}</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">Confirm Deletion</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Warning!</h5>
+                    <p>You are about to delete the test <strong>{{ test.name }}</strong>.</p>
+                    <p>This will delete all subjects and student scores associated with this test. This action cannot be undone.</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                        <label class="form-check-label" for="confirmDelete">
+                            I understand that this action cannot be undone.
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-danger" id="deleteBtn" disabled>
+                            <i class="bi bi-trash"></i> Delete Test
+                        </button>
+                        <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enable/disable delete button based on checkbox
+        const confirmCheckbox = document.getElementById('confirmDelete');
+        const deleteBtn = document.getElementById('deleteBtn');
+
+        confirmCheckbox.addEventListener('change', function() {
+            deleteBtn.disabled = !this.checked;
+        });
+    });
+</script>
+{% endblock %}

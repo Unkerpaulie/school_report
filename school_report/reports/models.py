@@ -1,13 +1,29 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from academics.models import Year, StandardSubject
-from schools.models import Student
+from academics.models import Year, StandardSubject, Standard
+from schools.models import Student, Teacher
 
 # Common choices
 TERM_CHOICES = [
     (1, 'Term 1'),
     (2, 'Term 2'),
     (3, 'Term 3'),
+]
+
+TEST_TYPE_CHOICES = [
+    ('assignment', 'Assignment'),
+    ('quiz', 'Quiz'),
+    ('midterm', 'Mid-Term Test'),
+    ('endterm', 'End of Term Test'),
+    ('project', 'Project'),
+    ('other', 'Other'),
+]
+
+TEST_STATUS_CHOICES = [
+    ('draft', 'Draft'),
+    ('in_progress', 'In Progress'),
+    ('completed', 'Completed'),
+    ('finalized', 'Finalized'),
 ]
 
 class TermTest(models.Model):
@@ -156,3 +172,82 @@ class TeacherRemark(models.Model):
 
     def __str__(self):
         return f"{self.year} - {self.get_term_display()} - {self.student}"
+
+
+class Test(models.Model):
+    """
+    Represents a test created by a teacher for a standard
+    """
+    name = models.CharField(max_length=255)
+    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='tests')
+    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='tests')
+    term = models.PositiveSmallIntegerField(choices=TERM_CHOICES)
+    test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES)
+    test_date = models.DateField()
+    description = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=TEST_STATUS_CHOICES, default='draft')
+    created_by = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='created_tests')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-test_date']
+
+    def __str__(self):
+        return f"{self.name} - {self.standard} - {self.test_date}"
+
+    def is_editable(self):
+        """Check if the test can be edited"""
+        return self.status != 'finalized'
+
+
+class TestSubject(models.Model):
+    """
+    Represents a subject included in a test with its maximum score
+    """
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='subjects')
+    standard_subject = models.ForeignKey(StandardSubject, on_delete=models.CASCADE, related_name='test_inclusions')
+    max_score = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['test', 'standard_subject']
+
+    def __str__(self):
+        return f"{self.test} - {self.standard_subject.subject.name} - Max: {self.max_score}"
+
+
+class TestScore(models.Model):
+    """
+    Represents a student's score for a subject in a test
+    """
+    test_subject = models.ForeignKey(TestSubject, on_delete=models.CASCADE, related_name='student_scores')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='test_scores')
+    score = models.PositiveIntegerField(validators=[MinValueValidator(0)])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['test_subject', 'student']
+
+    def __str__(self):
+        return f"{self.test_subject.test} - {self.student} - {self.test_subject.standard_subject.subject.name} - {self.score}/{self.test_subject.max_score}"
+
+    @property
+    def percentage(self):
+        """Calculate percentage score"""
+        if self.test_subject.max_score > 0:
+            return (self.score / self.test_subject.max_score) * 100
+        return 0
+
+    def clean(self):
+        """Validate that score is not greater than max_score"""
+        from django.core.exceptions import ValidationError
+
+        if self.score > self.test_subject.max_score:
+            raise ValidationError({'score': f'Score cannot be greater than the maximum score of {self.test_subject.max_score}.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

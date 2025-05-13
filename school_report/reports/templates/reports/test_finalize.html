@@ -1,0 +1,75 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Finalize Test - {{ test.name }} - School Report System{% endblock %}
+
+{% block tests_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Finalize Test</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 text-gray-800">Finalize Test: {{ test.name }}</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">Finalize Test</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Warning!</h5>
+                    <p>You are about to finalize this test. Once finalized:</p>
+                    <ul>
+                        <li>The test cannot be edited or deleted</li>
+                        <li>Scores cannot be changed</li>
+                        <li>The test will be included in term reports</li>
+                    </ul>
+                    <p class="mb-0">Please make sure all scores are entered correctly before proceeding.</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="confirmFinalize" required>
+                        <label class="form-check-label" for="confirmFinalize">
+                            I confirm that all scores are entered correctly and I want to finalize this test.
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-warning" id="finalizeBtn" disabled>
+                            <i class="bi bi-lock"></i> Finalize Test
+                        </button>
+                        <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enable/disable finalize button based on checkbox
+        const confirmCheckbox = document.getElementById('confirmFinalize');
+        const finalizeBtn = document.getElementById('finalizeBtn');
+
+        confirmCheckbox.addEventListener('change', function() {
+            finalizeBtn.disabled = !this.checked;
+        });
+    });
+</script>
+{% endblock %}

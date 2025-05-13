@@ -7,15 +7,8 @@
 
 {% block content %}
 <div class="row mb-4">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <h1 class="h3 mb-0 text-gray-800">{{ standard.get_name_display }} {% if standard.section %}({{ standard.section }}){% endif %}</h1>
-        {% if user.profile.user_type == 'principal' %}
-        <div>
-            <a href="{% url 'schools:assign_teacher' school_slug=school.slug %}" class="btn btn-primary">
-                <i class="bi bi-person-plus"></i> Assign Teacher
-            </a>
-        </div>
-        {% endif %}
+    <div class="col-12">
+        <h1 class="h3 mb-0 text-gray-800">{{ standard.get_name_display }}</h1>
     </div>
 </div>
 
@@ -31,9 +24,6 @@
                     <strong>Class Name:</strong> {{ standard.get_name_display }}
                 </div>
                 <div class="mb-3">
-                    <strong>Section:</strong> {{ standard.section|default:"Not specified" }}
-                </div>
-                <div class="mb-3">
                     <strong>School:</strong> {{ standard.school.name }}
                 </div>
                 <div class="mb-3">
@@ -46,13 +36,8 @@
     <!-- Teacher Assignments -->
     <div class="col-md-8">
         <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold">Assigned Teachers</h6>
-                {% if user.profile.user_type == 'principal' %}
-                <a href="{% url 'schools:assign_teacher' school_slug=school.slug %}" class="btn btn-sm btn-primary">
-                    <i class="bi bi-person-plus"></i> Assign Teacher
-                </a>
-                {% endif %}
             </div>
             <div class="card-body">
                 {% if teacher_assignments %}
@@ -87,11 +72,6 @@
                 {% else %}
                 <div class="text-center py-4">
                     <p class="text-muted">No teachers assigned to this class.</p>
-                    {% if user.profile.user_type == 'principal' %}
-                    <a href="{% url 'schools:assign_teacher' school_slug=school.slug %}" class="btn btn-primary">
-                        <i class="bi bi-person-plus"></i> Assign Teacher
-                    </a>
-                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -145,7 +125,7 @@
                 <div class="text-center py-4">
                     <p class="text-muted">No students enrolled in this class.</p>
                     {% if user.profile.user_type == 'principal' or user.profile.user_type == 'teacher' %}
-                    <a href="{% url 'schools:student_create' school_slug=school_slug %}" class="btn btn-primary">
+                    <a href="{% url 'schools:student_add' school_slug=school_slug %}" class="btn btn-primary">
                         <i class="bi bi-person-plus"></i> Add Student
                     </a>
                     {% endif %}

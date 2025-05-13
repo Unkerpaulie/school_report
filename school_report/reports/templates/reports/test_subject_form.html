@@ -1,0 +1,94 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit Subject{% else %}Add Subject{% endif %} - {{ test.name }} - School Report System{% endblock %}
+
+{% block tests_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit Subject{% else %}Add Subject{% endif %}</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 text-gray-800">{% if is_edit %}Edit Subject{% else %}Add Subject{% endif %}</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">{% if is_edit %}Edit Subject{% else %}Add Subject{% endif %}</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="form-group mb-3">
+                        <label for="{{ form.standard_subject.id_for_label }}">{{ form.standard_subject.label }}</label>
+                        {{ form.standard_subject }}
+                        {% if form.standard_subject.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.standard_subject.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.standard_subject.help_text %}
+                        <small class="form-text text-muted">{{ form.standard_subject.help_text }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="{{ form.max_score.id_for_label }}">{{ form.max_score.label }}</label>
+                        {{ form.max_score }}
+                        {% if form.max_score.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.max_score.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.max_score.help_text %}
+                        <small class="form-text text-muted">{{ form.max_score.help_text }}</small>
+                        {% else %}
+                        <small class="form-text text-muted">Maximum possible score for this subject (e.g., 100)</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
+                            {% if is_edit %}Update Subject{% else %}Add Subject{% endif %}
+                        </button>
+                        <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add Bootstrap form classes
+        document.querySelectorAll('input[type="text"], input[type="number"], select').forEach(function(el) {
+            el.classList.add('form-control');
+        });
+    });
+</script>
+{% endblock %}

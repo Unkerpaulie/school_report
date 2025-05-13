@@ -48,6 +48,9 @@ urlpatterns = [
     # Academics app URLs - these will be matched only if the URL doesn't match any schools URLs
     path('<slug:school_slug>/academics/', include('academics.urls', namespace='academics')),
 
+    # Reports app URLs - for test management and reporting
+    path('<slug:school_slug>/reports/', include('reports.urls', namespace='reports')),
+
 ]
 
 # Development settings

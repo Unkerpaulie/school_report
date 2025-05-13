@@ -1,0 +1,121 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit Subject{% else %}Create Subject{% endif %} - School Report System{% endblock %}
+
+{% block tests_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'reports:subject_list' school_slug=school_slug %}">Subjects</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit Subject{% else %}Create Subject{% endif %}</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 text-gray-800">{% if is_edit %}Edit Subject{% else %}Create Subject{% endif %}</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Subject Information</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="form-group mb-3">
+                        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.name.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.name.help_text %}
+                        <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.description.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.description.help_text %}
+                        <small class="form-text text-muted">{{ form.description.help_text }}</small>
+                        {% endif %}
+                    </div>
+
+                    {% if not is_edit and standards %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Assign to Class (Optional)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group mb-3">
+                                <label for="standard_id">Class</label>
+                                <select name="standard_id" id="standard_id" class="form-control">
+                                    <option value="">-- Select Class --</option>
+                                    {% for standard in standards %}
+                                    <option value="{{ standard.id }}">{{ standard.get_name_display }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">Select a class to assign this subject to</small>
+                            </div>
+
+                            {% if current_year %}
+                            <div class="form-group">
+                                <label for="year_id">Academic Year</label>
+                                <select name="year_id" id="year_id" class="form-control">
+                                    <option value="{{ current_year.id }}">{{ current_year }}</option>
+                                </select>
+                                <small class="form-text text-muted">Current academic year</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
+                            {% if is_edit %}Update Subject{% else %}Create Subject{% endif %}
+                        </button>
+                        <a href="{% url 'reports:subject_list' school_slug=school_slug %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add Bootstrap form classes
+        document.querySelectorAll('input[type="text"], textarea, select').forEach(function(el) {
+            el.classList.add('form-control');
+        });
+    });
+</script>
+{% endblock %}

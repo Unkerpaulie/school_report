@@ -1,0 +1,49 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Delete Subject - {{ test.name }} - School Report System{% endblock %}
+
+{% block tests_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Delete Subject</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 text-gray-800">Delete Subject from Test</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">Confirm Deletion</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Warning!</h5>
+                    <p>You are about to remove the subject <strong>{{ test_subject.standard_subject.subject.name }}</strong> from the test <strong>{{ test.name }}</strong>.</p>
+                    <p>This will delete all student scores for this subject in this test. This action cannot be undone.</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Delete Subject
+                        </button>
+                        <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

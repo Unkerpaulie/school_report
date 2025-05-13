@@ -1,0 +1,73 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Manage Scores - {{ test.name }} - School Report System{% endblock %}
+
+{% block tests_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Manage Scores</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="h3 mb-0 text-gray-800">Manage Scores: {{ test.name }}</h1>
+            <div class="btn-group">
+                <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Test
+                </a>
+                {% if test.status == 'in_progress' or test.status == 'completed' %}
+                <a href="{% url 'reports:test_finalize' school_slug=school_slug test_id=test.id %}" class="btn btn-warning">
+                    <i class="bi bi-lock"></i> Finalize Test
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold">Test Subjects</h6>
+            </div>
+            <div class="card-body">
+                {% if test_subjects %}
+                <div class="alert alert-info">
+                    <p class="mb-0">Select a subject to enter scores for all students in the class.</p>
+                </div>
+
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    {% for subject in test_subjects %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ subject.standard_subject.subject.name }}</h5>
+                                <p class="card-text">Maximum Score: {{ subject.max_score }}</p>
+                                <a href="{% url 'reports:subject_scores' school_slug=school_slug test_id=test.id subject_id=subject.id %}" class="btn btn-primary">
+                                    <i class="bi bi-pencil-square"></i> Enter Scores
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="lead text-muted">No subjects added to this test yet.</p>
+                    <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add Subject
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

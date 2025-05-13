@@ -1,0 +1,47 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Delete Subject - {{ subject.name }} - School Report System{% endblock %}
+
+{% block tests_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'reports:subject_list' school_slug=school_slug %}">Subjects</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Delete Subject</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 text-gray-800">Delete Subject: {{ subject.name }}</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">Confirm Deletion</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Warning!</h5>
+                    <p>You are about to delete the subject <strong>{{ subject.name }}</strong>. This action cannot be undone.</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Delete Subject
+                        </button>
+                        <a href="{% url 'reports:subject_list' school_slug=school_slug %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
