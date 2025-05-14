@@ -1,7 +1,8 @@
 {% extends 'layout/base.html' %}
 {% load static %}
+{% load custom_filters %}
 
-{% block title %}Enter Scores - {{ test_subject.standard_subject.subject.name }} - {{ test.name }} - School Report System{% endblock %}
+{% block title %}Enter Scores - {{ test_subject.standard_subject.subject.name }} - {{ test.get_test_type_display }} - School Report System{% endblock %}
 
 {% block tests_active %}active{% endblock %}
 
@@ -11,15 +12,14 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.name }}</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'reports:test_scores' school_slug=school_slug test_id=test.id %}">Manage Scores</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ test_subject.standard_subject.subject.name }}</li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.get_test_type_display }} ({{ test.test_date|date:"d M Y" }})</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ test_subject.standard_subject.subject.name }} Scores</li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="h3 mb-0 text-gray-800">Enter Scores: {{ test_subject.standard_subject.subject.name }}</h1>
             <div class="btn-group">
-                <a href="{% url 'reports:test_scores' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">
+                <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Back to Subjects
                 </a>
             </div>
@@ -70,7 +70,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> Save Scores
                         </button>
-                        <a href="{% url 'reports:test_scores' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">Cancel</a>
+                        <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

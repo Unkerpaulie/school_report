@@ -14,7 +14,7 @@
                 <li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit Test{% else %}Create Test{% endif %}</li>
             </ol>
         </nav>
-        <h1 class="h3 mb-0 text-gray-800">{% if is_edit %}Edit Test{% else %}Create Test{% endif %}</h1>
+        <h1 class="h3 mb-0 text-gray-800">{% if is_edit %}Edit{% else %}Create{% endif %} {{ teacher_standard.get_name_display }} Test</h1>
     </div>
 </div>
 
@@ -39,56 +39,21 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
-                                {{ form.name }}
-                                {% if form.name.errors %}
+                                <label for="{{ form.test_type.id_for_label }}">{{ form.test_type.label }}</label>
+                                {{ form.test_type }}
+                                {% if form.test_type.errors %}
                                 <div class="invalid-feedback d-block">
-                                    {% for error in form.name.errors %}
+                                    {% for error in form.test_type.errors %}
                                     {{ error }}
                                     {% endfor %}
                                 </div>
                                 {% endif %}
-                                {% if form.name.help_text %}
-                                <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                                {% if form.test_type.help_text %}
+                                <small class="form-text text-muted">{{ form.test_type.help_text }}</small>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.standard.id_for_label }}">{{ form.standard.label }}</label>
-                                {{ form.standard }}
-                                {% if form.standard.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.standard.errors %}
-                                    {{ error }}
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                                {% if form.standard.help_text %}
-                                <small class="form-text text-muted">{{ form.standard.help_text }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="{{ form.year.id_for_label }}">{{ form.year.label }}</label>
-                                {{ form.year }}
-                                {% if form.year.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.year.errors %}
-                                    {{ error }}
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                                {% if form.year.help_text %}
-                                <small class="form-text text-muted">{{ form.year.help_text }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
                             <div class="form-group">
                                 <label for="{{ form.term.id_for_label }}">{{ form.term.label }}</label>
                                 {{ form.term }}
@@ -101,22 +66,6 @@
                                 {% endif %}
                                 {% if form.term.help_text %}
                                 <small class="form-text text-muted">{{ form.term.help_text }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="{{ form.test_type.id_for_label }}">{{ form.test_type.label }}</label>
-                                {{ form.test_type }}
-                                {% if form.test_type.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.test_type.errors %}
-                                    {{ error }}
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                                {% if form.test_type.help_text %}
-                                <small class="form-text text-muted">{{ form.test_type.help_text }}</small>
                                 {% endif %}
                             </div>
                         </div>

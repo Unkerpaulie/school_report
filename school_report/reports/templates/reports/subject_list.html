@@ -8,7 +8,7 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12 d-flex justify-content-between align-items-center">
-        <h1 class="h3 mb-0 text-gray-800">Subjects</h1>
+        <h1 class="h3 mb-0 text-gray-800">{{ teacher_standard.get_name_display }} Subjects</h1>
         <div class="btn-group">
             <a href="{% url 'reports:subject_create' school_slug=school_slug %}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Create New Subject
@@ -21,13 +21,13 @@
 </div>
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-12">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold">All Subjects</h6>
+                <h6 class="m-0 font-weight-bold">{{ teacher_standard.get_name_display }} Subjects for {{ current_year }}</h6>
             </div>
             <div class="card-body">
-                {% if subjects %}
+                {% if assigned_subjects %}
                 <div class="table-responsive">
                     <table class="table table-bordered" id="subjectsTable" width="100%" cellspacing="0">
                         <thead>
@@ -38,16 +38,16 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for subject in subjects %}
+                            {% for assigned in assigned_subjects %}
                             <tr>
-                                <td>{{ subject.name }}</td>
-                                <td>{{ subject.description|truncatechars:50 }}</td>
+                                <td>{{ assigned.subject.name }}</td>
+                                <td>{{ assigned.subject.description|truncatechars:50 }}</td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="{% url 'reports:subject_edit' school_slug=school_slug subject_id=subject.id %}" class="btn btn-sm btn-info">
+                                        <a href="{% url 'reports:subject_edit' school_slug=school_slug subject_id=assigned.subject.id %}" class="btn btn-sm btn-info">
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
-                                        <a href="{% url 'reports:subject_delete' school_slug=school_slug subject_id=subject.id %}" class="btn btn-sm btn-danger">
+                                        <a href="{% url 'reports:subject_delete' school_slug=school_slug subject_id=assigned.subject.id %}" class="btn btn-sm btn-danger">
                                             <i class="bi bi-trash"></i> Delete
                                         </a>
                                     </div>
@@ -59,47 +59,10 @@
                 </div>
                 {% else %}
                 <div class="text-center py-4">
-                    <p class="lead text-muted">No subjects found.</p>
+                    <p class="lead text-muted">No subjects found for this class.</p>
                     <a href="{% url 'reports:subject_create' school_slug=school_slug %}" class="btn btn-primary">
                         <i class="bi bi-plus-circle"></i> Create Your First Subject
                     </a>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold">My Class Subjects</h6>
-            </div>
-            <div class="card-body">
-                {% if assigned_subjects %}
-                <div class="table-responsive">
-                    <table class="table table-bordered" id="assignedSubjectsTable" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>Subject</th>
-                                <th>Class</th>
-                                <th>Year</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for assigned in assigned_subjects %}
-                            <tr>
-                                <td>{{ assigned.subject.name }}</td>
-                                <td>{{ assigned.standard.get_name_display }}</td>
-                                <td>{{ assigned.year }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <p class="lead text-muted">No subjects assigned to your classes.</p>
-                    <p>Create a subject and assign it to your class to get started.</p>
                 </div>
                 {% endif %}
             </div>

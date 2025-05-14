@@ -16,7 +16,7 @@ from django import forms
 class TestForm(forms.ModelForm):
     class Meta:
         model = Test
-        fields = ['name', 'standard', 'year', 'term', 'test_type', 'test_date', 'description']
+        fields = ['test_type', 'test_date', 'term', 'description']
         widgets = {
             'test_date': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.Textarea(attrs={'rows': 3}),
@@ -55,13 +55,31 @@ def test_list(request, school_slug):
         messages.error(request, "You don't have permission to view tests for this school.")
         return redirect('core:home')
 
+    # Get the teacher's assigned standard
+    teacher_standard = Standard.objects.filter(
+        teacher_assignments__teacher=teacher,
+        teacher_assignments__is_active=True
+    ).first()
+
+    if not teacher_standard:
+        messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
+        return redirect('core:home')
+
     # Get all tests created by this teacher
-    tests = Test.objects.filter(created_by=teacher).order_by('-created_at')
+    tests = Test.objects.filter(created_by=teacher).order_by('-test_date')
+
+    # Get current academic year
+    current_year = Year.objects.filter(
+        term1_start_date__lte=timezone.now().date(),
+        term3_end_date__gte=timezone.now().date()
+    ).first()
 
     return render(request, 'reports/test_list.html', {
         'tests': tests,
         'school': school,
-        'school_slug': school_slug
+        'school_slug': school_slug,
+        'teacher_standard': teacher_standard,
+        'current_year': current_year
     })
 
 @login_required
@@ -84,34 +102,54 @@ def test_create(request, school_slug):
         messages.error(request, "You don't have permission to create tests for this school.")
         return redirect('core:home')
 
-    # Get the standards this teacher is assigned to
-    standards = Standard.objects.filter(
+    # Get the teacher's assigned standard
+    teacher_standard = Standard.objects.filter(
         teacher_assignments__teacher=teacher,
         teacher_assignments__is_active=True
-    ).distinct()
+    ).first()
 
-    if not standards.exists():
+    if not teacher_standard:
         messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
         return redirect('reports:test_list', school_slug=school_slug)
+
+    # Get current academic year
+    current_year = Year.objects.filter(
+        term1_start_date__lte=timezone.now().date(),
+        term3_end_date__gte=timezone.now().date()
+    ).first()
+
+    if not current_year:
+        messages.warning(request, "No active academic year found. Please contact the administrator.")
+        return redirect('reports:test_list', school_slug=school_slug)
+
+    # Determine current term based on today's date
+    today = timezone.now().date()
+    current_term = None
+    if today >= current_year.term1_start_date and today <= current_year.term1_end_date:
+        current_term = 1
+    elif today >= current_year.term2_start_date and today <= current_year.term2_end_date:
+        current_term = 2
+    elif today >= current_year.term3_start_date and today <= current_year.term3_end_date:
+        current_term = 3
 
     if request.method == 'POST':
         form = TestForm(request.POST)
         if form.is_valid():
             test = form.save(commit=False)
             test.created_by = teacher
+            test.standard = teacher_standard
+            test.year = current_year
             test.save()
 
-            messages.success(request, f"Test '{test.name}' has been created successfully. Now add subjects to this test.")
+            messages.success(request, f"Test has been created successfully. Now add subjects to this test.")
             return redirect('reports:test_subject_add', school_slug=school_slug, test_id=test.id)
     else:
-        form = TestForm()
-        # Pre-populate the form with the teacher's assigned standard if there's only one
-        if standards.count() == 1:
-            form.fields['standard'].initial = standards.first().id
+        form = TestForm(initial={'term': current_term, 'test_date': timezone.now().date()})
 
     return render(request, 'reports/test_form.html', {
         'form': form,
-        'standards': standards,
+        'teacher_standard': teacher_standard,
+        'current_year': current_year,
         'school': school,
         'school_slug': school_slug
     })
@@ -205,24 +243,26 @@ def test_edit(request, school_slug, test_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to edit this test.")
 
-    # Check if the test can be edited
-    if not test.is_editable():
-        messages.warning(request, "This test has been finalized and cannot be edited.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
-
     if request.method == 'POST':
         form = TestForm(request.POST, instance=test)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Test '{test.name}' has been updated successfully.")
+            messages.success(request, f"Test has been updated successfully.")
             return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
     else:
         form = TestForm(instance=test)
+
+    # Get the teacher's assigned standard
+    teacher_standard = Standard.objects.filter(
+        teacher_assignments__teacher=teacher,
+        teacher_assignments__is_active=True
+    ).first()
 
     return render(request, 'reports/test_form.html', {
         'form': form,
         'test': test,
         'is_edit': True,
+        'teacher_standard': teacher_standard,
         'school': school,
         'school_slug': school_slug
     })
@@ -253,15 +293,9 @@ def test_delete(request, school_slug, test_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to delete this test.")
 
-    # Check if the test can be deleted
-    if not test.is_editable():
-        messages.warning(request, "This test has been finalized and cannot be deleted.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
-
     if request.method == 'POST':
-        test_name = test.name
         test.delete()
-        messages.success(request, f"Test '{test_name}' has been deleted successfully.")
+        messages.success(request, f"Test has been deleted successfully.")
         return redirect('reports:test_list', school_slug=school_slug)
 
     return render(request, 'reports/test_delete.html', {
@@ -296,10 +330,7 @@ def test_subject_add(request, school_slug, test_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to edit this test.")
 
-    # Check if the test can be edited
-    if not test.is_editable():
-        messages.warning(request, "This test has been finalized and cannot be edited.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
+
 
     # Get all subjects assigned to this standard
     standard_subjects = StandardSubject.objects.filter(
@@ -329,12 +360,7 @@ def test_subject_add(request, school_slug, test_id):
             test_subject.save()
 
             messages.success(request, f"Subject '{test_subject.standard_subject.subject.name}' has been added to the test.")
-
-            # Check if there are more subjects to add
-            if available_subjects.count() > 1:
-                return redirect('reports:test_subject_add', school_slug=school_slug, test_id=test.id)
-            else:
-                return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
+            return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
     else:
         form = TestSubjectForm()
         form.fields['standard_subject'].queryset = available_subjects
@@ -374,10 +400,7 @@ def test_subject_edit(request, school_slug, test_id, subject_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to edit this test.")
 
-    # Check if the test can be edited
-    if not test.is_editable():
-        messages.warning(request, "This test has been finalized and cannot be edited.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
+
 
     if request.method == 'POST':
         form = TestSubjectForm(request.POST, instance=test_subject)
@@ -429,10 +452,7 @@ def test_subject_delete(request, school_slug, test_id, subject_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to edit this test.")
 
-    # Check if the test can be edited
-    if not test.is_editable():
-        messages.warning(request, "This test has been finalized and cannot be edited.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
+
 
     if request.method == 'POST':
         subject_name = test_subject.standard_subject.subject.name
@@ -450,47 +470,10 @@ def test_subject_delete(request, school_slug, test_id, subject_id):
 @login_required
 def test_scores(request, school_slug, test_id):
     """
-    View to manage scores for a test
+    View to manage scores for a test - redirects to test detail page
     """
-    # Get the school
-    school = get_object_or_404(School, slug=school_slug)
-
-    # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
-        messages.error(request, "Only teachers can access this page.")
-        return redirect('core:home')
-
-    teacher = request.user.teacher_profile
-
-    # Verify teacher belongs to this school
-    if teacher.school != school:
-        messages.error(request, "You don't have permission to manage scores for this school.")
-        return redirect('core:home')
-
-    test = get_object_or_404(Test, id=test_id)
-
-    # Check if the teacher created this test
-    if test.created_by != teacher:
-        return HttpResponseForbidden("You don't have permission to manage scores for this test.")
-
-    # Check if the test can be edited
-    if not test.is_editable():
-        messages.warning(request, "This test has been finalized and cannot be edited.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
-
-    # Get all subjects in this test
-    test_subjects = TestSubject.objects.filter(test=test).select_related('standard_subject__subject')
-
-    if not test_subjects.exists():
-        messages.warning(request, "Please add subjects to this test before adding scores.")
-        return redirect('reports:test_subject_add', school_slug=school_slug, test_id=test.id)
-
-    return render(request, 'reports/test_scores.html', {
-        'test': test,
-        'test_subjects': test_subjects,
-        'school': school,
-        'school_slug': school_slug
-    })
+    # We don't need to use the request parameter, but it's required by the decorator
+    return redirect('reports:test_detail', school_slug=school_slug, test_id=test_id)
 
 @login_required
 def subject_scores(request, school_slug, test_id, subject_id):
@@ -519,10 +502,7 @@ def subject_scores(request, school_slug, test_id, subject_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to manage scores for this test.")
 
-    # Check if the test can be edited
-    if not test.is_editable():
-        messages.warning(request, "This test has been finalized and cannot be edited.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
+
 
     # Get all students in this standard
     students = Student.objects.filter(
@@ -559,13 +539,10 @@ def subject_scores(request, school_slug, test_id, subject_id):
                     score.score = score_value
                     score.save()
 
-            # Update test status to in_progress if it was in draft
-            if test.status == 'draft':
-                test.status = 'in_progress'
-                test.save()
+
 
             messages.success(request, f"Scores for {test_subject.standard_subject.subject.name} have been saved successfully.")
-            return redirect('reports:test_scores', school_slug=school_slug, test_id=test.id)
+            return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
 
     # Get existing scores
     existing_scores = {}
@@ -607,10 +584,7 @@ def test_finalize(request, school_slug, test_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to finalize this test.")
 
-    # Check if the test can be finalized
-    if test.status == 'finalized':
-        messages.warning(request, "This test has already been finalized.")
-        return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
+
 
     # Get all subjects in this test
     test_subjects = TestSubject.objects.filter(test=test)
@@ -641,11 +615,7 @@ def test_finalize(request, school_slug, test_id):
         return redirect('reports:test_scores', school_slug=school_slug, test_id=test.id)
 
     if request.method == 'POST':
-        # Finalize the test
-        test.status = 'finalized'
-        test.save()
-
-        messages.success(request, f"Test '{test.name}' has been finalized successfully. It can no longer be edited.")
+        messages.success(request, f"Test has been finalized successfully.")
         return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
 
     return render(request, 'reports/test_finalize.html', {
@@ -674,18 +644,36 @@ def subject_list(request, school_slug):
         messages.error(request, "You don't have permission to view subjects for this school.")
         return redirect('core:home')
 
-    # Get all subjects
-    subjects = Subject.objects.all().order_by('name')
+    # Get teacher's assigned standard
+    teacher_standard = Standard.objects.filter(
+        teacher_assignments__teacher=teacher,
+        teacher_assignments__is_active=True
+    ).first()
 
-    # Get subjects assigned to teacher's standards
+    if not teacher_standard:
+        messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
+        return redirect('core:home')
+
+    # Get current academic year
+    current_year = Year.objects.filter(
+        term1_start_date__lte=timezone.now().date(),
+        term3_end_date__gte=timezone.now().date()
+    ).first()
+
+    if not current_year:
+        messages.warning(request, "No active academic year found. Please contact the administrator.")
+        return redirect('core:home')
+
+    # Get subjects assigned to teacher's class for the current year
     assigned_subjects = StandardSubject.objects.filter(
-        standard__teacher_assignments__teacher=teacher,
-        standard__teacher_assignments__is_active=True
+        standard=teacher_standard,
+        year=current_year
     ).select_related('subject', 'standard')
 
     return render(request, 'reports/subject_list.html', {
-        'subjects': subjects,
         'assigned_subjects': assigned_subjects,
+        'teacher_standard': teacher_standard,
+        'current_year': current_year,
         'school': school,
         'school_slug': school_slug
     })
@@ -710,39 +698,15 @@ def subject_create(request, school_slug):
         messages.error(request, "You don't have permission to create subjects for this school.")
         return redirect('core:home')
 
-    if request.method == 'POST':
-        form = SubjectForm(request.POST)
-        if form.is_valid():
-            subject = form.save()
-
-            # Check if we should assign this subject to a standard
-            standard_id = request.POST.get('standard_id')
-            year_id = request.POST.get('year_id')
-
-            if standard_id and year_id:
-                standard = get_object_or_404(Standard, id=standard_id)
-                year = get_object_or_404(Year, id=year_id)
-
-                # Create standard subject assignment
-                StandardSubject.objects.create(
-                    standard=standard,
-                    subject=subject,
-                    year=year
-                )
-
-                messages.success(request, f"Subject '{subject.name}' has been created and assigned to {standard}.")
-            else:
-                messages.success(request, f"Subject '{subject.name}' has been created successfully.")
-
-            return redirect('reports:subject_list', school_slug=school_slug)
-    else:
-        form = SubjectForm()
-
-    # Get teacher's assigned standards for optional assignment
-    standards = Standard.objects.filter(
+    # Get teacher's assigned standard
+    teacher_standard = Standard.objects.filter(
         teacher_assignments__teacher=teacher,
         teacher_assignments__is_active=True
-    ).distinct()
+    ).first()
+
+    if not teacher_standard:
+        messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
+        return redirect('reports:subject_list', school_slug=school_slug)
 
     # Get current academic year
     current_year = Year.objects.filter(
@@ -750,9 +714,30 @@ def subject_create(request, school_slug):
         term3_end_date__gte=timezone.now().date()
     ).first()
 
+    if not current_year:
+        messages.warning(request, "No active academic year found. Please contact the administrator.")
+        return redirect('reports:subject_list', school_slug=school_slug)
+
+    if request.method == 'POST':
+        form = SubjectForm(request.POST)
+        if form.is_valid():
+            subject = form.save()
+
+            # Automatically assign the subject to the teacher's class and current year
+            StandardSubject.objects.create(
+                standard=teacher_standard,
+                subject=subject,
+                year=current_year
+            )
+
+            messages.success(request, f"Subject '{subject.name}' has been created and assigned to {teacher_standard}.")
+            return redirect('reports:subject_list', school_slug=school_slug)
+    else:
+        form = SubjectForm()
+
     return render(request, 'reports/subject_form.html', {
         'form': form,
-        'standards': standards,
+        'teacher_standard': teacher_standard,
         'current_year': current_year,
         'school': school,
         'school_slug': school_slug

@@ -178,14 +178,12 @@ class Test(models.Model):
     """
     Represents a test created by a teacher for a standard
     """
-    name = models.CharField(max_length=255)
     standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='tests')
-    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='tests')
+    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='tests_this_year')
     term = models.PositiveSmallIntegerField(choices=TERM_CHOICES)
     test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES)
     test_date = models.DateField()
     description = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=TEST_STATUS_CHOICES, default='draft')
     created_by = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='created_tests')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -194,11 +192,11 @@ class Test(models.Model):
         ordering = ['-test_date']
 
     def __str__(self):
-        return f"{self.name} - {self.standard} - {self.test_date}"
+        return f"{self.get_test_type_display()} - {self.standard} - {self.test_date}"
 
     def is_editable(self):
-        """Check if the test can be edited"""
-        return self.status != 'finalized'
+        """Always return True since we're not using status anymore"""
+        return True
 
 
 class TestSubject(models.Model):
@@ -215,7 +213,7 @@ class TestSubject(models.Model):
         unique_together = ['test', 'standard_subject']
 
     def __str__(self):
-        return f"{self.test} - {self.standard_subject.subject.name} - Max: {self.max_score}"
+        return f"{self.standard_subject.subject.name} - Max: {self.max_score}"
 
 
 class TestScore(models.Model):
@@ -232,7 +230,7 @@ class TestScore(models.Model):
         unique_together = ['test_subject', 'student']
 
     def __str__(self):
-        return f"{self.test_subject.test} - {self.student} - {self.test_subject.standard_subject.subject.name} - {self.score}/{self.test_subject.max_score}"
+        return f"{self.student} - {self.test_subject.standard_subject.subject.name} - {self.score}/{self.test_subject.max_score}"
 
     @property
     def percentage(self):

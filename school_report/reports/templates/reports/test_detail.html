@@ -1,7 +1,8 @@
 {% extends 'layout/base.html' %}
 {% load static %}
+{% load custom_filters %}
 
-{% block title %}{{ test.name }} - School Report System{% endblock %}
+{% block title %}{{ test.get_test_type_display }} - {{ test.test_date|date:"d M Y" }} - School Report System{% endblock %}
 
 {% block tests_active %}active{% endblock %}
 
@@ -11,25 +12,21 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ test.name }}</li>
+                <li class="breadcrumb-item active" aria-current="page">{{ test.get_test_type_display }} ({{ test.test_date|date:"d M Y" }})</li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="h3 mb-0 text-gray-800">{{ test.name }}</h1>
+            <h1 class="h3 mb-0 text-gray-800">{{ test.standard.get_name_display }} {{ test.get_test_type_display }}</h1>
             <div class="btn-group">
-                {% if test.is_editable %}
-                <a href="{% url 'reports:test_scores' school_slug=school_slug test_id=test.id %}" class="btn btn-success">
-                    <i class="bi bi-pencil-square"></i> Manage Scores
+                <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Add Subject
                 </a>
                 <a href="{% url 'reports:test_edit' school_slug=school_slug test_id=test.id %}" class="btn btn-primary">
                     <i class="bi bi-pencil"></i> Edit Test
                 </a>
-                {% if test.status == 'in_progress' or test.status == 'completed' %}
                 <a href="{% url 'reports:test_finalize' school_slug=school_slug test_id=test.id %}" class="btn btn-warning">
                     <i class="bi bi-lock"></i> Finalize Test
                 </a>
-                {% endif %}
-                {% endif %}
             </div>
         </div>
     </div>
@@ -62,20 +59,7 @@
                     <div class="col-5 font-weight-bold">Test Date:</div>
                     <div class="col-7">{{ test.test_date|date:"d M Y" }}</div>
                 </div>
-                <div class="row mb-2">
-                    <div class="col-5 font-weight-bold">Status:</div>
-                    <div class="col-7">
-                        {% if test.status == 'draft' %}
-                            <span class="badge bg-secondary">Draft</span>
-                        {% elif test.status == 'in_progress' %}
-                            <span class="badge bg-primary">In Progress</span>
-                        {% elif test.status == 'completed' %}
-                            <span class="badge bg-success">Completed</span>
-                        {% elif test.status == 'finalized' %}
-                            <span class="badge bg-danger">Finalized</span>
-                        {% endif %}
-                    </div>
-                </div>
+
                 {% if test.description %}
                 <div class="row mb-2">
                     <div class="col-12 font-weight-bold">Description:</div>
@@ -88,13 +72,8 @@
 
     <div class="col-md-8">
         <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold">Test Subjects</h6>
-                {% if test.is_editable %}
-                <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-primary">
-                    <i class="bi bi-plus-circle"></i> Add Subject
-                </a>
-                {% endif %}
             </div>
             <div class="card-body">
                 {% if test_subjects %}
@@ -104,9 +83,7 @@
                             <tr>
                                 <th>Subject</th>
                                 <th>Max Score</th>
-                                {% if test.is_editable %}
                                 <th>Actions</th>
-                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -114,9 +91,11 @@
                             <tr>
                                 <td>{{ subject.standard_subject.subject.name }}</td>
                                 <td>{{ subject.max_score }}</td>
-                                {% if test.is_editable %}
                                 <td>
                                     <div class="btn-group">
+                                        <a href="{% url 'reports:subject_scores' school_slug=school_slug test_id=test.id subject_id=subject.id %}" class="btn btn-sm btn-success">
+                                            <i class="bi bi-pencil-square"></i> Scores
+                                        </a>
                                         <a href="{% url 'reports:test_subject_edit' school_slug=school_slug test_id=test.id subject_id=subject.id %}" class="btn btn-sm btn-info">
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
@@ -125,7 +104,6 @@
                                         </a>
                                     </div>
                                 </td>
-                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -134,11 +112,7 @@
                 {% else %}
                 <div class="text-center py-4">
                     <p class="lead text-muted">No subjects added to this test yet.</p>
-                    {% if test.is_editable %}
-                    <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Add Subject
-                    </a>
-                    {% endif %}
+                    <p>Click the "Add Subject" button above to add subjects to this test.</p>
                 </div>
                 {% endif %}
             </div>

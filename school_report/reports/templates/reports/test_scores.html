@@ -1,7 +1,8 @@
 {% extends 'layout/base.html' %}
 {% load static %}
+{% load custom_filters %}
 
-{% block title %}Manage Scores - {{ test.name }} - School Report System{% endblock %}
+{% block title %}Manage Scores - {{ test.get_test_type_display }} - School Report System{% endblock %}
 
 {% block tests_active %}active{% endblock %}
 
@@ -11,21 +12,19 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.name }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.get_test_type_display }} ({{ test.test_date|date:"d M Y" }})</a></li>
                 <li class="breadcrumb-item active" aria-current="page">Manage Scores</li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="h3 mb-0 text-gray-800">Manage Scores: {{ test.name }}</h1>
+            <h1 class="h3 mb-0 text-gray-800">Manage Scores: {{ test.standard.get_name_display }} {{ test.get_test_type_display }}</h1>
             <div class="btn-group">
                 <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Back to Test
                 </a>
-                {% if test.status == 'in_progress' or test.status == 'completed' %}
                 <a href="{% url 'reports:test_finalize' school_slug=school_slug test_id=test.id %}" class="btn btn-warning">
                     <i class="bi bi-lock"></i> Finalize Test
                 </a>
-                {% endif %}
             </div>
         </div>
     </div>
