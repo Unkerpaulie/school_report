@@ -36,46 +36,29 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for teacher in teachers %}
+                            {% for profile in teacher_profiles %}
                             <tr>
-                                <td>{{ teacher }}</td>
-                                <td>{{ teacher.contact_email }}</td>
-                                <td>{{ teacher.contact_phone|default:"-" }}</td>
+                                <td>{{ profile.get_full_name }}</td>
+                                <td>{{ profile.contact_email }}</td>
+                                <td>{{ profile.phone_number|default:"-" }}</td>
                                 <td>
-                                    {% if teacher.assigned_standard %}
+                                    {% if profile.assigned_standard %}
                                     <span class="badge bg-info">
-                                        {{ teacher.assigned_standard.get_name_display }}
+                                        {{ profile.assigned_standard }}
                                     </span>
                                     {% else %}
                                     <span class="badge bg-secondary">Not Assigned</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if teacher.is_active %}
+                                    {% if profile.is_active %}
                                     <span class="badge bg-success">Active</span>
                                     {% else %}
                                     <span class="badge bg-danger">Inactive</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-primary disabled">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-info disabled">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    {% if teacher.assigned_standard %}
-                                    <a href="#" 
-                                       class="btn btn-sm btn-warning" 
-                                       onclick="return confirm('Are you sure you want to unassign this teacher from their class?')">
-                                        <i class="bi bi-x-circle"></i>
-                                    </a>
-                                    {% else %}
-                                    <a href="{% url 'schools:assign_teacher' school_slug=school.slug pk=teacher.pk %}" 
-                                       class="btn btn-sm btn-success">
-                                        <i class="bi bi-check-circle"></i>
-                                    </a>
-                                    {% endif %}
+                                    <!-- Actions -->
                                 </td>
                             </tr>
                             {% endfor %}
@@ -108,3 +91,4 @@
     });
 </script>
 {% endblock %}
+

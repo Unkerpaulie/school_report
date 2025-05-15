@@ -1,81 +1,125 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from academics.models import Year, StandardSubject, Standard
-from schools.models import Student, Teacher
+from academics.models import StandardSubject, Standard, Term
+from schools.models import Student
 
-# Common choices
-TERM_CHOICES = [
-    (1, 'Term 1'),
-    (2, 'Term 2'),
-    (3, 'Term 3'),
-]
 
-TEST_TYPE_CHOICES = [
-    ('assignment', 'Assignment'),
-    ('quiz', 'Quiz'),
-    ('midterm', 'Mid-Term Test'),
-    ('endterm', 'End of Term Test'),
-    ('project', 'Project'),
-    ('other', 'Other'),
-]
-
-TEST_STATUS_CHOICES = [
-    ('draft', 'Draft'),
-    ('in_progress', 'In Progress'),
-    ('completed', 'Completed'),
-    ('finalized', 'Finalized'),
-]
-
-class TermTest(models.Model):
+class Test(models.Model):
     """
-    Represents a term test for a specific subject in a standard
+    Represents a test created by a teacher for a standard
     """
+    TEST_TYPE_CHOICES = [
+        ('assignment', 'Assignment'),
+        ('quiz', 'Quiz'),
+        ('midterm', 'Mid-Term Test'),
+        ('endterm', 'End of Term Test'),  # This is the formal term assessment
+        ('project', 'Project'),
+        ('other', 'Other'),
+    ]
 
-    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='term_tests')
-    term = models.PositiveSmallIntegerField(choices=TERM_CHOICES)
-    standard_subject = models.ForeignKey(StandardSubject, on_delete=models.CASCADE, related_name='term_tests')
+    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='tests')
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='tests', null=True)  # Direct relationship to Term
+    test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES)
+    test_date = models.DateField()
+    description = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey('core.UserProfile', on_delete=models.CASCADE, 
+                                  related_name='created_tests',
+                                  limit_choices_to={'user_type': 'teacher'})
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-test_date']
+
+    def __str__(self):
+        return f"{self.term} - {self.test_type} - {self.standard}"
+    
+    def clean(self):
+        """
+        Validate that test date falls within the term dates and link to the appropriate Term
+        """
+        from django.core.exceptions import ValidationError
+        
+        if not (self.term.start_date <= self.test_date <= self.term.end_date):
+            raise ValidationError({
+                'test_date': f'Test date must be within {self.term} '
+                            f'({self.term.start_date} to {self.term.end_date})'
+            })
+    
+    def save(self, *args, **kwargs):
+        """
+        Save the Test and ensure it's linked to the appropriate Term
+        """
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def get_term_tests(cls, term, standard=None):
+        """
+        Get all end-of-term tests for a specific year and term
+        
+        This method provides a way to access the formal term assessments
+        (equivalent to what was previously in the TermTest model)
+        """
+        filters = {
+            'term': term,
+            'test_type': 'endterm',
+        }
+        
+        if standard:
+            filters['standard'] = standard
+            
+        return cls.objects.filter(**filters)
+
+class TestSubject(models.Model):
+    """
+    Represents a subject included in a test
+    """
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='subjects')
+    standard_subject = models.ForeignKey(StandardSubject, on_delete=models.CASCADE, related_name='test_subjects')
     max_marks = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['year', 'term', 'standard_subject']
+        unique_together = ['test', 'standard_subject']
 
     def __str__(self):
-        return f"{self.year} - {self.get_term_display()} - {self.standard_subject.subject.name}"
+        return f"{self.test} - {self.standard_subject.subject.name}"
 
-class StudentSubjectScore(models.Model):
+class TestScore(models.Model):
     """
-    Represents a student's score in a subject for a specific term
+    Represents a student's score in a subject for a specific test
     """
-    term_test = models.ForeignKey(TermTest, on_delete=models.CASCADE, related_name='student_scores')
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='subject_scores')
+    test_subject = models.ForeignKey(TestSubject, on_delete=models.CASCADE, related_name='student_scores')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='test_scores')
     score = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['term_test', 'student']
-        verbose_name = "Student Subject Score"
-        verbose_name_plural = "Student Subject Scores"
+        unique_together = ['test_subject', 'student']
+        verbose_name = "Test Score"
+        verbose_name_plural = "Test Scores"
 
     def __str__(self):
-        return f"{self.term_test} - {self.student} - {self.score}/{self.term_test.max_marks}"
+        return f"{self.test_subject} - {self.student} - {self.score}/{self.test_subject.max_marks}"
 
     @property
     def percentage(self):
         """Calculate percentage score"""
-        return (self.score / self.term_test.max_marks) * 100
+        return (self.score / self.test_subject.max_marks) * 100
 
     @classmethod
     def get_student_term_average(cls, student, year, term):
         """
-        Calculate the average score for a student across all subjects in a term
+        Calculate the average score for a student across all subjects in end-of-term tests
         """
         scores = cls.objects.filter(
             student=student,
-            term_test__year=year,
-            term_test__term=term
+            test_subject__test__year=year,
+            test_subject__test__term=term,
+            test_subject__test__test_type='endterm'
         )
 
         if not scores.exists():
@@ -88,9 +132,7 @@ class StudentAttendance(models.Model):
     """
     Represents a student's attendance record for a term
     """
-
-    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='student_attendances')
-    term = models.PositiveSmallIntegerField(choices=TERM_CHOICES)
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='student_attendances', null=True)  # Direct relationship to Term
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendance_records')
     days_present = models.PositiveIntegerField()
     days_late = models.PositiveIntegerField(default=0)
@@ -98,19 +140,16 @@ class StudentAttendance(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['year', 'term', 'student']
+        unique_together = ['term', 'student']
 
     def __str__(self):
-        return f"{self.year} - {self.get_term_display()} - {self.student}"
+        return f"{self.term} - {self.student} - {self.days_present} days present"
 
     def get_term_days(self):
         """Get the total number of school days in the term"""
-        if self.term == 1:
-            return self.year.term1_school_days
-        elif self.term == 2:
-            return self.year.term2_school_days
-        else:
-            return self.year.term3_school_days
+        if self.term:
+            return self.term.school_days
+        return 0
 
     @property
     def attendance_percentage(self):
@@ -119,6 +158,7 @@ class StudentAttendance(models.Model):
         if term_days > 0:
             return (self.days_present / term_days) * 100
         return 0
+    
 
 class QualitativeRating(models.Model):
     """
@@ -133,8 +173,7 @@ class QualitativeRating(models.Model):
         (5, '5 - Excellent'),
     ]
 
-    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='student_ratings')
-    term = models.PositiveSmallIntegerField(choices=TERM_CHOICES)
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='student_ratings')
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='qualitative_ratings')
 
     # Qualitative attributes
@@ -150,102 +189,35 @@ class QualitativeRating(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['year', 'term', 'student']
+        unique_together = ['term', 'student']
 
     def __str__(self):
-        return f"{self.year} - {self.get_term_display()} - {self.student}"
+        return f"{self.term} - {self.student} rating"
 
 class TeacherRemark(models.Model):
     """
     Represents a teacher's remarks for a student in a term
     """
-
-    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='teacher_remarks')
-    term = models.PositiveSmallIntegerField(choices=TERM_CHOICES)
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='term_remarks', null=True)  # New field
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='teacher_remarks')
     remarks = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['year', 'term', 'student']
+        unique_together = ['term', 'student']
 
     def __str__(self):
-        return f"{self.year} - {self.get_term_display()} - {self.student}"
-
-
-class Test(models.Model):
-    """
-    Represents a test created by a teacher for a standard
-    """
-    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='tests')
-    year = models.ForeignKey(Year, on_delete=models.CASCADE, related_name='tests_this_year')
-    term = models.PositiveSmallIntegerField(choices=TERM_CHOICES)
-    test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES)
-    test_date = models.DateField()
-    description = models.TextField(blank=True, null=True)
-    created_by = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='created_tests')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-test_date']
-
-    def __str__(self):
-        return f"{self.get_test_type_display()} - {self.standard} - {self.test_date}"
-
-    def is_editable(self):
-        """Always return True since we're not using status anymore"""
-        return True
-
-
-class TestSubject(models.Model):
-    """
-    Represents a subject included in a test with its maximum score
-    """
-    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='subjects')
-    standard_subject = models.ForeignKey(StandardSubject, on_delete=models.CASCADE, related_name='test_inclusions')
-    max_score = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ['test', 'standard_subject']
-
-    def __str__(self):
-        return f"{self.standard_subject.subject.name} - Max: {self.max_score}"
-
-
-class TestScore(models.Model):
-    """
-    Represents a student's score for a subject in a test
-    """
-    test_subject = models.ForeignKey(TestSubject, on_delete=models.CASCADE, related_name='student_scores')
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='test_scores')
-    score = models.PositiveIntegerField(validators=[MinValueValidator(0)])
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ['test_subject', 'student']
-
-    def __str__(self):
-        return f"{self.student} - {self.test_subject.standard_subject.subject.name} - {self.score}/{self.test_subject.max_score}"
-
-    @property
-    def percentage(self):
-        """Calculate percentage score"""
-        if self.test_subject.max_score > 0:
-            return (self.score / self.test_subject.max_score) * 100
-        return 0
-
-    def clean(self):
-        """Validate that score is not greater than max_score"""
-        from django.core.exceptions import ValidationError
-
-        if self.score > self.test_subject.max_score:
-            raise ValidationError({'score': f'Score cannot be greater than the maximum score of {self.test_subject.max_score}.'})
-
+        return f"{self.term} - {self.student} remark"
+    
     def save(self, *args, **kwargs):
-        self.full_clean()
+        # If term is not set but term_number is, try to set term
+        if not self.term_id and self.term_number and self.year_id:
+            try:
+                self.term = self.year.terms.get(term_number=self.term_number)
+            except Term.DoesNotExist:
+                pass
+        
         super().save(*args, **kwargs)
+
+

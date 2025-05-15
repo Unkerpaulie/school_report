@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import School, Standard, Teacher, Student, AdministrationStaff
+from .models import School, Standard, Student
+from core.models import UserProfile
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
@@ -17,39 +18,5 @@ class StandardAdmin(admin.ModelAdmin):
         return obj.get_name_display()
     display_name.short_description = 'Standard'
 
-@admin.register(Teacher)
-class TeacherAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'title', 'school', 'contact_email', 'user', 'get_user_type', 'is_active')
-    list_filter = ('school', 'is_active', 'user__profile__user_type')
-    search_fields = ('first_name', 'last_name', 'school__name', 'contact_email', 'user__username')
-
-    def get_user_type(self, obj):
-        """
-        Get the user type from the associated user profile
-        """
-        if obj.user and hasattr(obj.user, 'profile'):
-            return obj.user.profile.get_user_type_display()
-        return '-'
-    get_user_type.short_description = 'Role'
-
-@admin.register(Student)
-class StudentAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'parent_name', 'school', 'date_of_birth', 'is_active')
-    list_filter = ('school', 'is_active')
-    search_fields = ('first_name', 'last_name', 'parent_name', 'school__name')
-    readonly_fields = ('transfer_notes',)
-
-@admin.register(AdministrationStaff)
-class AdministrationStaffAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'title', 'position', 'school', 'contact_email', 'user', 'get_user_type', 'is_active')
-    list_filter = ('school', 'is_active', 'position')
-    search_fields = ('first_name', 'last_name', 'school__name', 'contact_email', 'user__username', 'position')
-
-    def get_user_type(self, obj):
-        """
-        Get the user type from the associated user profile
-        """
-        if obj.user and hasattr(obj.user, 'profile'):
-            return obj.user.profile.get_user_type_display()
-        return '-'
-    get_user_type.short_description = 'Role'
+# Register UserProfile in the core app's admin.py instead
+# Removing this registration from schools/admin.py

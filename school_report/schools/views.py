@@ -133,92 +133,43 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
     """
     View for creating a new teacher
     """
-    model = Teacher
+    model = User  # Changed from Teacher to User
     template_name = 'schools/teacher_form.html'
-    fields = ['title', 'first_name', 'last_name', 'contact_phone', 'contact_email']
+    fields = ['first_name', 'last_name']  # Basic User fields
 
-    # Add username field to the form
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        # Add username field
+        # Add profile fields
         form.fields['username'] = forms.CharField(
             max_length=150,
             help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
         )
+        form.fields['email'] = forms.EmailField(required=True)
+        form.fields['phone_number'] = forms.CharField(max_length=20, required=False)
+        form.fields['title'] = forms.ChoiceField(choices=UserProfile.TITLE_CHOICES)
         return form
 
-    def get_success_url(self):
-        return reverse_lazy('schools:staff_list', kwargs={'school_slug': self.school_slug})
-
-    def dispatch(self, request, *args, **kwargs):
-        # Get the school by slug
-        self.school_slug = kwargs.get('school_slug')
-        self.school = get_object_or_404(School, slug=self.school_slug)
-
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'administration':
-            # Administration users can only access their assigned school
-            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        else:
-            messages.warning(request, "Only principals and administration can add staff.")
-            return redirect('core:home')
-
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['school'] = self.school
-        context['school_slug'] = self.school_slug
-        return context
-
     def form_valid(self, form):
-        # Create the teacher
-        teacher = form.save(commit=False)
-        teacher.school = self.school
-
-        # Get username and email from form
-        username = form.cleaned_data['username']
-        email = form.cleaned_data['contact_email']
-        password = "ChangeMe!"  # Default password that must be changed
-
-        # Check if user with this username already exists
-        if User.objects.filter(username=username).exists():
-            messages.warning(self.request, f"A user with the username '{username}' already exists.")
-            return self.form_invalid(form)
-
-        # Check if user with this email already exists
-        if User.objects.filter(email=email).exists():
-            messages.warning(self.request, f"A user with the email '{email}' already exists.")
-            return self.form_invalid(form)
-
-        # Create the user
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=form.cleaned_data['first_name'],
-            last_name=form.cleaned_data['last_name']
-        )
-
-        # Update the user profile to be a teacher
+        # Get the school
+        self.school_slug = self.kwargs.get('school_slug')
+        school = get_object_or_404(School, slug=self.school_slug)
+        
+        # Create user with a random password
+        user = form.save(commit=False)
+        password = User.objects.make_random_password()
+        user.set_password(password)
+        user.save()
+        
+        # Update or create profile
         profile = user.profile
         profile.user_type = 'teacher'
-        profile.phone_number = form.cleaned_data['contact_phone']
-        profile.must_change_password = True  # Force password change on first login
+        profile.phone_number = form.cleaned_data['phone_number']
+        profile.school = school
+        profile.title = form.cleaned_data['title']
+        profile.must_change_password = True
         profile.save()
-
-        # Link the teacher to the user
-        teacher.user = user
-        teacher.save()
-
-        messages.success(self.request, f"Teacher {teacher} has been added successfully!")
+        
+        messages.success(self.request, f"Teacher {profile.get_full_name()} has been added successfully!")
         return redirect(self.get_success_url())
 
 
@@ -1385,3 +1336,5 @@ class AdminStaffCreateView(LoginRequiredMixin, CreateView):
 
         messages.success(self.request, f"Administration staff {admin_staff} has been added successfully!")
         return redirect(self.get_success_url())
+
+

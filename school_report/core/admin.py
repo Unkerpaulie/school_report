@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from .models import UserProfile
-from schools.models import AdministrationStaff
+
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
@@ -10,7 +10,7 @@ class UserProfileInline(admin.StackedInline):
     verbose_name_plural = 'User Profile'
 
     # Make phone_number more prominent
-    fields = ('user_type', 'phone_number', 'must_change_password')
+    fields = ('user_type', 'phone_number', 'must_change_password', 'school', 'title', 'position', 'transfer_notes')
 
     def get_formset(self, request, obj=None, **kwargs):
         """
@@ -58,21 +58,7 @@ class CustomUserAdmin(UserAdmin):
         Get the school associated with the user
         """
         try:
-            # For principals
-            if obj.profile.user_type == 'principal' and hasattr(obj, 'administered_schools'):
-                school = obj.administered_schools.first()
-                if school:
-                    return school.name
-
-            # For teachers
-            elif obj.profile.user_type == 'teacher' and hasattr(obj, 'teacher_profile'):
-                return obj.teacher_profile.school.name
-
-            # For administration staff
-            elif obj.profile.user_type == 'administration' and hasattr(obj, 'admin_profile'):
-                return obj.admin_profile.school.name
-
-            return '-'
+            return obj.profile.school.name if obj.profile.school else '-'
         except Exception:
             return '-'
     get_school.short_description = 'School'
@@ -85,9 +71,26 @@ class CustomUserAdmin(UserAdmin):
         obj._profile_creating = True
         super().save_model(request, obj, form, change)
 
-        # If this is a new user, the profile will be created by the inline
-        # If it's an existing user, the profile will be updated by the inline
-
 # Re-register UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
+# Add a standalone UserProfile admin for direct access
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('get_full_name', 'user_type', 'school', 'contact_email', 'phone_number', 'is_active')
+    list_filter = ('user_type', 'school', 'user__is_active')
+    search_fields = ('user__first_name', 'user__last_name', 'user__email', 'phone_number')
+    
+    def get_full_name(self, obj):
+        return obj.get_full_name()
+    get_full_name.short_description = 'Name'
+    
+    def contact_email(self, obj):
+        return obj.contact_email
+    contact_email.short_description = 'Email'
+    
+    def is_active(self, obj):
+        return obj.is_active
+    is_active.boolean = True
+    is_active.short_description = 'Active'

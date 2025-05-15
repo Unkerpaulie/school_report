@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.utils.text import slugify
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from core.models import Person, UserProfile
+from core.models import UserProfile
 
 fs = FileSystemStorage(location='media/school_logos/')
 
@@ -66,67 +66,27 @@ class Standard(models.Model):
     def __str__(self):
         return f"{self.school.name} - {self.get_name_display()}"
 
-class Teacher(Person):
-    """
-    Represents a teacher in the school system
-    """
-    TITLE_CHOICES = [
-        ('Mr', 'Mr'),
-        ('Mrs', 'Mrs'),
-        ('Ms', 'Ms'),
-        ('Dr', 'Dr'),
-        ('Prof', 'Prof'),
-    ]
-
-    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='teacher_profile')
-    title = models.CharField(max_length=10, choices=TITLE_CHOICES)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='teachers')
-    contact_email = models.EmailField(blank=False, null=False)  # Override to make email required
-    transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about teacher transfers")
-
-    class Meta:
-        ordering = ['last_name', 'first_name']
-
-    def __str__(self):
-        return f"{self.title} {self.first_name} {self.last_name}"
-
-class Student(Person):
+class Student(models.Model):
     """
     Represents a student in the school system
     """
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    contact_phone = models.CharField(max_length=20, blank=True, null=True)
+    contact_email = models.EmailField(blank=True, null=True)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='students')
     date_of_birth = models.DateField()
     parent_name = models.CharField(max_length=200, help_text="Full name of parent or guardian")
     transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about student transfers")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['last_name', 'first_name']
-
-
-class AdministrationStaff(Person):
-    """
-    Represents an administration staff member in the school system
-    """
-    TITLE_CHOICES = [
-        ('Mr', 'Mr'),
-        ('Mrs', 'Mrs'),
-        ('Ms', 'Ms'),
-        ('Dr', 'Dr'),
-    ]
-
-    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_profile')
-    title = models.CharField(max_length=10, choices=TITLE_CHOICES)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='admin_staff')
-    contact_email = models.EmailField(blank=False, null=False)  # Override to make email required
-    position = models.CharField(max_length=100, help_text="Position or role in the school administration")
-
-    class Meta:
-        ordering = ['last_name', 'first_name']
-        verbose_name = 'Administration Staff'
-        verbose_name_plural = 'Administration Staff'
-
+        
     def __str__(self):
-        return f"{self.title} {self.first_name} {self.last_name} ({self.position})"
+        return f"{self.first_name} {self.last_name}"
 
 # Signal to create standard classes when a school is created
 @receiver(post_save, sender=School)

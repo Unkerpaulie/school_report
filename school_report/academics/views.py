@@ -7,7 +7,7 @@ from django.urls import reverse_lazy
 from django.db.models import Q
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Year
+from .models import Year, Term
 from schools.models import School
 from core.mixins import SchoolAdminRequiredMixin, SchoolAccessRequiredMixin
 
@@ -21,6 +21,64 @@ class YearForm(forms.ModelForm):
         fields = ['start_year', 'term1_start_date', 'term1_end_date', 'term1_school_days',
                   'term2_start_date', 'term2_end_date', 'term2_school_days',
                   'term3_start_date', 'term3_end_date', 'term3_school_days']
+    
+    def save(self, commit=True):
+        """
+        Override save to update Term objects if they exist
+        """
+        year = super().save(commit=commit)
+        
+        if commit and year.pk:
+            # Update existing Term objects if they exist
+            try:
+                term1 = year.terms.get(term_number=1)
+                term1.start_date = year.term1_start_date
+                term1.end_date = year.term1_end_date
+                term1.school_days = year.term1_school_days
+                term1.save()
+            except Term.DoesNotExist:
+                # Create Term 1 if it doesn't exist
+                Term.objects.create(
+                    year=year,
+                    term_number=1,
+                    start_date=year.term1_start_date,
+                    end_date=year.term1_end_date,
+                    school_days=year.term1_school_days
+                )
+            
+            try:
+                term2 = year.terms.get(term_number=2)
+                term2.start_date = year.term2_start_date
+                term2.end_date = year.term2_end_date
+                term2.school_days = year.term2_school_days
+                term2.save()
+            except Term.DoesNotExist:
+                # Create Term 2 if it doesn't exist
+                Term.objects.create(
+                    year=year,
+                    term_number=2,
+                    start_date=year.term2_start_date,
+                    end_date=year.term2_end_date,
+                    school_days=year.term2_school_days
+                )
+            
+            try:
+                term3 = year.terms.get(term_number=3)
+                term3.start_date = year.term3_start_date
+                term3.end_date = year.term3_end_date
+                term3.school_days = year.term3_school_days
+                term3.save()
+            except Term.DoesNotExist:
+                # Create Term 3 if it doesn't exist
+                Term.objects.create(
+                    year=year,
+                    term_number=3,
+                    start_date=year.term3_start_date,
+                    end_date=year.term3_end_date,
+                    school_days=year.term3_school_days
+                )
+        
+        return year
 
     def clean_start_year(self):
         """
