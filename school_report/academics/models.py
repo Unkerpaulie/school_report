@@ -43,31 +43,6 @@ class Term(models.Model):
     def __str__(self):
         return f"{self.year} - {self.get_term_number_display()}"
     
-    def clean(self):
-        """
-        Validate that term dates are valid
-        """
-        from django.core.exceptions import ValidationError
-        
-        # Check that end date is after start date
-        if self.start_date and self.end_date and self.start_date > self.end_date:
-            raise ValidationError({'end_date': f'{self.get_term_number_display()} end date must be after the start date.'})
-        
-        # Check for overlapping terms in the same year
-        if self.year_id and self.start_date and self.end_date:
-            overlapping_terms = Term.objects.filter(
-                year=self.year,
-                start_date__lte=self.end_date,
-                end_date__gte=self.start_date
-            ).exclude(pk=self.pk)
-            
-            if overlapping_terms.exists():
-                raise ValidationError('Term dates overlap with another term in the same academic year.')
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
-
 class StandardTeacher(models.Model):
     """
     Represents the assignment of a teacher to a standard for a specific academic year
@@ -78,7 +53,6 @@ class StandardTeacher(models.Model):
     teacher = models.ForeignKey(UserProfile, on_delete=models.CASCADE, 
                                related_name='standard_assignments',
                                limit_choices_to={'user_type': 'teacher'})
-    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -95,7 +69,6 @@ class Enrollment(models.Model):
     year = models.ForeignKey(SchoolYear, on_delete=models.CASCADE, related_name='enrollments')
     standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='student_enrollments')
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='standard_enrollments')
-    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -113,6 +86,9 @@ class StandardSubject(models.Model):
     standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='assigned_subjects')
     subject_name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(UserProfile, on_delete=models.CASCADE, 
+                                 related_name='created_subjects',
+                                 limit_choices_to={'user_type': 'teacher'})
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

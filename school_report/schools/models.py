@@ -17,10 +17,8 @@ class School(models.Model):
     address = models.TextField()
     contact_phone = models.CharField(max_length=20, blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
-    principal_name = models.CharField(max_length=200, blank=True, null=True)
     principal_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='administered_schools')
     logo = models.ImageField(upload_to='school_logos/', blank=True, null=True, storage=fs)
-    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -74,7 +72,6 @@ class Student(models.Model):
     last_name = models.CharField(max_length=100)
     contact_phone = models.CharField(max_length=20, blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='students')
     date_of_birth = models.DateField()
     parent_name = models.CharField(max_length=200, help_text="Full name of parent or guardian")
     transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about student transfers")

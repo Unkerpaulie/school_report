@@ -85,7 +85,7 @@ class TestSubject(models.Model):
         unique_together = ['test', 'standard_subject']
 
     def __str__(self):
-        return f"{self.test} - {self.standard_subject.subject.name}"
+        return f"{self.test} - {self.standard_subject.subject_name}"
 
 class TestScore(models.Model):
     """
@@ -128,14 +128,33 @@ class TestScore(models.Model):
         total_percentage = sum(score.percentage for score in scores)
         return total_percentage / scores.count()
 
-class StudentAttendance(models.Model):
+class StudentTermReview(models.Model):
     """
-    Represents a student's attendance record for a term
+    Represents a student's term review for a term
     """
-    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='student_attendances', null=True)  # Direct relationship to Term
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendance_records')
+    RATING_CHOICES = [
+        (1, '1 - Poor'),
+        (2, '2 - Below Average'),
+        (3, '3 - Average'),
+        (4, '4 - Good'),
+        (5, '5 - Excellent'),
+    ]
+
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='student_reviews', null=True)  # Direct relationship to Term
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='term_reviews')
+    # Attendance
     days_present = models.PositiveIntegerField()
     days_late = models.PositiveIntegerField(default=0)
+    # Qualitative attributes
+    attitude = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    respect = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    parental_support = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    attendance = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    assignment_completion = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    class_participation = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    time_management = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    remarks = models.TextField()
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -159,65 +178,4 @@ class StudentAttendance(models.Model):
             return (self.days_present / term_days) * 100
         return 0
     
-
-class QualitativeRating(models.Model):
-    """
-    Represents qualitative ratings for a student in a term
-    """
-
-    RATING_CHOICES = [
-        (1, '1 - Poor'),
-        (2, '2 - Below Average'),
-        (3, '3 - Average'),
-        (4, '4 - Good'),
-        (5, '5 - Excellent'),
-    ]
-
-    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='student_ratings')
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='qualitative_ratings')
-
-    # Qualitative attributes
-    attitude = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
-    respect = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
-    parental_support = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
-    attendance = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
-    assignment_completion = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
-    class_participation = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
-    time_management = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ['term', 'student']
-
-    def __str__(self):
-        return f"{self.term} - {self.student} rating"
-
-class TeacherRemark(models.Model):
-    """
-    Represents a teacher's remarks for a student in a term
-    """
-    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='term_remarks', null=True)  # New field
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='teacher_remarks')
-    remarks = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ['term', 'student']
-
-    def __str__(self):
-        return f"{self.term} - {self.student} remark"
-    
-    def save(self, *args, **kwargs):
-        # If term is not set but term_number is, try to set term
-        if not self.term_id and self.term_number and self.year_id:
-            try:
-                self.term = self.year.terms.get(term_number=self.term_number)
-            except Term.DoesNotExist:
-                pass
-        
-        super().save(*args, **kwargs)
-
 

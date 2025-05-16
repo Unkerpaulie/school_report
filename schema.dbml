@@ -1,0 +1,123 @@
+// Core App
+Table User {
+  id integer [pk]
+  username varchar
+  email varchar
+  password varchar
+  first_name varchar
+  last_name varchar
+  is_superuser boolean
+}
+
+Table UserProfile {
+  id integer [pk]
+  user_id integer [ref: - User.id]
+  user_type enum [note: 'principal, teacher, administration']
+  phone_number varchar
+  school_id integer [ref: > School.id]
+  title enum [note: 'Mr, Mrs, Ms, Dr, Prof']
+  transfer_notes text
+  position varchar [note: 'For administration staff']
+}
+
+// Schools App
+Table School {
+  id integer [pk]
+  name varchar
+  slug varchar
+  address text
+  contact_phone varchar
+  contact_email varchar
+  principal_user_id integer [ref: - User.id]
+  logo varchar
+}
+
+Table Standard {
+  id integer [pk]
+  school_id integer [ref: > School.id]
+  name enum [note: 'INF1, INF2, STD1, STD2, STD3, STD4, STD5']
+}
+
+Table Student {
+  id integer [pk]
+  first_name varchar
+  last_name varchar
+  contact_phone varchar
+  contact_email varchar
+  date_of_birth date
+  parent_name varchar
+  transfer_notes text
+}
+
+// Academics App
+Table SchoolYear {
+  id integer [pk]
+  start_year integer
+  school_id integer [ref: > School.id]
+}
+
+Table Term {
+  id integer [pk]
+  year_id integer [ref: > SchoolYear.id]
+  term_number integer [note: '1, 2, or 3']
+  start_date date
+  end_date date
+  school_days integer
+}
+
+Table StandardTeacher {
+  id integer [pk]
+  year_id integer [ref: > SchoolYear.id]
+  standard_id integer [ref: > Standard.id]
+  teacher_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']
+}
+
+Table Enrollment {
+  id integer [pk]
+  year_id integer [ref: > SchoolYear.id]
+  student_id integer [ref: > Student.id]
+  standard_id integer [ref: > Standard.id]
+}
+
+Table StandardSubject {
+  id integer [pk]
+  standard_id integer [ref: > Standard.id]
+  subject_name varchar
+  teacher_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']
+  year_id integer [ref: > SchoolYear.id]
+}
+
+// Reports App
+Table Test {
+  id integer [pk]
+  standard_id integer [ref: > Standard.id]
+  term_id integer [ref: > Term.id]
+  test_type enum [note: 'assignment, quiz, midterm, endterm, project, other']
+  test_date date
+  description text
+  created_by_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']
+  status enum [note: 'draft, in_progress, completed, finalized']
+}
+
+Table TestSubject {
+  id integer [pk]
+  test_id integer [ref: > Test.id]
+  standard_subject_id integer [ref: > StandardSubject.id]
+  max_marks integer
+}
+
+Table TestScore {
+  id integer [pk]
+  test_subject_id integer [ref: > TestSubject.id]
+  student_id integer [ref: > Student.id]
+  score integer
+}
+
+Table StudentTermReview {
+  id integer [pk]
+  term_id integer [ref: > Term.id]
+  student_id integer [ref: > Student.id]
+  days_present integer
+  days_late integer
+  remarks text
+}
