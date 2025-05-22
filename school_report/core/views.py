@@ -9,8 +9,8 @@ from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import HttpResponseRedirect, Http404
 from .models import UserProfile
-from schools.models import School, AdministrationStaff
-from academics.models import Year
+from schools.models import School
+from academics.models import SchoolYear, Term
 from academics.views import get_current_school_year_and_term
 
 class HomeView(TemplateView):

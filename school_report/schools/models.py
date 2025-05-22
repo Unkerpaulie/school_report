@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.utils.text import slugify
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from core.models import UserProfile
+from django.apps import apps
 
 fs = FileSystemStorage(location='media/school_logos/')
 
@@ -19,6 +19,7 @@ class School(models.Model):
     contact_email = models.EmailField(blank=True, null=True)
     principal_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='administered_schools')
     logo = models.ImageField(upload_to='school_logos/', blank=True, null=True, storage=fs)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -81,9 +82,10 @@ class Student(models.Model):
 
     class Meta:
         ordering = ['last_name', 'first_name']
-        
+
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
 
 # Signal to create standard classes when a school is created
 @receiver(post_save, sender=School)

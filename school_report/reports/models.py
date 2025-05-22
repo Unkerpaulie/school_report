@@ -1,6 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from academics.models import StandardSubject, Standard, Term
+from django.apps import apps
 from schools.models import Student
 
 
@@ -17,8 +17,8 @@ class Test(models.Model):
         ('other', 'Other'),
     ]
 
-    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='tests')
-    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='tests', null=True)  # Direct relationship to Term
+    standard = models.ForeignKey('schools.Standard', on_delete=models.CASCADE, related_name='tests')
+    term = models.ForeignKey('academics.Term', on_delete=models.CASCADE, related_name='tests', null=True)  # Direct relationship to Term
     test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES)
     test_date = models.DateField()
     description = models.TextField(blank=True, null=True)
@@ -76,8 +76,8 @@ class TestSubject(models.Model):
     Represents a subject included in a test
     """
     test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='subjects')
-    standard_subject = models.ForeignKey(StandardSubject, on_delete=models.CASCADE, related_name='test_subjects')
-    max_marks = models.PositiveIntegerField()
+    standard_subject = models.ForeignKey('academics.StandardSubject', on_delete=models.CASCADE, related_name='test_subjects')
+    max_score = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -103,12 +103,12 @@ class TestScore(models.Model):
         verbose_name_plural = "Test Scores"
 
     def __str__(self):
-        return f"{self.test_subject} - {self.student} - {self.score}/{self.test_subject.max_marks}"
+        return f"{self.test_subject} - {self.student} - {self.score}/{self.test_subject.max_score}"
 
     @property
     def percentage(self):
         """Calculate percentage score"""
-        return (self.score / self.test_subject.max_marks) * 100
+        return (self.score / self.test_subject.max_score) * 100
 
     @classmethod
     def get_student_term_average(cls, student, year, term):
@@ -140,7 +140,7 @@ class StudentTermReview(models.Model):
         (5, '5 - Excellent'),
     ]
 
-    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='student_reviews', null=True)  # Direct relationship to Term
+    term = models.ForeignKey('academics.Term', on_delete=models.CASCADE, related_name='student_reviews', null=True)  # Direct relationship to Term
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='term_reviews')
     # Attendance
     days_present = models.PositiveIntegerField()

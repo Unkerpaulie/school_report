@@ -6,7 +6,11 @@ Table User {
   password varchar
   first_name varchar
   last_name varchar
+  is_active boolean
+  is_staff boolean
   is_superuser boolean
+  date_joined datetime
+  last_login datetime
 }
 
 Table UserProfile {
@@ -14,28 +18,39 @@ Table UserProfile {
   user_id integer [ref: - User.id]
   user_type enum [note: 'principal, teacher, administration']
   phone_number varchar
-  school_id integer [ref: > School.id]
+  must_change_password boolean
   title enum [note: 'Mr, Mrs, Ms, Dr, Prof']
   transfer_notes text
   position varchar [note: 'For administration staff']
+  created_at datetime
+  updated_at datetime
 }
 
 // Schools App
 Table School {
   id integer [pk]
   name varchar
-  slug varchar
+  slug varchar [unique]
   address text
   contact_phone varchar
   contact_email varchar
   principal_user_id integer [ref: - User.id]
   logo varchar
+  is_active boolean
+  created_at datetime
+  updated_at datetime
 }
 
 Table Standard {
   id integer [pk]
   school_id integer [ref: > School.id]
   name enum [note: 'INF1, INF2, STD1, STD2, STD3, STD4, STD5']
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (school_id, name) [unique]
+  }
 }
 
 Table Student {
@@ -47,13 +62,34 @@ Table Student {
   date_of_birth date
   parent_name varchar
   transfer_notes text
+  is_active boolean
+  created_at datetime
+  updated_at datetime
+}
+
+Table SchoolStaff {
+  id integer [pk]
+  year_id integer [ref: > SchoolYear.id]
+  school_id integer [ref: > School.id]
+  staff_id integer [ref: > UserProfile.id]
+  position varchar
+  transfer_notes text
+  is_active boolean
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (year_id, school_id, staff_id) [unique]
+  }
 }
 
 // Academics App
 Table SchoolYear {
   id integer [pk]
-  start_year integer
   school_id integer [ref: > School.id]
+  start_year integer [unique]
+  created_at datetime
+  updated_at datetime
 }
 
 Table Term {
@@ -63,6 +99,12 @@ Table Term {
   start_date date
   end_date date
   school_days integer
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (year_id, term_number) [unique]
+  }
 }
 
 Table StandardTeacher {
@@ -70,21 +112,40 @@ Table StandardTeacher {
   year_id integer [ref: > SchoolYear.id]
   standard_id integer [ref: > Standard.id]
   teacher_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (year_id, standard_id, teacher_id) [unique]
+  }
 }
 
 Table Enrollment {
   id integer [pk]
   year_id integer [ref: > SchoolYear.id]
-  student_id integer [ref: > Student.id]
   standard_id integer [ref: > Standard.id]
+  student_id integer [ref: > Student.id]
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (year_id, standard_id, student_id) [unique]
+  }
 }
 
 Table StandardSubject {
   id integer [pk]
+  year_id integer [ref: > SchoolYear.id]
   standard_id integer [ref: > Standard.id]
   subject_name varchar
-  teacher_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']
-  year_id integer [ref: > SchoolYear.id]
+  description text
+  created_by_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (year_id, standard_id, subject_name) [unique]
+  }
 }
 
 // Reports App
@@ -96,14 +157,21 @@ Table Test {
   test_date date
   description text
   created_by_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']
-  status enum [note: 'draft, in_progress, completed, finalized']
+  created_at datetime
+  updated_at datetime
 }
 
 Table TestSubject {
   id integer [pk]
   test_id integer [ref: > Test.id]
   standard_subject_id integer [ref: > StandardSubject.id]
-  max_marks integer
+  max_score integer
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (test_id, standard_subject_id) [unique]
+  }
 }
 
 Table TestScore {
@@ -111,7 +179,17 @@ Table TestScore {
   test_subject_id integer [ref: > TestSubject.id]
   student_id integer [ref: > Student.id]
   score integer
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (test_subject_id, student_id) [unique]
+  }
 }
+
+// Note: TermTest and StudentSubjectScore have been replaced by Test, TestSubject, and TestScore models
+
+// StudentTermReview consolidates attendance, qualitative ratings, and teacher remarks
 
 Table StudentTermReview {
   id integer [pk]
@@ -119,5 +197,18 @@ Table StudentTermReview {
   student_id integer [ref: > Student.id]
   days_present integer
   days_late integer
+  attitude integer [note: '1-5 scale']
+  respect integer [note: '1-5 scale']
+  parental_support integer [note: '1-5 scale']
+  attendance integer [note: '1-5 scale']
+  assignment_completion integer [note: '1-5 scale']
+  class_participation integer [note: '1-5 scale']
+  time_management integer [note: '1-5 scale']
   remarks text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (term_id, student_id) [unique]
+  }
 }

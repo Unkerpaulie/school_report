@@ -9,8 +9,8 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
 from django.core.validators import FileExtensionValidator
 from core.models import UserProfile
-from academics.models import Year, StandardTeacher, Enrollment
-from .models import School, Teacher, Standard, Student, AdministrationStaff
+from academics.models import SchoolYear, StandardTeacher, Enrollment
+from .models import School, Standard, Student
 import csv
 from datetime import datetime
 
@@ -19,13 +19,63 @@ class StaffListView(LoginRequiredMixin, ListView):
     """
     View for listing all staff (teachers and administration) in a school
     """
-    model = Teacher
+    model = UserProfile
     template_name = 'schools/staff_list.html'
     context_object_name = 'staff_members'
 
     def get_queryset(self):
-        # This method is overridden below
-        pass
+        # Get teachers from this school
+        teachers = UserProfile.objects.filter(
+            user_type='teacher',
+            school=self.school
+        )
+
+        # Get administration staff from this school
+        admin_staff = AdministrationStaff.objects.filter(school=self.school)
+
+        # Create a list to hold all staff members with their type
+        staff_list = []
+
+        # Get the current academic year
+        current_year = SchoolYear.objects.filter(
+            school=self.school
+        ).order_by('-start_year').first()
+
+        # Get all active teacher assignments for the current year
+        teacher_assignments = {}
+        if current_year:
+            assignments = StandardTeacher.objects.filter(
+                year=current_year,
+                is_active=True,
+                teacher__school=self.school
+            ).select_related('standard', 'teacher')
+
+            # Create a dictionary of teacher_id -> standard for quick lookup
+            for assignment in assignments:
+                teacher_assignments[assignment.teacher_id] = {
+                    'standard': assignment.standard,
+                    'assignment_id': assignment.id
+                }
+
+        # Add teachers with their type and assignment info
+        for teacher in teachers:
+            # Check if this teacher has an assignment
+            assignment_info = teacher_assignments.get(teacher.id)
+            assigned_standard = assignment_info['standard'] if assignment_info else None
+            assignment_id = assignment_info['assignment_id'] if assignment_info else None
+
+            staff_list.append({
+                'id': teacher.id,
+                'name': f"{teacher.title} {teacher.user.get_full_name()}",
+                'email': teacher.user.email,
+                'phone': teacher.phone_number,
+                'type': 'Teacher',
+                'is_teacher': True,
+                'is_active': True,  # Teachers are always active in this model
+                'assigned_standard': assigned_standard,
+                'assignment_id': assignment_id,
+                'obj': teacher
+            })
 
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
@@ -107,12 +157,12 @@ class StaffListView(LoginRequiredMixin, ListView):
         for admin in admin_staff:
             staff_list.append({
                 'id': admin.id,
-                'name': str(admin),
-                'email': admin.contact_email,
-                'phone': admin.contact_phone,
+                'name': f"{admin.title} {admin.user.get_full_name()}",
+                'email': admin.user.email,
+                'phone': admin.phone_number,
                 'type': f'Administration ({admin.position})',
                 'is_teacher': False,
-                'is_active': admin.is_active,
+                'is_active': True,  # Administrators are always active in this model
                 'assigned_standard': None,
                 'obj': admin
             })
@@ -133,7 +183,7 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
     """
     View for creating a new teacher
     """
-    model = User  # Changed from Teacher to User
+    model = User
     template_name = 'schools/teacher_form.html'
     fields = ['first_name', 'last_name']  # Basic User fields
 
@@ -149,28 +199,34 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
         form.fields['title'] = forms.ChoiceField(choices=UserProfile.TITLE_CHOICES)
         return form
 
+    def get_success_url(self):
+        return reverse('schools:staff_list', kwargs={'school_slug': self.kwargs['school_slug']})
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        self.school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=self.school_slug)
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
-        # Get the school
-        self.school_slug = self.kwargs.get('school_slug')
-        school = get_object_or_404(School, slug=self.school_slug)
-        
         # Create user with a random password
         user = form.save(commit=False)
         password = User.objects.make_random_password()
         user.set_password(password)
         user.save()
         
-        # Update or create profile
-        profile = user.profile
-        profile.user_type = 'teacher'
-        profile.phone_number = form.cleaned_data['phone_number']
-        profile.school = school
-        profile.title = form.cleaned_data['title']
-        profile.must_change_password = True
-        profile.save()
+        # Create profile
+        profile = UserProfile.objects.create(
+            user=user,
+            user_type='teacher',
+            phone_number=form.cleaned_data['phone_number'],
+            school=self.school,
+            title=form.cleaned_data['title'],
+            must_change_password=True
+        )
         
         messages.success(self.request, f"Teacher {profile.get_full_name()} has been added successfully!")
-        return redirect(self.get_success_url())
+        return super().form_valid(form)
 
 
 class StudentListView(LoginRequiredMixin, ListView):
@@ -942,7 +998,7 @@ class StudentBulkUploadForm(forms.Form):
         help_text='Select the class to enroll these students in'
     )
     academic_year = forms.ModelChoiceField(
-        queryset=Year.objects.all().order_by('-start_year'),
+        queryset=SchoolYear.objects.all().order_by('-start_year'),
         label='Academic Year',
         help_text='Select the academic year for enrollment'
     )
@@ -1249,18 +1305,21 @@ class AdminStaffCreateView(LoginRequiredMixin, CreateView):
     """
     View for creating a new administration staff member
     """
-    model = AdministrationStaff
+    model = User
     template_name = 'schools/admin_staff_form.html'
-    fields = ['title', 'first_name', 'last_name', 'contact_phone', 'contact_email', 'position']
+    fields = ['first_name', 'last_name']
 
-    # Add username field to the form
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        # Add username field
+        # Add additional fields
         form.fields['username'] = forms.CharField(
             max_length=150,
             help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
         )
+        form.fields['email'] = forms.EmailField(required=True)
+        form.fields['phone_number'] = forms.CharField(max_length=20, required=False)
+        form.fields['title'] = forms.ChoiceField(choices=UserProfile.TITLE_CHOICES)
+        form.fields['position'] = forms.CharField(max_length=100, required=True)
         return form
 
     def get_success_url(self):
@@ -1295,46 +1354,22 @@ class AdminStaffCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        # Create the administration staff
-        admin_staff = form.save(commit=False)
-        admin_staff.school = self.school
-
-        # Get username and email from form
-        username = form.cleaned_data['username']
-        email = form.cleaned_data['contact_email']
-        password = "ChangeMe!"  # Default password that must be changed
-
-        # Check if user with this username already exists
-        if User.objects.filter(username=username).exists():
-            messages.warning(self.request, f"A user with the username '{username}' already exists.")
-            return self.form_invalid(form)
-
-        # Check if user with this email already exists
-        if User.objects.filter(email=email).exists():
-            messages.warning(self.request, f"A user with the email '{email}' already exists.")
-            return self.form_invalid(form)
-
-        # Create the user
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=form.cleaned_data['first_name'],
-            last_name=form.cleaned_data['last_name']
+        # Create user with a random password
+        user = form.save(commit=False)
+        password = User.objects.make_random_password()
+        user.set_password(password)
+        user.save()
+        
+        # Create profile
+        profile = UserProfile.objects.create(
+            user=user,
+            user_type='administration',
+            phone_number=form.cleaned_data['phone_number'],
+            school=self.school,
+            title=form.cleaned_data['title'],
+            position=form.cleaned_data['position'],
+            must_change_password=True
         )
-
-        # Update the user profile to be administration
-        profile = user.profile
-        profile.user_type = 'administration'
-        profile.phone_number = form.cleaned_data['contact_phone']
-        profile.must_change_password = True  # Force password change on first login
-        profile.save()
-
-        # Link the administration staff to the user
-        admin_staff.user = user
-        admin_staff.save()
-
-        messages.success(self.request, f"Administration staff {admin_staff} has been added successfully!")
-        return redirect(self.get_success_url())
-
-
+        
+        messages.success(self.request, f"Administration staff {profile.get_full_name()} has been added successfully!")
+        return super().form_valid(form)

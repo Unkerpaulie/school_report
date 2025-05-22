@@ -3,12 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
 from django.db import transaction
-from django.utils import timezone
 from django.forms import modelformset_factory
-
-from academics.models import Year, Subject, StandardSubject, Standard
-from schools.models import Student, Teacher, School
-from .models import Test, TestSubject, TestScore, TEST_TYPE_CHOICES, TEST_STATUS_CHOICES
+from academics.models import StandardSubject
+from schools.models import Student, School, Standard
+from core.models import UserProfile
+from core.utils import get_current_year_and_term
+from .models import Test, TestSubject, TestScore
 
 # Create your forms here
 from django import forms
@@ -29,8 +29,8 @@ class TestSubjectForm(forms.ModelForm):
 
 class SubjectForm(forms.ModelForm):
     class Meta:
-        model = Subject
-        fields = ['name', 'description']
+        model = StandardSubject
+        fields = ['subject_name', 'description']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
         }
@@ -44,11 +44,11 @@ def test_list(request, school_slug):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -68,11 +68,8 @@ def test_list(request, school_slug):
     # Get all tests created by this teacher
     tests = Test.objects.filter(created_by=teacher).order_by('-test_date')
 
-    # Get current academic year
-    current_year = Year.objects.filter(
-        term1_start_date__lte=timezone.now().date(),
-        term3_end_date__gte=timezone.now().date()
-    ).first()
+    # Get current academic year and term
+    current_year, current_term, is_on_vacation = get_current_year_and_term()
 
     return render(request, 'reports/test_list.html', {
         'tests': tests,
@@ -91,11 +88,11 @@ def test_create(request, school_slug):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -163,11 +160,11 @@ def test_detail(request, school_slug, test_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -226,11 +223,11 @@ def test_edit(request, school_slug, test_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -276,11 +273,11 @@ def test_delete(request, school_slug, test_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -313,11 +310,11 @@ def test_subject_add(request, school_slug, test_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -382,11 +379,11 @@ def test_subject_edit(request, school_slug, test_id, subject_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -434,11 +431,11 @@ def test_subject_delete(request, school_slug, test_id, subject_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -484,11 +481,11 @@ def subject_scores(request, school_slug, test_id, subject_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -567,11 +564,11 @@ def test_finalize(request, school_slug, test_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -633,11 +630,11 @@ def subject_list(request, school_slug):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -687,11 +684,11 @@ def subject_create(request, school_slug):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -752,11 +749,11 @@ def subject_edit(request, school_slug, subject_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:
@@ -791,11 +788,11 @@ def subject_delete(request, school_slug, subject_id):
     school = get_object_or_404(School, slug=school_slug)
 
     # Check if user is a teacher
-    if not hasattr(request.user, 'teacher_profile'):
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.teacher_profile
+    teacher = request.user.profile
 
     # Verify teacher belongs to this school
     if teacher.school != school:

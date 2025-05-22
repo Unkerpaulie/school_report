@@ -113,7 +113,7 @@ TermTest
 year (ForeignKey to Year)
 term (choices: 1, 2, 3)
 standard_subject (ForeignKey to StandardSubject)
-max_marks
+max_score
 StudentScore
 term_test (ForeignKey to TermTest)
 student (ForeignKey to Student)
