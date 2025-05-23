@@ -31,18 +31,20 @@
         {% endif %}
 
         {% if user.profile.user_type == 'teacher' or user.profile.user_type == 'principal' or user.profile.user_type == 'administration' %}
-        <li class="{% block students_active %}{% endblock %}">
-            <a href="{% url 'schools:student_list' school_slug=school.slug %}"><i class="bi bi-people"></i> Students</a>
-        </li>
-        <li class="{% block classes_active %}{% endblock %}">
-            <a href="{% url 'schools:standard_list' school_slug=school.slug %}"><i class="bi bi-mortarboard"></i> Classes</a>
-        </li>
-        <li class="{% block tests_active %}{% endblock %}">
-            <a href="{% url 'reports:test_list' school_slug=school.slug %}"><i class="bi bi-clipboard-check"></i> Tests</a>
-        </li>
-        <li class="{% block reports_active %}{% endblock %}">
-            <a href="#"><i class="bi bi-file-earmark-text"></i> Reports</a>
-        </li>
+            {% if school %}
+            <li class="{% block students_active %}{% endblock %}">
+                <a href="{% url 'schools:student_list' school_slug=school.slug %}"><i class="bi bi-people"></i> Students</a>
+            </li>
+            <li class="{% block classes_active %}{% endblock %}">
+                <a href="{% url 'schools:standard_list' school_slug=school.slug %}"><i class="bi bi-mortarboard"></i> Classes</a>
+            </li>
+            <li class="{% block tests_active %}{% endblock %}">
+                <a href="{% url 'reports:test_list' school_slug=school.slug %}"><i class="bi bi-clipboard-check"></i> Tests</a>
+            </li>
+            <li class="{% block reports_active %}{% endblock %}">
+                <a href="#"><i class="bi bi-file-earmark-text"></i> Reports</a>
+            </li>
+            {% endif %}
         {% endif %}
 
         <li class="{% block profile_active %}{% endblock %}">

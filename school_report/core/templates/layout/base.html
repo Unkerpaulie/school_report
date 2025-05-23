@@ -27,9 +27,11 @@
 <body>
     <div class="wrapper">
         <!-- Sidebar -->
-        {% include "layout/sidebar.html" %}
+        {% if not school_registration_required %}
+            {% include "layout/sidebar.html" %}
+        {% endif %}
         <!-- Page Content -->
-        <div id="content" class="content {% if not user.is_authenticated %}w-100{% endif %}">
+        <div id="content" class="content {% if not user.is_authenticated or school_registration_required %}w-100{% endif %}">
             <!-- Top Navigation -->
             {% include "layout/nav.html" %}
             <!-- Main Content -->

@@ -300,6 +300,23 @@
             </div>
         </div>
     {% endif %}
+{% elif school_registration_required %}
+    <!-- School Registration Required -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-body text-center py-5">
+                    <h2 class="mb-4">School Registration Required</h2>
+                    <p class="lead mb-4">You need to be registered with a school to access the system.</p>
+                    <p class="mb-4">Your current user type is: <strong>{{ user_type }}</strong></p>
+                    <p class="mb-4">Please contact your principal to have your account registered with a school.</p>
+                    <div class="mt-4">
+                        <a href="{% url 'core:logout' %}" class="btn btn-secondary">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 {% else %}
     <!-- Public Home Page -->
     <div class="row justify-content-center">

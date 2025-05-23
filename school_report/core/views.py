@@ -10,12 +10,44 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.http import HttpResponseRedirect, Http404
 from .models import UserProfile
 from schools.models import School
-from academics.models import SchoolYear, Term
+from academics.models import SchoolYear, Term, SchoolStaff
 from academics.views import get_current_school_year_and_term
 
 class HomeView(TemplateView):
     """Home page view"""
     template_name = 'core/home.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        # If user is authenticated, redirect to their school dashboard
+        if request.user.is_authenticated:
+            # Check if user is a principal with no school
+            if request.user.profile.user_type == 'principal' and not hasattr(request.user, 'administered_schools'):
+                return redirect('core:register_school')
+
+            # Check if user is associated with any school
+            school_staff = SchoolStaff.objects.filter(
+                staff=request.user.profile,
+                is_active=True
+            ).first()
+            
+            if not school_staff:
+                # Instead of redirecting, we'll show the school registration required message
+                self.school_registration_required = True
+                self.user_type = request.user.profile.user_type
+                return super().dispatch(request, *args, **kwargs)
+
+            # Get the school from the school staff relationship
+            school = school_staff.school
+            return redirect('schools:dashboard', school_slug=school.slug)
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if hasattr(self, 'school_registration_required'):
+            context['school_registration_required'] = True
+            context['user_type'] = self.user_type
+        return context
 
     def dispatch(self, request, *args, **kwargs):
         # If user is authenticated, redirect to their school dashboard
