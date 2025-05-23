@@ -15,7 +15,7 @@ Table User {
 
 Table UserProfile {
   id integer [pk]
-  user_id integer [ref: - User.id]
+  user_id integer [ref: > User.id]
   user_type enum [note: 'principal, teacher, administration']
   phone_number varchar
   must_change_password boolean
@@ -34,7 +34,7 @@ Table School {
   address text
   contact_phone varchar
   contact_email varchar
-  principal_user_id integer [ref: - User.id]
+  principal_user_id integer [ref: > User.id]
   logo varchar
   is_active boolean
   created_at datetime

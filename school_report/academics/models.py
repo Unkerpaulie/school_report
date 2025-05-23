@@ -115,6 +115,8 @@ class SchoolStaff(models.Model):
     class Meta:
         unique_together = ['year', 'school', 'staff']
         ordering = ['-year__start_year', 'staff__user__last_name', 'staff__user__first_name']
+        verbose_name = 'School Staff'
+        verbose_name_plural = 'School Staff'
 
     def __str__(self):
         return f"{self.year} - {self.school} - {self.staff.get_full_name()}"
