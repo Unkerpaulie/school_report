@@ -14,11 +14,7 @@
         </li>
 
         {% if user.profile.user_type == 'principal' or user.profile.user_type == 'administration' %}
-            {% if user.profile.user_type == 'principal' and not user.administered_schools.exists %}
-            <li class="{% block register_school_active %}{% endblock %}">
-                <a href="{% url 'core:register_school' %}"><i class="bi bi-building-add"></i> Register School</a>
-            </li>
-            {% elif user.profile.user_type == 'principal' and user.administered_schools.exists or user.profile.user_type == 'administration' and user.admin_profile %}
+            {% if school %}
             <li class="{% block academic_years_active %}{% endblock %}">
                 <a href="{% url 'academics:year_list' school_slug=school.slug %}" class="nav-link">
                     <i class="bi bi-calendar3"></i> Academic Years
@@ -47,9 +43,11 @@
             {% endif %}
         {% endif %}
 
+        {% if school %}
         <li class="{% block profile_active %}{% endblock %}">
-            <a href="{% url 'core:profile' school_slug=school.slug %}"><i class="bi bi-person-circle"></i> My Profile</a>
+            <a href="{% url 'schools:profile' school_slug=school.slug %}"><i class="bi bi-person-circle"></i> My Profile</a>
         </li>
+        {% endif %}
     </ul>
 </nav>
 {% endif %}

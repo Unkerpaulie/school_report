@@ -18,27 +18,31 @@ class HomeView(TemplateView):
     template_name = 'core/home.html'
 
     def dispatch(self, request, *args, **kwargs):
-        # If user is authenticated, redirect to their school dashboard
+        # If user is authenticated, redirect to their appropriate dashboard
         if request.user.is_authenticated:
-            # Check if user is a principal with no school
-            if request.user.profile.user_type == 'principal' and not hasattr(request.user, 'administered_schools'):
-                return redirect('core:register_school')
+            user_profile = request.user.profile
 
-            # Check if user is associated with any school
+            # Check if user is associated with any school via SchoolStaff
             school_staff = SchoolStaff.objects.filter(
-                staff=request.user.profile,
+                staff=user_profile,
                 is_active=True
             ).first()
-            
-            if not school_staff:
-                # Instead of redirecting, we'll show the school registration required message
-                self.school_registration_required = True
-                self.user_type = request.user.profile.user_type
-                return super().dispatch(request, *args, **kwargs)
 
-            # Get the school from the school staff relationship
-            school = school_staff.school
-            return redirect('schools:dashboard', school_slug=school.slug)
+            if school_staff:
+                # User is associated with a school - redirect to school dashboard
+                # Both principals and administration use the same dashboard
+                school = school_staff.school
+                return redirect('schools:dashboard', school_slug=school.slug)
+
+            # User is NOT associated with a school
+            if user_profile.user_type == 'principal':
+                # Case 2: Principal NOT associated with a school - redirect to school registration
+                return redirect('core:register_school')
+            elif user_profile.user_type in ['administration', 'teacher']:
+                # Case 4: Teacher/admin NOT associated with a school - show message to contact principal
+                self.school_registration_required = True
+                self.user_type = user_profile.user_type
+                return super().dispatch(request, *args, **kwargs)
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -48,29 +52,6 @@ class HomeView(TemplateView):
             context['school_registration_required'] = True
             context['user_type'] = self.user_type
         return context
-
-    def dispatch(self, request, *args, **kwargs):
-        # If user is authenticated, redirect to their school dashboard
-        if request.user.is_authenticated:
-            # Check if user is a principal with a school
-            if request.user.profile.user_type == 'principal' and hasattr(request.user, 'administered_schools'):
-                school = request.user.administered_schools.first()
-                if school:
-                    return redirect('schools:dashboard', school_slug=school.slug)
-
-            # Check if user is a teacher with a school
-            elif request.user.profile.user_type == 'teacher' and hasattr(request.user, 'teacher_profile'):
-                school = request.user.teacher_profile.school
-                if school:
-                    return redirect('schools:dashboard', school_slug=school.slug)
-
-            # Check if user is administration staff with a school
-            elif request.user.profile.user_type == 'administration' and hasattr(request.user, 'admin_profile'):
-                school = request.user.admin_profile.school
-                if school:
-                    return redirect('schools:dashboard', school_slug=school.slug)
-
-        return super().dispatch(request, *args, **kwargs)
 
 
 class SchoolRegistrationView(LoginRequiredMixin, CreateView):
@@ -88,10 +69,15 @@ class SchoolRegistrationView(LoginRequiredMixin, CreateView):
             messages.warning(request, "Only principals can register schools.")
             return redirect('core:home')
 
-        # Check if the principal already has a school
-        if hasattr(request.user, 'administered_schools') and request.user.administered_schools.exists():
-            messages.warning(request, "You already have a registered school.")
-            return redirect('core:home')
+        # Check if the principal already has a school via SchoolStaff
+        existing_school_staff = SchoolStaff.objects.filter(
+            staff=request.user.profile,
+            is_active=True
+        ).first()
+
+        if existing_school_staff:
+            messages.warning(request, "You are already associated with a school.")
+            return redirect('schools:dashboard', school_slug=existing_school_staff.school.slug)
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -102,12 +88,67 @@ class SchoolRegistrationView(LoginRequiredMixin, CreateView):
         # Link the school to the principal
         school.principal_user = self.request.user
 
-        # Set the principal_name from the user's profile
-        principal_name = self.request.user.get_full_name()
-        if principal_name:
-            school.principal_name = principal_name
-
         school.save()
+
+        # Create a SchoolStaff entry for the principal
+        # First, we need to get or create the current school year
+        from academics.models import SchoolYear, Term
+        current_year = SchoolYear.objects.filter(school=school).first()
+        if not current_year:
+            # Create a default school year with terms if none exists
+            import datetime
+            current_date = datetime.date.today()
+            current_year_num = current_date.year
+
+            # Create the school year
+            current_year = SchoolYear.objects.create(
+                school=school,
+                start_year=current_year_num
+            )
+
+            # Create default terms (Caribbean school year typically runs Sept-July)
+            # Term 1: September - December
+            # Term 2: January - April
+            # Term 3: May - July
+            terms_data = [
+                {
+                    'term_number': 1,
+                    'start_date': datetime.date(current_year_num, 9, 1),
+                    'end_date': datetime.date(current_year_num, 12, 15),
+                    'school_days': 70
+                },
+                {
+                    'term_number': 2,
+                    'start_date': datetime.date(current_year_num + 1, 1, 8),
+                    'end_date': datetime.date(current_year_num + 1, 4, 12),
+                    'school_days': 65
+                },
+                {
+                    'term_number': 3,
+                    'start_date': datetime.date(current_year_num + 1, 4, 22),
+                    'end_date': datetime.date(current_year_num + 1, 7, 5),
+                    'school_days': 55
+                }
+            ]
+
+            # Create the terms
+            for term_data in terms_data:
+                Term.objects.create(
+                    year=current_year,
+                    term_number=term_data['term_number'],
+                    start_date=term_data['start_date'],
+                    end_date=term_data['end_date'],
+                    school_days=term_data['school_days']
+                )
+
+        # Create SchoolStaff entry for the principal
+        SchoolStaff.objects.create(
+            year=current_year,
+            school=school,
+            staff=self.request.user.profile,
+            position='Principal',
+            is_active=True
+        )
 
         messages.success(self.request, f"School '{school.name}' has been registered successfully!")
         return redirect(self.success_url)
@@ -120,13 +161,33 @@ class ProfileView(LoginRequiredMixin, UpdateView):
     model = UserProfile
     template_name = 'core/profile.html'
     fields = ['phone_number']
-    success_url = reverse_lazy('core:profile')
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug and check access
+        school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=school_slug)
+
+        # Check if user has access to this school via SchoolStaff
+        user_profile = request.user.profile
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=self.school,
+            is_active=True
+        ).first()
+
+        if not school_staff:
+            messages.warning(request, "You do not have access to this school.")
+            return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse('schools:profile', kwargs={'school_slug': self.school.slug})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        school_slug = self.kwargs.get('school_slug')
-        school = get_object_or_404(School, slug=school_slug)
-        context['school'] = school
+        context['school'] = self.school
+        context['school_slug'] = self.school.slug
 
         # Get current school year and term
         current_year_term = get_current_school_year_and_term(self.request)
@@ -135,6 +196,7 @@ class ProfileView(LoginRequiredMixin, UpdateView):
         context['is_on_vacation'] = current_year_term['is_on_vacation']
 
         return context
+
     def get_object(self):
         return self.request.user.profile
 
@@ -200,24 +262,18 @@ class SchoolRedirectView(LoginRequiredMixin, RedirectView):
 
     def get_redirect_url(self, *args, **kwargs):
         user = self.request.user
+        user_profile = user.profile
 
-        # If user is a principal, redirect to their school
-        if user.profile.user_type == 'principal' and hasattr(user, 'administered_schools'):
-            school = user.administered_schools.first()
-            if school:
-                return reverse('schools:dashboard', kwargs={'school_slug': school.slug})
+        # Check if user is associated with any school via SchoolStaff
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            is_active=True
+        ).first()
 
-        # If user is a teacher, redirect to their assigned school
-        elif user.profile.user_type == 'teacher' and hasattr(user, 'teacher_profile'):
-            school = user.teacher_profile.school
-            if school:
-                return reverse('schools:dashboard', kwargs={'school_slug': school.slug})
-
-        # If user is administration staff, redirect to their assigned school
-        elif user.profile.user_type == 'administration' and hasattr(user, 'admin_profile'):
-            school = user.admin_profile.school
-            if school:
-                return reverse('schools:dashboard', kwargs={'school_slug': school.slug})
+        if school_staff:
+            # User is associated with a school - redirect to school dashboard
+            school = school_staff.school
+            return reverse('schools:dashboard', kwargs={'school_slug': school.slug})
 
         # If user doesn't have a school, redirect to home
         return reverse('core:home')

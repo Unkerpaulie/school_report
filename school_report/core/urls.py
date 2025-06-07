@@ -1,7 +1,6 @@
-from django.urls import path, include
+from django.urls import path
 from .views import (
-    HomeView, SchoolRegistrationView, ProfileView, CustomLogoutView,
-    SchoolRedirectView
+    HomeView, SchoolRegistrationView, CustomLogoutView
 )
 
 app_name = 'core'
@@ -12,7 +11,6 @@ urlpatterns = [
 
     # Authentication routes
     path('register/', SchoolRegistrationView.as_view(), name='register_school'),
-    path('<slug:school_slug>/profile/', ProfileView.as_view(), name='profile'),
     path('logout/', CustomLogoutView.as_view(), name='custom_logout'),
 
     # School-specific routes

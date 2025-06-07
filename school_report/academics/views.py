@@ -5,6 +5,8 @@ from django.contrib import messages
 from django.db.models import Q
 from django import forms
 from django.core.exceptions import ValidationError
+from django.urls import reverse_lazy
+from django.utils import timezone
 from .models import SchoolYear, Term
 from schools.models import School
 from core.mixins import SchoolAdminRequiredMixin, SchoolAccessRequiredMixin
@@ -17,20 +19,54 @@ class YearForm(forms.ModelForm):
     term1_start_date = forms.DateField()
     term1_end_date = forms.DateField()
     term1_school_days = forms.IntegerField()
-    
+
     term2_start_date = forms.DateField()
     term2_end_date = forms.DateField()
     term2_school_days = forms.IntegerField()
-    
+
     term3_start_date = forms.DateField()
     term3_end_date = forms.DateField()
     term3_school_days = forms.IntegerField()
-    
+
     class Meta:
         model = SchoolYear
         fields = ['start_year', 'term1_start_date', 'term1_end_date', 'term1_school_days',
                   'term2_start_date', 'term2_end_date', 'term2_school_days',
                   'term3_start_date', 'term3_end_date', 'term3_school_days']
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize the form and populate term fields with existing data if editing
+        """
+        super().__init__(*args, **kwargs)
+
+        # If this is an existing instance, populate the term fields
+        if self.instance and self.instance.pk:
+            terms = self.instance.terms.all().order_by('term_number')
+
+            # Create a dictionary for easy lookup
+            terms_dict = {term.term_number: term for term in terms}
+
+            # Populate term 1 fields
+            if 1 in terms_dict:
+                term1 = terms_dict[1]
+                self.fields['term1_start_date'].initial = term1.start_date
+                self.fields['term1_end_date'].initial = term1.end_date
+                self.fields['term1_school_days'].initial = term1.school_days
+
+            # Populate term 2 fields
+            if 2 in terms_dict:
+                term2 = terms_dict[2]
+                self.fields['term2_start_date'].initial = term2.start_date
+                self.fields['term2_end_date'].initial = term2.end_date
+                self.fields['term2_school_days'].initial = term2.school_days
+
+            # Populate term 3 fields
+            if 3 in terms_dict:
+                term3 = terms_dict[3]
+                self.fields['term3_start_date'].initial = term3.start_date
+                self.fields['term3_end_date'].initial = term3.end_date
+                self.fields['term3_school_days'].initial = term3.school_days
     
     def clean(self):
         """
@@ -112,20 +148,26 @@ class YearForm(forms.ModelForm):
 
     def clean_start_year(self):
         """
-        Validate that start_year is unique
+        Validate that start_year is unique per school
         """
         start_year = self.cleaned_data.get('start_year')
+
+        # We need the school to validate uniqueness
+        # This will be set by the view when the form is used
+        school = getattr(self, 'school', None)
+        if not school:
+            return start_year
 
         # Check if this is an update
         instance = getattr(self, 'instance', None)
         if instance and instance.pk:
             # If this is an update, exclude the current instance from the check
-            if SchoolYear.objects.filter(start_year=start_year).exclude(pk=instance.pk).exists():
-                raise ValidationError("An academic year with this start year already exists.")
+            if SchoolYear.objects.filter(school=school, start_year=start_year).exclude(pk=instance.pk).exists():
+                raise ValidationError(f"An academic year with start year {start_year} already exists for this school.")
         else:
-            # If this is a new instance, check if the start_year already exists
-            if SchoolYear.objects.filter(start_year=start_year).exists():
-                raise ValidationError("An academic year with this start year already exists.")
+            # If this is a new instance, check if the start_year already exists for this school
+            if SchoolYear.objects.filter(school=school, start_year=start_year).exists():
+                raise ValidationError(f"An academic year with start year {start_year} already exists for this school.")
 
         return start_year
 
@@ -138,8 +180,8 @@ class YearListView(LoginRequiredMixin, SchoolAdminRequiredMixin, ListView):
     context_object_name = 'years'
 
     def get_queryset(self):
-        # Get all years, ordered by start_year (descending)
-        return SchoolYear.objects.all().order_by('-start_year')
+        # Get years for this school only, ordered by start_year (descending)
+        return SchoolYear.objects.filter(school=self.school).order_by('-start_year')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -158,6 +200,14 @@ class YearUpdateView(LoginRequiredMixin, SchoolAdminRequiredMixin, UpdateView):
     model = SchoolYear
     template_name = 'academics/year_form.html'
     form_class = YearForm
+
+    def get_form(self, form_class=None):
+        """
+        Set the school on the form for validation
+        """
+        form = super().get_form(form_class)
+        form.school = self.school
+        return form
 
     def get_success_url(self):
         return reverse_lazy('academics:year_list', kwargs={'school_slug': self.school_slug})
@@ -211,7 +261,13 @@ class SchoolYearSetupView(LoginRequiredMixin, SchoolAdminRequiredMixin, CreateVi
     template_name = 'academics/school_year_setup.html'
     form_class = YearForm
 
-
+    def get_form(self, form_class=None):
+        """
+        Set the school on the form for validation
+        """
+        form = super().get_form(form_class)
+        form.school = self.school
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -232,6 +288,9 @@ class SchoolYearSetupView(LoginRequiredMixin, SchoolAdminRequiredMixin, CreateVi
         """
         Save the school year and set it as the current year
         """
+        # Set the school before saving
+        form.instance.school = self.school
+
         # Save the form
         year = form.save()
 

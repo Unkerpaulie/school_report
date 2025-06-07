@@ -4,11 +4,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
-build/
 develop-eggs/
+build/
 dist/
 downloads/
 eggs/
@@ -21,6 +18,13 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# virtual environments
+.venv/
+env/
+venv/
+ENV/
+*venvlist.*
 
 # Django
 *.log

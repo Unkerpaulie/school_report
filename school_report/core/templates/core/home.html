@@ -8,317 +8,333 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+        <h1 class="h3 mb-0 text-gray-800">School Report Management System</h1>
     </div>
 </div>
 
 {% if user.is_authenticated %}
-    {% if user.profile.user_type == 'principal' %}
-        <!-- Principal Dashboard -->
-        <div class="row mb-4">
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card primary h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Teachers</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">15</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-person-badge stats-icon text-primary"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card success h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Students</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">350</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-people stats-icon text-success"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card warning h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Classes</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">7</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-building stats-icon text-warning"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card danger h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Reports</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">120</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-file-earmark-text stats-icon text-danger"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                        <h6 class="m-0 font-weight-bold">Recent Activities</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="list-group">
-                            <a href="#" class="list-group-item list-group-item-action">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">New teacher registered</h6>
-                                    <small>3 days ago</small>
+    {% if not school_registration_required %}
+        {% if user.profile.user_type == 'principal' or user.profile.user_type == 'administration' %}
+            <!-- Principal/Admin Dashboard -->
+            <div class="row mb-4">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card primary h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Teachers</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">15</div>
                                 </div>
-                                <p class="mb-1">Mrs. Johnson was added to Standard 3.</p>
-                            </a>
-                            <a href="#" class="list-group-item list-group-item-action">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">Term 2 tests completed</h6>
-                                    <small>1 week ago</small>
+                                <div class="col-auto">
+                                    <i class="bi bi-person-badge stats-icon text-primary"></i>
                                 </div>
-                                <p class="mb-1">All teachers have submitted their scores for Term 2.</p>
-                            </a>
-                            <a href="#" class="list-group-item list-group-item-action">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">New student enrolled</h6>
-                                    <small>2 weeks ago</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card success h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Students</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">350</div>
                                 </div>
-                                <p class="mb-1">John Smith was enrolled in Standard 2.</p>
-                            </a>
+                                <div class="col-auto">
+                                    <i class="bi bi-people stats-icon text-success"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold">Quick Actions</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-primary btn-block">
-                                    <i class="bi bi-person-plus"></i> Add Teacher
-                                </a>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-success btn-block">
-                                    <i class="bi bi-person-plus"></i> Add Student
-                                </a>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-info btn-block">
-                                    <i class="bi bi-book"></i> Manage Subjects
-                                </a>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-warning btn-block">
-                                    <i class="bi bi-file-earmark-text"></i> Generate Reports
-                                </a>
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card warning h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Classes</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">7</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-building stats-icon text-warning"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    {% elif user.profile.user_type == 'teacher' %}
-        <!-- Teacher Dashboard -->
-        <div class="row mb-4">
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card primary h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">My Class</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">Standard 3</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-building stats-icon text-primary"></i>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card danger h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Reports</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">120</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-file-earmark-text stats-icon text-danger"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card success h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Students</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">28</div>
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                            <h6 class="m-0 font-weight-bold">Recent Activities</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                <a href="#" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">New teacher registered</h6>
+                                        <small>3 days ago</small>
+                                    </div>
+                                    <p class="mb-1">Mrs. Johnson was added to Standard 3.</p>
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">Term 2 tests completed</h6>
+                                        <small>1 week ago</small>
+                                    </div>
+                                    <p class="mb-1">All teachers have submitted their scores for Term 2.</p>
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">New student enrolled</h6>
+                                        <small>2 weeks ago</small>
+                                    </div>
+                                    <p class="mb-1">John Smith was enrolled in Standard 2.</p>
+                                </a>
                             </div>
-                            <div class="col-auto">
-                                <i class="bi bi-people stats-icon text-success"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold">Quick Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-primary btn-block">
+                                        <i class="bi bi-person-plus"></i> Add Teacher
+                                    </a>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-success btn-block">
+                                        <i class="bi bi-person-plus"></i> Add Student
+                                    </a>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-info btn-block">
+                                        <i class="bi bi-book"></i> Manage Subjects
+                                    </a>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-warning btn-block">
+                                        <i class="bi bi-file-earmark-text"></i> Generate Reports
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif user.profile.user_type == 'teacher' %}
+            <!-- Teacher Dashboard -->
+            <div class="row mb-4">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card primary h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">My Class</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">Standard 3</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-building stats-icon text-primary"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card success h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Students</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">28</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-people stats-icon text-success"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card warning h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Subjects</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">8</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-book stats-icon text-warning"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stats-card danger h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Current Term</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">Term 2</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-calendar3 stats-icon text-danger"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card warning h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Subjects</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">8</div>
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold">My Students</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Attendance</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>John Smith</td>
+                                            <td>95%</td>
+                                            <td><a href="#" class="btn btn-sm btn-primary">View</a></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Sarah Johnson</td>
+                                            <td>88%</td>
+                                            <td><a href="#" class="btn btn-sm btn-primary">View</a></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Michael Brown</td>
+                                            <td>92%</td>
+                                            <td><a href="#" class="btn btn-sm btn-primary">View</a></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
-                            <div class="col-auto">
-                                <i class="bi bi-book stats-icon text-warning"></i>
-                            </div>
+                            <a href="#" class="btn btn-primary btn-sm mt-2">View All Students</a>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card stats-card danger h-100">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Current Term</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">Term 2</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-calendar3 stats-icon text-danger"></i>
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold">Quick Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-primary btn-block">
+                                        <i class="bi bi-person-plus"></i> Add Student
+                                    </a>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-success btn-block">
+                                        <i class="bi bi-clipboard-check"></i> Record Attendance
+                                    </a>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-info btn-block">
+                                        <i class="bi bi-pencil-square"></i> Enter Test Scores
+                                    </a>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <a href="#" class="btn btn-warning btn-block">
+                                        <i class="bi bi-file-earmark-text"></i> Generate Reports
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="row">
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold">My Students</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Attendance</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>John Smith</td>
-                                        <td>95%</td>
-                                        <td><a href="#" class="btn btn-sm btn-primary">View</a></td>
-                                    </tr>
-                                    <tr>
-                                        <td>Sarah Johnson</td>
-                                        <td>88%</td>
-                                        <td><a href="#" class="btn btn-sm btn-primary">View</a></td>
-                                    </tr>
-                                    <tr>
-                                        <td>Michael Brown</td>
-                                        <td>92%</td>
-                                        <td><a href="#" class="btn btn-sm btn-primary">View</a></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <a href="#" class="btn btn-primary btn-sm mt-2">View All Students</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold">Quick Actions</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-primary btn-block">
-                                    <i class="bi bi-person-plus"></i> Add Student
-                                </a>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-success btn-block">
-                                    <i class="bi bi-clipboard-check"></i> Record Attendance
-                                </a>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-info btn-block">
-                                    <i class="bi bi-pencil-square"></i> Enter Test Scores
-                                </a>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <a href="#" class="btn btn-warning btn-block">
-                                    <i class="bi bi-file-earmark-text"></i> Generate Reports
-                                </a>
-                            </div>
+        {% else %}
+            <!-- Not assigned a role -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Welcome, {{ user.get_full_name|default:user.username }}</h5>
+                            <p class="card-text">You must be assigned as an administrative staff member or teacher to access the system. Please contact your principal.</p>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        {% endif %}
     {% else %}
-        <!-- Staff Dashboard -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Welcome, {{ user.get_full_name|default:user.username }}</h5>
-                        <p class="card-text">You are logged in as a non-teaching staff member. You can help manage the school's data and reports.</p>
+        <!-- School Registration Required -->
+        {% if user.profile.user_type == 'principal' %}
+            <!-- Redirect for principal to register school -->   
+            <script>
+                window.location.href = "{% url 'core:register_school' %}";
+            </script>
+        {% else %}
+            <!-- Message for teacher/admin to contact principal -->
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card shadow mb-4">
+                        <div class="card-body text-center py-5">
+                            <h2 class="mb-4">School Registration Required</h2>
+                            <p class="lead mb-4">You need to be registered with a school to access the system.</p>
+                            <p class="mb-4">Your current user type is: <strong>{{ user_type|capfirst }}</strong></p>
+
+                            {% if user_type == 'teacher' %}
+                                <p class="mb-4">As a teacher, you need to be registered with a school by your principal. Please contact your principal to have your account registered with a school.</p>
+                            {% elif user_type == 'administration' %}
+                                <p class="mb-4">As an administration staff member, you need to be registered with a school by your principal. Please contact your principal to have your account registered with a school.</p>
+                            {% endif %}
+
+                            <div class="mt-4">
+                                <a href="{% url 'core:custom_logout' %}" class="btn btn-secondary">Logout</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        {% endif %}
     {% endif %}
-{% elif school_registration_required %}
-    <!-- School Registration Required -->
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-body text-center py-5">
-                    <h2 class="mb-4">School Registration Required</h2>
-                    <p class="lead mb-4">You need to be registered with a school to access the system.</p>
-                    <p class="mb-4">Your current user type is: <strong>{{ user_type }}</strong></p>
-                    <p class="mb-4">Please contact your principal to have your account registered with a school.</p>
-                    <div class="mt-4">
-                        <a href="{% url 'core:logout' %}" class="btn btn-secondary">Logout</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 {% else %}
-    <!-- Public Home Page -->
+    <!-- Public Home Page; Not logged in -->
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="card shadow mb-4">

@@ -80,17 +80,10 @@
                     <p>{{ user.last_login|date:"F j, Y g:i A" }}</p>
                 </div>
                 
-                {% if user.profile.user_type == 'principal' and user.administered_schools.exists %}
+                {% if school %}
                 <div class="mb-3">
                     <h6 class="font-weight-bold">School</h6>
-                    <p>{{ user.administered_schools.first.name }}</p>
-                </div>
-                {% endif %}
-                
-                {% if user.profile.user_type == 'teacher' and user.teacher_profile %}
-                <div class="mb-3">
-                    <h6 class="font-weight-bold">School</h6>
-                    <p>{{ user.teacher_profile.school.name }}</p>
+                    <p>{{ school.name }}</p>
                 </div>
                 {% endif %}
             </div>

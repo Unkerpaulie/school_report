@@ -7,15 +7,16 @@ class SchoolYear(models.Model):
     Represents an academic year with three terms
     """
     school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='years')
-    start_year = models.PositiveIntegerField(unique=True)
+    start_year = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        unique_together = ['school', 'start_year']
         ordering = ['-start_year']
 
     def __str__(self):
-        return f"{self.start_year}-{self.start_year + 1} Academic Year"
+        return f"{self.school.name} {self.start_year}-{self.start_year + 1}"
 
 class Term(models.Model):
     """

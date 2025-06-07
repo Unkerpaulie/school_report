@@ -6,12 +6,16 @@ from .views import (
     EnrollmentCreateView, StudentBulkUploadView, student_csv_template
 )
 from .dashboard import SchoolDashboardView
+from core.views import ProfileView
 
 app_name = 'schools'
 
 urlpatterns = [
     # Dashboard URL (empty path for the school root)
     path('', SchoolDashboardView.as_view(), name='dashboard'),
+
+    # Profile URL
+    path('profile/', ProfileView.as_view(), name='profile'),
 
     # Staff URLs
     path('staff/', StaffListView.as_view(), name='staff_list'),

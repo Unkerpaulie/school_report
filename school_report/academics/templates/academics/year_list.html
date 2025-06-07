@@ -46,19 +46,19 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {{ year.term1_start_date|date:"M d, Y" }} - {{ year.term1_end_date|date:"M d, Y" }}
+                                    {{ year.terms.all.0.start_date|date:"M d, Y" }} - {{ year.terms.all.0.end_date|date:"M d, Y" }}
                                     <br>
-                                    <small class="text-muted">{{ year.term1_school_days }} school days</small>
+                                    <small class="text-muted">{{ year.terms.all.0.school_days }} school days</small>
                                 </td>
                                 <td>
-                                    {{ year.term2_start_date|date:"M d, Y" }} - {{ year.term2_end_date|date:"M d, Y" }}
+                                    {{ year.terms.all.1.start_date|date:"M d, Y" }} - {{ year.terms.all.1.end_date|date:"M d, Y" }}
                                     <br>
-                                    <small class="text-muted">{{ year.term2_school_days }} school days</small>
+                                    <small class="text-muted">{{ year.terms.all.1.school_days }} school days</small>
                                 </td>
                                 <td>
-                                    {{ year.term3_start_date|date:"M d, Y" }} - {{ year.term3_end_date|date:"M d, Y" }}
+                                    {{ year.terms.all.2.start_date|date:"M d, Y" }} - {{ year.terms.all.2.end_date|date:"M d, Y" }}
                                     <br>
-                                    <small class="text-muted">{{ year.term3_school_days }} school days</small>
+                                    <small class="text-muted">{{ year.terms.all.2.school_days }} school days</small>
                                 </td>
                                 <td>
                                     <a href="{% url 'academics:year_update' school_slug=school_slug pk=year.id %}" class="btn btn-sm btn-primary">

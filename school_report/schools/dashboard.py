@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
 from .models import School
+from academics.models import SchoolStaff
 
 class SchoolDashboardView(LoginRequiredMixin, TemplateView):
     """
@@ -14,17 +15,17 @@ class SchoolDashboardView(LoginRequiredMixin, TemplateView):
         # Get the school by slug
         self.school = get_object_or_404(School, slug=kwargs.get('school_slug'))
 
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'teacher':
-            # Teachers should only access their assigned school
-            if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
+        # Check if user has access to this school via SchoolStaff
+        user_profile = request.user.profile
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=self.school,
+            is_active=True
+        ).first()
+
+        if not school_staff:
+            messages.warning(request, "You do not have access to this school.")
+            return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -34,32 +35,33 @@ class SchoolDashboardView(LoginRequiredMixin, TemplateView):
         # Add the school slug to the context for URL generation
         context['school_slug'] = self.school.slug
 
-        # Add teacher and administration staff counts
-        context['teacher_count'] = self.school.teachers.filter(is_active=True).count()
-        context['admin_staff_count'] = self.school.admin_staff.filter(is_active=True).count()
+        # Add teacher and administration staff counts using SchoolStaff
+        from academics.models import SchoolYear
 
-        # Get current academic year
-        from academics.models import Year, StandardTeacher
-        import datetime
+        # Get current school year
+        current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
 
-        current_year = Year.objects.filter(
-            term1_start_date__lte=datetime.date.today(),
-            term3_end_date__gte=datetime.date.today()
-        ).first()
-
-        # Get teacher assignments for standards
         if current_year:
-            teacher_assignments = {}
-            assignments = StandardTeacher.objects.filter(
+            # Count teachers and admin staff through SchoolStaff
+            teacher_count = SchoolStaff.objects.filter(
+                school=self.school,
                 year=current_year,
-                is_active=True,
-                standard__school=self.school
-            ).select_related('teacher', 'standard')
+                staff__user_type='teacher',
+                is_active=True
+            ).count()
 
-            # Create a dictionary of standard_id -> teacher for quick lookup
-            for assignment in assignments:
-                teacher_assignments[assignment.standard_id] = assignment.teacher
+            admin_staff_count = SchoolStaff.objects.filter(
+                school=self.school,
+                year=current_year,
+                staff__user_type__in=['principal', 'administration'],
+                is_active=True
+            ).count()
 
-            context['teacher_assignments'] = teacher_assignments
+            context['teacher_count'] = teacher_count
+            context['admin_staff_count'] = admin_staff_count
+            context['current_year'] = current_year
+        else:
+            context['teacher_count'] = 0
+            context['admin_staff_count'] = 0
 
         return context
