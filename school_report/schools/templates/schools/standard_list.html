@@ -36,10 +36,8 @@
                                 <td>{{ standard.get_name_display }}</td>
                                 <td>
                                     {% for assignment in standard.teacher_assignments.all %}
-                                        {% if assignment.is_active %}
-                                            {{ assignment.teacher }}
-                                            {% if not forloop.last %}, {% endif %}
-                                        {% endif %}
+                                        {{ assignment.teacher.get_full_name }}
+                                        {% if not forloop.last %}, {% endif %}
                                     {% empty %}
                                         <span class="text-muted">Not assigned</span>
                                     {% endfor %}

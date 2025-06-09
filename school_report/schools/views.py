@@ -9,6 +9,7 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
 from django.core.validators import FileExtensionValidator
 from core.models import UserProfile
+from core.utils import get_current_year_and_term
 from academics.models import SchoolYear, StandardTeacher, Enrollment, SchoolStaff
 from .models import School, Standard, Student
 import csv
@@ -43,10 +44,8 @@ class StaffListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        # Get the current academic year
-        current_year = SchoolYear.objects.filter(
-            school=self.school
-        ).order_by('-start_year').first()
+        # Get the current academic year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
         if not current_year:
             return []
@@ -121,29 +120,31 @@ class StaffListView(LoginRequiredMixin, ListView):
         return context
 
 
-class TeacherCreateView(LoginRequiredMixin, CreateView):
+class TeacherCreateForm(forms.Form):
+    """
+    Custom form for creating teachers
+    """
+    first_name = forms.CharField(max_length=30)
+    last_name = forms.CharField(max_length=30)
+    username = forms.CharField(
+        max_length=150,
+        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+    )
+    contact_email = forms.EmailField(required=True)
+    contact_phone = forms.CharField(max_length=20, required=False)
+    title = forms.ChoiceField(choices=UserProfile.TITLE_CHOICES)
+    position = forms.CharField(max_length=100, required=False, help_text="e.g., Mathematics Teacher, Class Teacher")
+
+
+class TeacherCreateView(LoginRequiredMixin, FormView):
     """
     View for creating a new teacher
     """
-    model = User
     template_name = 'schools/teacher_form.html'
-    fields = ['first_name', 'last_name']  # Basic User fields
-
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        # Add profile fields
-        form.fields['username'] = forms.CharField(
-            max_length=150,
-            help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
-        )
-        form.fields['email'] = forms.EmailField(required=True)
-        form.fields['phone_number'] = forms.CharField(max_length=20, required=False)
-        form.fields['title'] = forms.ChoiceField(choices=UserProfile.TITLE_CHOICES)
-        form.fields['position'] = forms.CharField(max_length=100, required=False, help_text="e.g., Mathematics Teacher, Class Teacher")
-        return form
+    form_class = TeacherCreateForm
 
     def get_success_url(self):
-        return reverse('schools:staff_list', kwargs={'school_slug': self.kwargs['school_slug']})
+        return reverse('schools:staff_list', kwargs={'school_slug': self.school_slug})
 
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
@@ -169,26 +170,45 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
 
         return super().dispatch(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+        return context
+
+
+
     def form_valid(self, form):
-        # Create user with a random password
-        user = form.save(commit=False)
-        password = User.objects.make_random_password()
-        user.set_password(password)
-        user.save()
+        try:
+            # Create user with the form data
+            user = User.objects.create_user(
+                username=form.cleaned_data['username'],
+                email=form.cleaned_data['contact_email'],
+                first_name=form.cleaned_data['first_name'],
+                last_name=form.cleaned_data['last_name'],
+                password='ChangeMe!'
+            )
+        except Exception as e:
+            messages.error(self.request, f"Error creating user: {e}")
+            return self.form_invalid(form)
 
-        # Create profile
-        profile = UserProfile.objects.create(
-            user=user,
-            user_type='teacher',
-            phone_number=form.cleaned_data['phone_number'],
-            title=form.cleaned_data['title'],
-            must_change_password=True
-        )
+        try:
+            # Get the automatically created profile and update it
+            profile = user.profile
+            profile.user_type = 'teacher'
+            profile.phone_number = form.cleaned_data.get('contact_phone', '')
+            profile.title = form.cleaned_data['title']
+            profile.must_change_password = True
+            profile.save()
+        except Exception as e:
+            messages.error(self.request, f"Error updating profile: {e}")
+            return self.form_invalid(form)
 
-        # Get current school year
-        current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
+        # Get current school year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+
         if not current_year:
-            # Create a default school year with terms if none exists
+            # If no current year found, create a default school year with terms
             from academics.models import Term
             import datetime
             current_date = datetime.date.today()
@@ -232,17 +252,21 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
                     school_days=term_data['school_days']
                 )
 
-        # Create SchoolStaff entry for the teacher
-        SchoolStaff.objects.create(
-            year=current_year,
-            school=self.school,
-            staff=profile,
-            position=form.cleaned_data.get('position', 'Teacher'),
-            is_active=True
-        )
+        try:
+            # Create SchoolStaff entry for the teacher
+            school_staff = SchoolStaff.objects.create(
+                year=current_year,
+                school=self.school,
+                staff=profile,
+                position=form.cleaned_data.get('position', 'Teacher'),
+                is_active=True
+            )
+        except Exception as e:
+            messages.error(self.request, f"Error creating school staff: {e}")
+            return self.form_invalid(form)
 
         messages.success(self.request, f"Teacher {profile.get_full_name()} has been added successfully!")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
 
 
 class StudentListView(LoginRequiredMixin, ListView):
@@ -273,19 +297,30 @@ class StudentListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        # For principals and administration, show all students in the school
-        if self.request.user.profile.user_type in ['principal', 'administration']:
-            return Student.objects.filter(school=self.school)
+        # Get current school year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        # For teachers, show only students in their class
+        if not current_year:
+            # If no current year, return empty queryset
+            return Student.objects.none()
+
+        # For principals and administration, show all students enrolled in this school
+        if self.request.user.profile.user_type in ['principal', 'administration']:
+            students = Student.objects.filter(
+                standard_enrollments__year=current_year,
+                standard_enrollments__standard__school=self.school
+            ).distinct()
+
+            return students
+
+        # For teachers, show only students in their assigned classes
         elif self.request.user.profile.user_type == 'teacher':
             user_profile = self.request.user.profile
-            # Get current year and standard assignments
             return Student.objects.filter(
-                school=self.school,
+                standard_enrollments__year=current_year,
+                standard_enrollments__standard__school=self.school,
                 standard_enrollments__standard__teacher_assignments__teacher=user_profile,
-                standard_enrollments__standard__teacher_assignments__is_active=True,
-                standard_enrollments__is_active=True
+                standard_enrollments__standard__teacher_assignments__year=current_year
             ).distinct()
 
         return Student.objects.none()
@@ -297,16 +332,22 @@ class StudentListView(LoginRequiredMixin, ListView):
         context['school'] = self.school
         context['school_slug'] = self.school_slug
 
+        # Get current school year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+
         # Add standards for filtering
         if self.request.user.profile.user_type in ['principal', 'administration']:
             context['standards'] = Standard.objects.filter(school=self.school)
         elif self.request.user.profile.user_type == 'teacher':
             user_profile = self.request.user.profile
-            context['standards'] = Standard.objects.filter(
-                school=self.school,
-                teacher_assignments__teacher=user_profile,
-                teacher_assignments__is_active=True
-            ).distinct()
+            if current_year:
+                context['standards'] = Standard.objects.filter(
+                    school=self.school,
+                    teacher_assignments__teacher=user_profile,
+                    teacher_assignments__year=current_year
+                ).distinct()
+            else:
+                context['standards'] = Standard.objects.none()
 
         return context
 
@@ -349,14 +390,19 @@ class StandardListView(LoginRequiredMixin, ListView):
         # For teachers, show only their assigned standard
         elif self.request.user.profile.user_type == 'teacher':
             user_profile = self.request.user.profile
-            return Standard.objects.filter(
-                school=self.school,
-                teacher_assignments__teacher=user_profile,
-                teacher_assignments__is_active=True
-            ).prefetch_related(
-                'teacher_assignments__teacher',
-                'student_enrollments__student'
-            ).distinct()
+            # Get current school year using the centralized function
+            current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+            if current_year:
+                return Standard.objects.filter(
+                    school=self.school,
+                    teacher_assignments__teacher=user_profile,
+                    teacher_assignments__year=current_year
+                ).prefetch_related(
+                    'teacher_assignments__teacher',
+                    'student_enrollments__student'
+                ).distinct()
+            else:
+                return Standard.objects.none()
 
         return Standard.objects.none()
 
@@ -409,18 +455,28 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
         context['school'] = self.school
         context['school_slug'] = self.school_slug
 
-        # Get teacher assignments for this standard
-        context['teacher_assignments'] = StandardTeacher.objects.filter(
-            standard=standard,
-            is_active=True
-        )
+        # Get current school year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        # Get students enrolled in this standard
-        context['enrolled_students'] = Student.objects.filter(
-            school=standard.school,
-            standard_enrollments__standard=standard,
-            standard_enrollments__is_active=True
-        ).distinct()
+        # Get teacher assignments for this standard in the current year
+        if current_year:
+            context['teacher_assignments'] = StandardTeacher.objects.filter(
+                standard=standard,
+                year=current_year
+            )
+        else:
+            context['teacher_assignments'] = StandardTeacher.objects.none()
+
+        # Get students enrolled in this standard for the current year
+        if current_year:
+            enrolled_students = Student.objects.filter(
+                standard_enrollments__standard=standard,
+                standard_enrollments__year=current_year
+            ).distinct()
+
+            context['enrolled_students'] = enrolled_students
+        else:
+            context['enrolled_students'] = Student.objects.none()
 
         return context
 
@@ -465,8 +521,8 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         form = super().get_form(form_class)
         teacher = get_object_or_404(UserProfile, pk=self.teacher_id, user_type='teacher')
 
-        # Get the current academic year for this school
-        current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
+        # Get the current academic year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
         if not current_year:
             # If no current year, show no standards
@@ -527,8 +583,8 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
             messages.warning(self.request, "This teacher is not associated with this school.")
             return self.form_invalid(form)
 
-        # Get the current academic year for this school
-        current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
+        # Get the current academic year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
         if not current_year:
             messages.warning(self.request, "No academic year found for this school.")
@@ -582,18 +638,20 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         school = get_object_or_404(School, slug=school_slug)
         assignment_id = kwargs.get('assignment_id')
 
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=school.pk).exists():
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'administration':
-            # Administration users can only access their assigned school
-            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        else:
+        # Check if user has access to this school via SchoolStaff
+        user_profile = request.user.profile
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=school,
+            is_active=True
+        ).first()
+
+        if not school_staff:
+            messages.warning(request, "You do not have access to this school.")
+            return redirect('core:home')
+
+        # Only principals and administration can unassign teachers
+        if user_profile.user_type not in ['principal', 'administration']:
             messages.warning(request, "Only principals and administration can unassign teachers.")
             return redirect('core:home')
 
@@ -601,7 +659,13 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         assignment = get_object_or_404(StandardTeacher, pk=assignment_id)
 
         # Verify the assignment belongs to a teacher in this school
-        if assignment.teacher.school != school:
+        teacher_in_school = SchoolStaff.objects.filter(
+            staff=assignment.teacher,
+            school=school,
+            is_active=True
+        ).exists()
+
+        if not teacher_in_school:
             messages.warning(request, "This assignment does not belong to a teacher in this school.")
             return redirect('schools:staff_list', school_slug=school_slug)
 
@@ -620,18 +684,20 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         school = get_object_or_404(School, slug=school_slug)
         assignment_id = kwargs.get('assignment_id')
 
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=school.pk).exists():
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'administration':
-            # Administration users can only access their assigned school
-            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        else:
+        # Check if user has access to this school via SchoolStaff
+        user_profile = request.user.profile
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=school,
+            is_active=True
+        ).first()
+
+        if not school_staff:
+            messages.warning(request, "You do not have access to this school.")
+            return redirect('core:home')
+
+        # Only principals and administration can unassign teachers
+        if user_profile.user_type not in ['principal', 'administration']:
             messages.warning(request, "Only principals and administration can unassign teachers.")
             return redirect('core:home')
 
@@ -639,7 +705,13 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         assignment = get_object_or_404(StandardTeacher, pk=assignment_id)
 
         # Verify the assignment belongs to a teacher in this school
-        if assignment.teacher.school != school:
+        teacher_in_school = SchoolStaff.objects.filter(
+            staff=assignment.teacher,
+            school=school,
+            is_active=True
+        ).exists()
+
+        if not teacher_in_school:
             messages.warning(request, "This assignment does not belong to a teacher in this school.")
             return redirect('schools:staff_list', school_slug=school_slug)
 
@@ -647,11 +719,10 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         teacher = assignment.teacher
         standard = assignment.standard
 
-        # Deactivate the assignment (don't delete it to preserve history)
-        assignment.is_active = False
-        assignment.save()
+        # Delete the assignment (since we don't have is_active field)
+        assignment.delete()
 
-        messages.success(request, f"Teacher {teacher} has been unassigned from {standard} successfully!")
+        messages.success(request, f"Teacher {teacher.get_full_name()} has been unassigned from {standard} successfully!")
         return redirect('schools:staff_list', school_slug=school_slug)
 
 
@@ -671,23 +742,20 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
         self.school_slug = kwargs.get('school_slug')
         self.school = get_object_or_404(School, slug=self.school_slug)
 
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'administration':
-            # Administration users can only access their assigned school
-            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'teacher':
-            # Teachers should only access their assigned school
-            if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        else:
+        # Check if user has access to this school via SchoolStaff
+        user_profile = request.user.profile
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=self.school,
+            is_active=True
+        ).first()
+
+        if not school_staff:
+            messages.warning(request, "You do not have access to this school.")
+            return redirect('core:home')
+
+        # Check permissions for adding students
+        if user_profile.user_type not in ['principal', 'administration', 'teacher']:
             messages.warning(request, "You do not have permission to add students.")
             return redirect('core:home')
 
@@ -696,11 +764,9 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         # Add standard field for enrollment
-        from academics.models import Year, Standard
-
         # Add academic year field
         form.fields['academic_year'] = forms.ModelChoiceField(
-            queryset=Year.objects.all().order_by('-start_year'),
+            queryset=SchoolYear.objects.filter(school=self.school).order_by('-start_year'),
             required=True,
             label="Academic Year",
             help_text="Select the academic year for enrollment"
@@ -725,7 +791,6 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         # Create the student
         student = form.save(commit=False)
-        student.school = self.school
         student.is_active = True
         student.save()
 
@@ -739,9 +804,10 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
             enrollment = Enrollment.objects.create(
                 year=academic_year,
                 standard=standard,
-                student=student,
-                is_active=True
+                student=student
             )
+
+
 
             messages.success(self.request, f"Student {student} has been added and enrolled in {standard.get_name_display()} for the {academic_year} academic year.")
         else:
@@ -790,10 +856,22 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
-        # Get the student by ID and ensure it belongs to the correct school
+        # Get the student by ID and ensure it's enrolled in this school
         student = super().get_object(queryset)
-        if student.school != self.school:
+
+        # Check if student is enrolled in this school through any enrollment
+        current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
+        if current_year:
+            enrollment_exists = Enrollment.objects.filter(
+                student=student,
+                year=current_year,
+                standard__school=self.school
+            ).exists()
+            if not enrollment_exists:
+                raise Http404("Student not found in this school")
+        else:
             raise Http404("Student not found in this school")
+
         return student
 
     def get_context_data(self, **kwargs):
@@ -803,19 +881,16 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
         context['is_update'] = True
 
         # Get current enrollment
-        from academics.models import Enrollment, Year
+        from academics.models import Enrollment
 
-        # Get current academic year
-        current_year = Year.objects.filter(
-            term1_start_date__lte=self.request.user.date_joined,
-            term3_end_date__gte=self.request.user.date_joined
-        ).first()
+        # Get current academic year for this school
+        current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
 
         if current_year:
             current_enrollment = Enrollment.objects.filter(
                 student=self.object,
                 year=current_year,
-                is_active=True
+                standard__school=self.school
             ).first()
 
             if current_enrollment:
@@ -863,10 +938,18 @@ class StudentDetailView(LoginRequiredMixin, DetailView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
-        # Get the student by ID and ensure it belongs to the correct school
+        # Get the student by ID and ensure it's enrolled in this school
         student = super().get_object(queryset)
-        if student.school != self.school:
+
+        # Check if student has any enrollment in this school
+        enrollment_exists = Enrollment.objects.filter(
+            student=student,
+            standard__school=self.school
+        ).exists()
+
+        if not enrollment_exists:
             raise Http404("Student not found in this school")
+
         return student
 
     def get_context_data(self, **kwargs):
@@ -912,7 +995,7 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
 
         # Get the student
         self.student_id = kwargs.get('student_id')
-        self.student = get_object_or_404(Student, pk=self.student_id, school=self.school)
+        self.student = get_object_or_404(Student, pk=self.student_id)
 
         # Check if user has access to this school
         if request.user.profile.user_type == 'principal':
@@ -935,10 +1018,8 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
         form = super().get_form(form_class)
 
         # Add academic year field
-        from academics.models import Year
-
         form.fields['academic_year'] = forms.ModelChoiceField(
-            queryset=Year.objects.all().order_by('-start_year'),
+            queryset=SchoolYear.objects.filter(school=self.school).order_by('-start_year'),
             required=True,
             label="Academic Year",
             help_text="Select the academic year for enrollment"
@@ -959,22 +1040,18 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         academic_year = form.cleaned_data['academic_year']
 
-        # Deactivate any existing enrollments for this student in the selected year
+        # Delete any existing enrollments for this student in the selected year
+        # (since we don't have is_active field, we'll delete and recreate)
         existing_enrollments = Enrollment.objects.filter(
             student=self.student,
-            year=academic_year,
-            is_active=True
+            year=academic_year
         )
-
-        for enrollment in existing_enrollments:
-            enrollment.is_active = False
-            enrollment.save()
+        existing_enrollments.delete()
 
         # Create the new enrollment
         enrollment = form.save(commit=False)
         enrollment.year = academic_year
         enrollment.student = self.student
-        enrollment.is_active = True
         enrollment.save()
 
         messages.success(self.request, f"Student {self.student} has been enrolled in {enrollment.standard.get_name_display()} for the {academic_year} academic year.")
@@ -1115,7 +1192,7 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 last_name = row['last_name'].strip()
                 parent_name = row['parent_name'].strip()
 
-                # Check if a student with the same details already exists in ANY school
+                # Check if a student with the same details already exists
                 existing_student = Student.objects.filter(
                     first_name__iexact=first_name,
                     last_name__iexact=last_name,
@@ -1124,10 +1201,12 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 ).first()
 
                 if existing_student:
-                    # Check if the student is in the current school or a different school
-                    same_school = existing_student.school.id == self.school.id
-                    school_name = existing_student.school.name if not same_school else None
-                    school_slug = existing_student.school.slug if not same_school else None
+                    # Check if the student is already enrolled in this school for this academic year
+                    existing_enrollment = Enrollment.objects.filter(
+                        student=existing_student,
+                        year=academic_year,
+                        standard__school=self.school
+                    ).exists()
 
                     # Add to duplicate records - store only necessary info, not the entire object
                     duplicate_records.append({
@@ -1135,9 +1214,7 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                         'data': row,
                         'existing_student_id': existing_student.id,
                         'existing_student_name': f"{existing_student.first_name} {existing_student.last_name}",
-                        'same_school': same_school,
-                        'school_name': school_name,
-                        'school_slug': school_slug
+                        'already_enrolled': existing_enrollment
                     })
                     continue  # Skip to the next row
 
@@ -1145,7 +1222,6 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 with transaction.atomic():
                     # Create the student
                     student = Student.objects.create(
-                        school=self.school,
                         first_name=first_name,
                         last_name=last_name,
                         date_of_birth=date_of_birth,
@@ -1158,8 +1234,7 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                     Enrollment.objects.create(
                         year=academic_year,
                         standard=standard,
-                        student=student,
-                        is_active=True
+                        student=student
                     )
 
                 # Increment success count
@@ -1299,48 +1374,52 @@ def student_csv_template(request, school_slug=None):
     return response
 
 
-class AdminStaffCreateView(LoginRequiredMixin, CreateView):
+class AdminStaffCreateForm(forms.Form):
+    """
+    Custom form for creating admin staff
+    """
+    first_name = forms.CharField(max_length=30)
+    last_name = forms.CharField(max_length=30)
+    username = forms.CharField(
+        max_length=150,
+        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+    )
+    contact_email = forms.EmailField(required=True)
+    contact_phone = forms.CharField(max_length=20, required=False)
+    title = forms.ChoiceField(choices=UserProfile.TITLE_CHOICES)
+    position = forms.CharField(max_length=100, required=True)
+
+
+class AdminStaffCreateView(LoginRequiredMixin, FormView):
     """
     View for creating a new administration staff member
     """
-    model = User
     template_name = 'schools/admin_staff_form.html'
-    fields = ['first_name', 'last_name']
-
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        # Add additional fields
-        form.fields['username'] = forms.CharField(
-            max_length=150,
-            help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
-        )
-        form.fields['email'] = forms.EmailField(required=True)
-        form.fields['phone_number'] = forms.CharField(max_length=20, required=False)
-        form.fields['title'] = forms.ChoiceField(choices=UserProfile.TITLE_CHOICES)
-        form.fields['position'] = forms.CharField(max_length=100, required=True)
-        return form
+    form_class = AdminStaffCreateForm
 
     def get_success_url(self):
-        return reverse_lazy('schools:staff_list', kwargs={'school_slug': self.school_slug})
+        return reverse('schools:staff_list', kwargs={'school_slug': self.school_slug})
 
     def dispatch(self, request, *args, **kwargs):
         # Get the school by slug
         self.school_slug = kwargs.get('school_slug')
         self.school = get_object_or_404(School, slug=self.school_slug)
 
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'administration':
-            # Administration users can only access their assigned school
-            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        else:
-            messages.warning(request, "Only principals and administration can add staff.")
+        # Check if user has access to this school via SchoolStaff
+        user_profile = request.user.profile
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=self.school,
+            is_active=True
+        ).first()
+
+        if not school_staff:
+            messages.warning(request, "You do not have access to this school.")
+            return redirect('core:home')
+
+        # Only principals can add admin staff
+        if user_profile.user_type not in ['principal']:
+            messages.warning(request, "Only principals can add administration staff.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -1351,23 +1430,103 @@ class AdminStaffCreateView(LoginRequiredMixin, CreateView):
         context['school_slug'] = self.school_slug
         return context
 
+    def post(self, request, *args, **kwargs):
+        print(f"DEBUG: AdminStaffCreateView POST called")
+        print(f"DEBUG: POST data: {request.POST}")
+        return super().post(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        print(f"DEBUG: AdminStaffCreateView form_invalid called")
+        print(f"DEBUG: Form errors: {form.errors}")
+        print(f"DEBUG: Form non_field_errors: {form.non_field_errors()}")
+        return super().form_invalid(form)
+
     def form_valid(self, form):
-        # Create user with a random password
-        user = form.save(commit=False)
-        password = User.objects.make_random_password()
-        user.set_password(password)
-        user.save()
-        
-        # Create profile
-        profile = UserProfile.objects.create(
-            user=user,
-            user_type='administration',
-            phone_number=form.cleaned_data['phone_number'],
-            school=self.school,
-            title=form.cleaned_data['title'],
-            position=form.cleaned_data['position'],
-            must_change_password=True
-        )
-        
+        try:
+            # Create user with the form data
+            user = User.objects.create_user(
+                username=form.cleaned_data['username'],
+                email=form.cleaned_data['contact_email'],
+                first_name=form.cleaned_data['first_name'],
+                last_name=form.cleaned_data['last_name'],
+                password='ChangeMe!'
+            )
+        except Exception as e:
+            messages.error(self.request, f"Error creating user: {e}")
+            return self.form_invalid(form)
+
+        try:
+            # Get the automatically created profile and update it
+            profile = user.profile
+            profile.user_type = 'administration'
+            profile.phone_number = form.cleaned_data.get('contact_phone', '')
+            profile.title = form.cleaned_data['title']
+            profile.must_change_password = True
+            profile.save()
+        except Exception as e:
+            messages.error(self.request, f"Error updating profile: {e}")
+            return self.form_invalid(form)
+
+        # Get current school year using the centralized function
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+
+        if not current_year:
+            # If no current year found, create a default school year with terms
+            from academics.models import Term
+            import datetime
+            current_date = datetime.date.today()
+            current_year_num = current_date.year
+
+            # Create the school year
+            current_year = SchoolYear.objects.create(
+                school=self.school,
+                start_year=current_year_num
+            )
+
+            # Create default terms (Caribbean school year typically runs Sept-July)
+            terms_data = [
+                {
+                    'term_number': 1,
+                    'start_date': datetime.date(current_year_num, 9, 1),
+                    'end_date': datetime.date(current_year_num, 12, 15),
+                    'school_days': 70
+                },
+                {
+                    'term_number': 2,
+                    'start_date': datetime.date(current_year_num + 1, 1, 8),
+                    'end_date': datetime.date(current_year_num + 1, 4, 12),
+                    'school_days': 65
+                },
+                {
+                    'term_number': 3,
+                    'start_date': datetime.date(current_year_num + 1, 4, 22),
+                    'end_date': datetime.date(current_year_num + 1, 7, 5),
+                    'school_days': 55
+                }
+            ]
+
+            # Create the terms
+            for term_data in terms_data:
+                Term.objects.create(
+                    year=current_year,
+                    term_number=term_data['term_number'],
+                    start_date=term_data['start_date'],
+                    end_date=term_data['end_date'],
+                    school_days=term_data['school_days']
+                )
+
+        try:
+            # Create SchoolStaff entry for the admin
+            school_staff = SchoolStaff.objects.create(
+                year=current_year,
+                school=self.school,
+                staff=profile,
+                position=form.cleaned_data.get('position', 'Administration'),
+                is_active=True
+            )
+        except Exception as e:
+            messages.error(self.request, f"Error creating school staff: {e}")
+            return self.form_invalid(form)
+
         messages.success(self.request, f"Administration staff {profile.get_full_name()} has been added successfully!")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())

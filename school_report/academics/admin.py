@@ -25,7 +25,7 @@ link_to_teacher.short_description = 'Teacher'
 
 def link_to_student(obj):
     url = reverse('admin:schools_student_change', args=[obj.student_id])
-    return format_html('<a href="{}">{}</a>', url, obj.student.get_full_name())
+    return format_html('<a href="{}">{}</a>', url, obj.student)
 link_to_student.short_description = 'Student'
 
 

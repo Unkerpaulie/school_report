@@ -344,8 +344,6 @@ def get_current_school_year_and_term(request):
         'current_term': current_term,
         'is_on_vacation': is_on_vacation
     }
-    # If not in session or session data is invalid, query the database
-    current_year, current_term, is_on_vacation = get_current_year_and_term()
     
     # Store in session for future requests
     request.session['current_year_id'] = current_year.id if current_year else None
