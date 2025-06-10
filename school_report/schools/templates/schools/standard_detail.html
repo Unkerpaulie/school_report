@@ -48,7 +48,6 @@
                                 <th>Teacher</th>
                                 <th>Email</th>
                                 <th>Phone Number</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -56,14 +55,7 @@
                             <tr>
                                 <td>{{ assignment.teacher }}</td>
                                 <td>{{ assignment.teacher.contact_email }}</td>
-                                <td>{{ assignment.teacher.contact_phone }}</td>
-                                <td>
-                                    {% if assignment.is_active %}
-                                    <span class="badge bg-success">Active</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Inactive</span>
-                                    {% endif %}
-                                </td>
+                                <td>{{ assignment.teacher.phone_number }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

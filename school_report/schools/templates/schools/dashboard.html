@@ -60,7 +60,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Students</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ school.students.count }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ student_count }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="bi bi-people fa-2x text-gray-300"></i>
@@ -94,13 +94,13 @@
                             <tr>
                                 <td>{{ standard.get_name_display }}</td>
                                 <td>
-                                    {% if teacher_assignments and standard.id in teacher_assignments %}
-                                        {{ teacher_assignments|get_item:standard.id }}
+                                    {% if standard.teacher_assignments.last %}
+                                        {{ standard.teacher_assignments.last.teacher.get_full_name }}
                                     {% else %}
                                         <span class="text-muted">Not assigned</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ standard.student_set.count }}</td>
+                                <td>{{ standard.student_enrollments.count }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

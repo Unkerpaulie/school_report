@@ -2,8 +2,9 @@ from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
-from .models import School
+from .models import School, Standard, Student
 from academics.models import SchoolStaff
+from core.utils import get_current_year_and_term
 
 class SchoolDashboardView(LoginRequiredMixin, TemplateView):
     """
@@ -35,33 +36,33 @@ class SchoolDashboardView(LoginRequiredMixin, TemplateView):
         # Add the school slug to the context for URL generation
         context['school_slug'] = self.school.slug
 
-        # Add teacher and administration staff counts using SchoolStaff
-        from academics.models import SchoolYear
-
         # Get current school year
-        current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        if current_year:
-            # Count teachers and admin staff through SchoolStaff
-            teacher_count = SchoolStaff.objects.filter(
-                school=self.school,
-                year=current_year,
-                staff__user_type='teacher',
-                is_active=True
-            ).count()
+        # Count teachers and admin staff through SchoolStaff
+        teacher_count = SchoolStaff.objects.filter(
+            school=self.school,
+            year=current_year,
+            staff__user_type='teacher',
+            is_active=True
+        ).count()
 
-            admin_staff_count = SchoolStaff.objects.filter(
-                school=self.school,
-                year=current_year,
-                staff__user_type__in=['principal', 'administration'],
-                is_active=True
-            ).count()
+        admin_staff_count = SchoolStaff.objects.filter(
+            school=self.school,
+            year=current_year,
+            staff__user_type__in=['principal', 'administration'],
+            is_active=True
+        ).count()
+        # Count students through StudentEnrollment
+        student_count = Student.objects.filter(
+            standard_enrollments__year=current_year,
+            standard_enrollments__standard__school=self.school
+        ).distinct().count()
 
-            context['teacher_count'] = teacher_count
-            context['admin_staff_count'] = admin_staff_count
-            context['current_year'] = current_year
-        else:
-            context['teacher_count'] = 0
-            context['admin_staff_count'] = 0
+
+        context['teacher_count'] = teacher_count
+        context['admin_staff_count'] = admin_staff_count
+        context['student_count'] = student_count
+        context['current_year'] = current_year
 
         return context
