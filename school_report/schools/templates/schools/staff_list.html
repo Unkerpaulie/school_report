@@ -46,7 +46,7 @@
                             {% for staff in staff_members %}
                             <tr>
                                 <td>{{ staff.name }}</td>
-                                <td>{{ staff.user.title }}</td>
+                                <td>{{ staff.username }}</td>
                                 <td>{{ staff.email }}</td>
                                 <td>{{ staff.phone|default:"-" }}</td>
                                 <td>{{ staff.type }}</td>

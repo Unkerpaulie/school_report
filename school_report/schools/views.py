@@ -99,6 +99,7 @@ class StaffListView(LoginRequiredMixin, ListView):
                 'name': user_profile.get_full_name(),
                 'email': user_profile.user.email,
                 'phone': user_profile.phone_number,
+                'username': user_profile.user.username,
                 'type': type_display,
                 'is_teacher': is_teacher,
                 'is_active': staff_member.is_active,

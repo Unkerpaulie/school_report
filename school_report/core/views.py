@@ -10,8 +10,9 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.http import HttpResponseRedirect, Http404
 from .models import UserProfile
 from schools.models import School
-from academics.models import SchoolYear, Term, SchoolStaff
+from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher
 from academics.views import get_current_school_year_and_term
+from core.utils import get_current_year_and_term
 
 class HomeView(TemplateView):
     """Home page view"""
@@ -29,17 +30,51 @@ class HomeView(TemplateView):
             ).first()
 
             if school_staff:
-                # User is associated with a school - redirect to school dashboard
-                # Both principals and administration use the same dashboard
+                # User is associated with a school
                 school = school_staff.school
-                return redirect('schools:dashboard', school_slug=school.slug)
+
+                if user_profile.user_type in ['principal', 'administration']:
+                    # Principals and administration go to admin dashboard
+                    return redirect('schools:dashboard', school_slug=school.slug)
+
+                elif user_profile.user_type == 'teacher':
+                    # Teachers should go to their assigned class detail page
+                    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+
+                    if current_year:
+                        # Check if teacher is assigned to a class
+                        teacher_assignment = StandardTeacher.objects.filter(
+                            teacher=user_profile,
+                            year=current_year
+                        ).first()
+
+                        if teacher_assignment:
+                            # Redirect to their class detail page (teacher dashboard)
+                            return redirect('schools:standard_detail',
+                                          school_slug=school.slug,
+                                          pk=teacher_assignment.standard.pk)
+                        else:
+                            # Teacher not assigned to a class - show message
+                            self.teacher_not_assigned = True
+                            self.school = school
+                            return super().dispatch(request, *args, **kwargs)
+                    else:
+                        # No current year - show message
+                        self.no_current_year = True
+                        self.school = school
+                        return super().dispatch(request, *args, **kwargs)
+                else:
+                    # User type not recognized - show message to assign role
+                    self.assign_role_required = True
+                    self.school = school
+                    return super().dispatch(request, *args, **kwargs)
 
             # User is NOT associated with a school
             if user_profile.user_type == 'principal':
-                # Case 2: Principal NOT associated with a school - redirect to school registration
+                # Principal NOT associated with a school - redirect to school registration
                 return redirect('core:register_school')
             elif user_profile.user_type in ['administration', 'teacher']:
-                # Case 4: Teacher/admin NOT associated with a school - show message to contact principal
+                # Teacher/admin NOT associated with a school - show message to contact principal
                 self.school_registration_required = True
                 self.user_type = user_profile.user_type
                 return super().dispatch(request, *args, **kwargs)
@@ -48,9 +83,24 @@ class HomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # Handle different message scenarios
         if hasattr(self, 'school_registration_required'):
             context['school_registration_required'] = True
             context['user_type'] = self.user_type
+
+        if hasattr(self, 'teacher_not_assigned'):
+            context['teacher_not_assigned'] = True
+            context['school'] = self.school
+
+        if hasattr(self, 'no_current_year'):
+            context['no_current_year'] = True
+            context['school'] = self.school
+
+        if hasattr(self, 'assign_role_required'):
+            context['assign_role_required'] = True
+            context['school'] = self.school
+
         return context
 
 

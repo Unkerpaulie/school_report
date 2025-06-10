@@ -6,11 +6,7 @@
 
     <ul class="list-unstyled components">
         <li class="{% block dashboard_active %}{% endblock %}">
-            {% if school %}
-                <a href="{% url 'schools:dashboard' school_slug=school.slug %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
-            {% else %}
-                <a href="{% url 'core:home' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
-            {% endif %}
+            <a href="{% url 'core:home' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
         </li>
 
         {% if user.profile.user_type == 'principal' or user.profile.user_type == 'administration' %}
@@ -23,17 +19,14 @@
             <li class="{% block staff_active %}{% endblock %}">
                 <a href="{% url 'schools:staff_list' school_slug=school.slug %}"><i class="bi bi-people"></i> Staff</a>
             </li>
+            <li class="{% block classes_active %}{% endblock %}">
+                <a href="{% url 'schools:standard_list' school_slug=school.slug %}"><i class="bi bi-mortarboard"></i> Classes</a>
+            </li>
             {% endif %}
         {% endif %}
 
         {% if user.profile.user_type == 'teacher' or user.profile.user_type == 'principal' or user.profile.user_type == 'administration' %}
             {% if school %}
-            <li class="{% block students_active %}{% endblock %}">
-                <a href="{% url 'schools:student_list' school_slug=school.slug %}"><i class="bi bi-people"></i> Students</a>
-            </li>
-            <li class="{% block classes_active %}{% endblock %}">
-                <a href="{% url 'schools:standard_list' school_slug=school.slug %}"><i class="bi bi-mortarboard"></i> Classes</a>
-            </li>
             <li class="{% block tests_active %}{% endblock %}">
                 <a href="{% url 'reports:test_list' school_slug=school.slug %}"><i class="bi bi-clipboard-check"></i> Tests</a>
             </li>
