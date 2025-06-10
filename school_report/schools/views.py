@@ -956,6 +956,7 @@ class StudentDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['school'] = self.school
         context['school_slug'] = self.school_slug
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
         # Get enrollment history
         from academics.models import Enrollment
@@ -967,7 +968,7 @@ class StudentDetailView(LoginRequiredMixin, DetailView):
         context['enrollments'] = enrollments
 
         # Get current enrollment
-        current_enrollment = enrollments.filter(is_active=True).first()
+        current_enrollment = enrollments.filter(year=current_year).first()
         if current_enrollment:
             context['current_enrollment'] = current_enrollment
 
@@ -1214,7 +1215,9 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                         'data': row,
                         'existing_student_id': existing_student.id,
                         'existing_student_name': f"{existing_student.first_name} {existing_student.last_name}",
-                        'already_enrolled': existing_enrollment
+                        'already_enrolled': existing_enrollment,
+                        'same_school': existing_student.standard_enrollments.filter(year=academic_year, standard__school=self.school).exists(),
+                        'school_name': existing_student.standard_enrollments.filter(year=academic_year).first().standard.school.name if existing_student.standard_enrollments.filter(year=academic_year).exists() else 'Unknown'
                     })
                     continue  # Skip to the next row
 
@@ -1309,8 +1312,8 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
             for duplicate in duplicate_records:
                 student_id = duplicate['existing_student_id']
                 student_name = duplicate['existing_student_name']
-                same_school = duplicate['same_school']
                 school_name = duplicate['school_name']
+                same_school = duplicate['same_school']
 
                 # Prepare the message based on whether the student is in the same school or a different one
                 if same_school:
