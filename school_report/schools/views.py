@@ -47,9 +47,7 @@ class StaffListView(LoginRequiredMixin, ListView):
         # Get the current academic year using the centralized function
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        if not current_year:
-            return []
-
+        # Current year is guaranteed to exist now
         # Get all staff from this school via SchoolStaff
         school_staff = SchoolStaff.objects.filter(
             school=self.school,
@@ -208,49 +206,7 @@ class TeacherCreateView(LoginRequiredMixin, FormView):
         # Get current school year using the centralized function
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        if not current_year:
-            # If no current year found, create a default school year with terms
-            import datetime
-            current_date = datetime.date.today()
-            current_year_num = current_date.year
-
-            # Create the school year
-            current_year = SchoolYear.objects.create(
-                school=self.school,
-                start_year=current_year_num
-            )
-
-            # Create default terms (Caribbean school year typically runs Sept-July)
-            terms_data = [
-                {
-                    'term_number': 1,
-                    'start_date': datetime.date(current_year_num, 9, 1),
-                    'end_date': datetime.date(current_year_num, 12, 15),
-                    'school_days': 70
-                },
-                {
-                    'term_number': 2,
-                    'start_date': datetime.date(current_year_num + 1, 1, 8),
-                    'end_date': datetime.date(current_year_num + 1, 4, 12),
-                    'school_days': 65
-                },
-                {
-                    'term_number': 3,
-                    'start_date': datetime.date(current_year_num + 1, 4, 22),
-                    'end_date': datetime.date(current_year_num + 1, 7, 5),
-                    'school_days': 55
-                }
-            ]
-
-            # Create the terms
-            for term_data in terms_data:
-                Term.objects.create(
-                    year=current_year,
-                    term_number=term_data['term_number'],
-                    start_date=term_data['start_date'],
-                    end_date=term_data['end_date'],
-                    school_days=term_data['school_days']
-                )
+        # Current year is guaranteed to exist now (auto-created if needed)
 
         try:
             # Create SchoolStaff entry for the teacher
@@ -300,10 +256,7 @@ class StudentListView(LoginRequiredMixin, ListView):
         # Get current school year using the centralized function
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        if not current_year:
-            # If no current year, return empty queryset
-            return Student.objects.none()
-
+        # Current year is guaranteed to exist now
         # For principals and administration, show all students currently enrolled in this school
         if self.request.user.profile.user_type in ['principal', 'administration']:
             # Get all students who have current enrollments (non-null standard) in this school
@@ -565,11 +518,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         # Get the current academic year using the centralized function
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        if not current_year:
-            # If no current year, show no standards
-            form.fields['standard'].queryset = Standard.objects.none()
-            messages.warning(self.request, "No academic year found for this school. Please set up the academic year first.")
-            return form
+        # Current year is guaranteed to exist now
 
         # Check if the teacher is already assigned to a class using historical logic
         existing_assignment = get_current_teacher_assignment(teacher, current_year)
@@ -624,9 +573,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         # Get the current academic year using the centralized function
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        if not current_year:
-            messages.warning(self.request, "No academic year found for this school.")
-            return self.form_invalid(form)
+        # Current year is guaranteed to exist now
 
         # Get the selected standard
         standard = form.cleaned_data['standard']
@@ -1510,49 +1457,7 @@ class AdminStaffCreateView(LoginRequiredMixin, FormView):
         # Get current school year using the centralized function
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        if not current_year:
-            # If no current year found, create a default school year with terms
-            import datetime
-            current_date = datetime.date.today()
-            current_year_num = current_date.year
-
-            # Create the school year
-            current_year = SchoolYear.objects.create(
-                school=self.school,
-                start_year=current_year_num
-            )
-
-            # Create default terms (Caribbean school year typically runs Sept-July)
-            terms_data = [
-                {
-                    'term_number': 1,
-                    'start_date': datetime.date(current_year_num, 9, 1),
-                    'end_date': datetime.date(current_year_num, 12, 15),
-                    'school_days': 70
-                },
-                {
-                    'term_number': 2,
-                    'start_date': datetime.date(current_year_num + 1, 1, 8),
-                    'end_date': datetime.date(current_year_num + 1, 4, 12),
-                    'school_days': 65
-                },
-                {
-                    'term_number': 3,
-                    'start_date': datetime.date(current_year_num + 1, 4, 22),
-                    'end_date': datetime.date(current_year_num + 1, 7, 5),
-                    'school_days': 55
-                }
-            ]
-
-            # Create the terms
-            for term_data in terms_data:
-                Term.objects.create(
-                    year=current_year,
-                    term_number=term_data['term_number'],
-                    start_date=term_data['start_date'],
-                    end_date=term_data['end_date'],
-                    school_days=term_data['school_days']
-                )
+        # Current year is guaranteed to exist now (auto-created if needed)
 
         try:
             # Create SchoolStaff entry for the admin

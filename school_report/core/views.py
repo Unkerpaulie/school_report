@@ -41,28 +41,21 @@ class HomeView(TemplateView):
                     # Teachers should go to their assigned class detail page
                     current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
 
-                    if current_year:
-                        # Check if teacher is assigned to a class using new historical logic
-                        teacher_assignment = get_current_teacher_assignment(user_profile, current_year)
+                    # Current year is guaranteed to exist now, so check teacher assignment
+                    teacher_assignment = get_current_teacher_assignment(user_profile, current_year)
 
-                        if teacher_assignment:
-                            # Set teacher class information in session for easy access
-                            set_teacher_class_session(request, teacher_assignment.standard, current_year)
+                    if teacher_assignment:
+                        # Set teacher class information in session for easy access
+                        set_teacher_class_session(request, teacher_assignment.standard, current_year)
 
-                            # Redirect to their class detail page (teacher dashboard)
-                            return redirect('schools:standard_detail',
-                                          school_slug=school.slug,
-                                          pk=teacher_assignment.standard.pk)
-                        else:
-                            # Teacher not assigned to a class - clear any old session data and show message
-                            clear_teacher_session(request)
-                            self.teacher_not_assigned = True
-                            self.school = school
-                            return super().dispatch(request, *args, **kwargs)
+                        # Redirect to their class detail page (teacher dashboard)
+                        return redirect('schools:standard_detail',
+                                      school_slug=school.slug,
+                                      pk=teacher_assignment.standard.pk)
                     else:
-                        # No current year - clear session and show message
+                        # Teacher not assigned to a class - clear any old session data and show message
                         clear_teacher_session(request)
-                        self.no_current_year = True
+                        self.teacher_not_assigned = True
                         self.school = school
                         return super().dispatch(request, *args, **kwargs)
                 else:
@@ -93,10 +86,6 @@ class HomeView(TemplateView):
 
         if hasattr(self, 'teacher_not_assigned'):
             context['teacher_not_assigned'] = True
-            context['school'] = self.school
-
-        if hasattr(self, 'no_current_year'):
-            context['no_current_year'] = True
             context['school'] = self.school
 
         if hasattr(self, 'assign_role_required'):
@@ -143,55 +132,8 @@ class SchoolRegistrationView(LoginRequiredMixin, CreateView):
         school.save()
 
         # Create a SchoolStaff entry for the principal
-        # First, we need to get or create the current school year
-        from academics.models import SchoolYear, Term
-        current_year = SchoolYear.objects.filter(school=school).first()
-        if not current_year:
-            # Create a default school year with terms if none exists
-            import datetime
-            current_date = datetime.date.today()
-            current_year_num = current_date.year
-
-            # Create the school year
-            current_year = SchoolYear.objects.create(
-                school=school,
-                start_year=current_year_num
-            )
-
-            # Create default terms (Caribbean school year typically runs Sept-July)
-            # Term 1: September - December
-            # Term 2: January - April
-            # Term 3: May - July
-            terms_data = [
-                {
-                    'term_number': 1,
-                    'start_date': datetime.date(current_year_num, 9, 1),
-                    'end_date': datetime.date(current_year_num, 12, 15),
-                    'school_days': 70
-                },
-                {
-                    'term_number': 2,
-                    'start_date': datetime.date(current_year_num + 1, 1, 8),
-                    'end_date': datetime.date(current_year_num + 1, 4, 12),
-                    'school_days': 65
-                },
-                {
-                    'term_number': 3,
-                    'start_date': datetime.date(current_year_num + 1, 4, 22),
-                    'end_date': datetime.date(current_year_num + 1, 7, 5),
-                    'school_days': 55
-                }
-            ]
-
-            # Create the terms
-            for term_data in terms_data:
-                Term.objects.create(
-                    year=current_year,
-                    term_number=term_data['term_number'],
-                    start_date=term_data['start_date'],
-                    end_date=term_data['end_date'],
-                    school_days=term_data['school_days']
-                )
+        # Get the current school year (will auto-create if needed)
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
 
         # Create SchoolStaff entry for the principal
         SchoolStaff.objects.create(
