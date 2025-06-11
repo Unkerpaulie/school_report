@@ -4,10 +4,10 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
 from django.db import transaction
 from django.forms import modelformset_factory
-from academics.models import StandardSubject
+from academics.models import StandardSubject, StandardTeacher, SchoolStaff
 from schools.models import Student, School, Standard
 from core.models import UserProfile
-from core.utils import get_current_year_and_term
+from core.utils import get_current_year_and_term, get_teacher_class_from_session
 from .models import Test, TestSubject, TestScore
 
 # Create your forms here
@@ -634,38 +634,33 @@ def subject_list(request, school_slug):
         messages.error(request, "Only teachers can access this page.")
         return redirect('core:home')
 
-    teacher = request.user.profile
+    # Get teacher's class from session (much faster than database queries)
+    class_id, class_name, year_id = get_teacher_class_from_session(request)
 
-    # Verify teacher belongs to this school
-    if teacher.school != school:
-        messages.error(request, "You don't have permission to view subjects for this school.")
-        return redirect('core:home')
-
-    # Get teacher's assigned standard
-    teacher_standard = Standard.objects.filter(
-        teacher_assignments__teacher=teacher,
-        teacher_assignments__is_active=True
-    ).first()
-
-    if not teacher_standard:
+    if not class_id:
         messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
         return redirect('core:home')
 
-    # Get current academic year
-    current_year = Year.objects.filter(
-        term1_start_date__lte=timezone.now().date(),
-        term3_end_date__gte=timezone.now().date()
-    ).first()
+    # Get the teacher's standard and current year from session data
+    try:
+        from schools.models import Standard
+        from academics.models import SchoolYear
+        teacher_standard = Standard.objects.get(id=class_id)
+        current_year = SchoolYear.objects.get(id=year_id)
+    except (Standard.DoesNotExist, SchoolYear.DoesNotExist):
+        messages.error(request, "Invalid class assignment. Please contact the administrator.")
+        return redirect('core:home')
 
-    if not current_year:
-        messages.warning(request, "No active academic year found. Please contact the administrator.")
+    # Verify the standard belongs to the current school
+    if teacher_standard.school != school:
+        messages.error(request, "You don't have permission to view subjects for this school.")
         return redirect('core:home')
 
     # Get subjects assigned to teacher's class for the current year
     assigned_subjects = StandardSubject.objects.filter(
         standard=teacher_standard,
         year=current_year
-    ).select_related('subject', 'standard')
+    )
 
     return render(request, 'reports/subject_list.html', {
         'assigned_subjects': assigned_subjects,
@@ -690,44 +685,41 @@ def subject_create(request, school_slug):
 
     teacher = request.user.profile
 
-    # Verify teacher belongs to this school
-    if teacher.school != school:
-        messages.error(request, "You don't have permission to create subjects for this school.")
-        return redirect('core:home')
+    # Get teacher's class from session (much faster than database queries)
+    class_id, class_name, year_id = get_teacher_class_from_session(request)
 
-    # Get teacher's assigned standard
-    teacher_standard = Standard.objects.filter(
-        teacher_assignments__teacher=teacher,
-        teacher_assignments__is_active=True
-    ).first()
-
-    if not teacher_standard:
+    if not class_id:
         messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
         return redirect('reports:subject_list', school_slug=school_slug)
 
-    # Get current academic year
-    current_year = Year.objects.filter(
-        term1_start_date__lte=timezone.now().date(),
-        term3_end_date__gte=timezone.now().date()
-    ).first()
-
-    if not current_year:
-        messages.warning(request, "No active academic year found. Please contact the administrator.")
+    # Get the teacher's standard and current year from session data
+    try:
+        from schools.models import Standard
+        from academics.models import SchoolYear
+        teacher_standard = Standard.objects.get(id=class_id)
+        current_year = SchoolYear.objects.get(id=year_id)
+    except (Standard.DoesNotExist, SchoolYear.DoesNotExist):
+        messages.error(request, "Invalid class assignment. Please contact the administrator.")
         return redirect('reports:subject_list', school_slug=school_slug)
+
+    # Verify the standard belongs to the current school
+    if teacher_standard.school != school:
+        messages.error(request, "You don't have permission to create subjects for this school.")
+        return redirect('core:home')
 
     if request.method == 'POST':
         form = SubjectForm(request.POST)
         if form.is_valid():
-            subject = form.save()
-
-            # Automatically assign the subject to the teacher's class and current year
-            StandardSubject.objects.create(
+            # Create the StandardSubject directly (no separate Subject model)
+            standard_subject = StandardSubject.objects.create(
+                year=current_year,
                 standard=teacher_standard,
-                subject=subject,
-                year=current_year
+                subject_name=form.cleaned_data['subject_name'],
+                description=form.cleaned_data.get('description', ''),
+                created_by=teacher
             )
 
-            messages.success(request, f"Subject '{subject.name}' has been created and assigned to {teacher_standard}.")
+            messages.success(request, f"Subject '{standard_subject.subject_name}' has been created and assigned to {teacher_standard}.")
             return redirect('reports:subject_list', school_slug=school_slug)
     else:
         form = SubjectForm()
@@ -755,25 +747,44 @@ def subject_edit(request, school_slug, subject_id):
 
     teacher = request.user.profile
 
-    # Verify teacher belongs to this school
-    if teacher.school != school:
+    # Get teacher's class from session (much faster than database queries)
+    class_id, class_name, year_id = get_teacher_class_from_session(request)
+
+    if not class_id:
+        messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
+        return redirect('reports:subject_list', school_slug=school_slug)
+
+    # Get the StandardSubject (not Subject)
+    standard_subject = get_object_or_404(StandardSubject, id=subject_id)
+
+    # Verify this subject belongs to the teacher's class (using session data)
+    if standard_subject.standard.id != class_id or standard_subject.year.id != year_id:
+        messages.error(request, "You can only edit subjects for your assigned class.")
+        return redirect('reports:subject_list', school_slug=school_slug)
+
+    # Verify the standard belongs to the current school
+    if standard_subject.standard.school != school:
         messages.error(request, "You don't have permission to edit subjects for this school.")
         return redirect('core:home')
 
-    subject = get_object_or_404(Subject, id=subject_id)
-
     if request.method == 'POST':
-        form = SubjectForm(request.POST, instance=subject)
+        form = SubjectForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, f"Subject '{subject.name}' has been updated successfully.")
+            standard_subject.subject_name = form.cleaned_data['subject_name']
+            standard_subject.description = form.cleaned_data.get('description', '')
+            standard_subject.save()
+            messages.success(request, f"Subject '{standard_subject.subject_name}' has been updated successfully.")
             return redirect('reports:subject_list', school_slug=school_slug)
     else:
-        form = SubjectForm(instance=subject)
+        # Pre-populate form with existing data
+        form = SubjectForm(initial={
+            'subject_name': standard_subject.subject_name,
+            'description': standard_subject.description
+        })
 
     return render(request, 'reports/subject_form.html', {
         'form': form,
-        'subject': subject,
+        'subject': standard_subject,
         'is_edit': True,
         'school': school,
         'school_slug': school_slug
@@ -794,26 +805,39 @@ def subject_delete(request, school_slug, subject_id):
 
     teacher = request.user.profile
 
-    # Verify teacher belongs to this school
-    if teacher.school != school:
+    # Get teacher's class from session (much faster than database queries)
+    class_id, class_name, year_id = get_teacher_class_from_session(request)
+
+    if not class_id:
+        messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
+        return redirect('reports:subject_list', school_slug=school_slug)
+
+    # Get the StandardSubject (not Subject)
+    standard_subject = get_object_or_404(StandardSubject, id=subject_id)
+
+    # Verify this subject belongs to the teacher's class (using session data)
+    if standard_subject.standard.id != class_id or standard_subject.year.id != year_id:
+        messages.error(request, "You can only delete subjects for your assigned class.")
+        return redirect('reports:subject_list', school_slug=school_slug)
+
+    # Verify the standard belongs to the current school
+    if standard_subject.standard.school != school:
         messages.error(request, "You don't have permission to delete subjects for this school.")
         return redirect('core:home')
 
-    subject = get_object_or_404(Subject, id=subject_id)
-
     # Check if the subject is used in any tests
-    if StandardSubject.objects.filter(subject=subject).exists():
-        messages.error(request, f"Cannot delete subject '{subject.name}' because it is assigned to one or more standards.")
+    if TestSubject.objects.filter(standard_subject=standard_subject).exists():
+        messages.error(request, f"Cannot delete subject '{standard_subject.subject_name}' because it is used in one or more tests.")
         return redirect('reports:subject_list', school_slug=school_slug)
 
     if request.method == 'POST':
-        subject_name = subject.name
-        subject.delete()
+        subject_name = standard_subject.subject_name
+        standard_subject.delete()
         messages.success(request, f"Subject '{subject_name}' has been deleted successfully.")
         return redirect('reports:subject_list', school_slug=school_slug)
 
     return render(request, 'reports/subject_delete.html', {
-        'subject': subject,
+        'subject': standard_subject,
         'school': school,
         'school_slug': school_slug
     })

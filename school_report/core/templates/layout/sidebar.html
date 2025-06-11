@@ -25,11 +25,18 @@
             {% endif %}
         {% endif %}
 
-        {% if user.profile.user_type == 'teacher' or user.profile.user_type == 'principal' or user.profile.user_type == 'administration' %}
+        {% if user.profile.user_type == 'teacher' %}
             {% if school %}
+            <li class="{% block subjects_active %}{% endblock %}">
+                <a href="{% url 'reports:subject_list' school_slug=school.slug %}"><i class="bi bi-book"></i> Subjects</a>
+            </li>
             <li class="{% block tests_active %}{% endblock %}">
                 <a href="{% url 'reports:test_list' school_slug=school.slug %}"><i class="bi bi-clipboard-check"></i> Tests</a>
             </li>
+            {% endif %}
+        {% endif %}
+        {% if user.profile.user_type == 'principal' or user.profile.user_type == 'administration' or user.profile.user_type == 'teacher' %}
+            {% if school %}
             <li class="{% block reports_active %}{% endblock %}">
                 <a href="#"><i class="bi bi-file-earmark-text"></i> Reports</a>
             </li>

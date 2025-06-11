@@ -1,9 +1,9 @@
 {% extends 'layout/base.html' %}
 {% load static %}
 
-{% block title %}Delete Subject - {{ subject.name }} - School Report System{% endblock %}
+{% block title %}Delete Subject - {{ subject.subject_name }} - School Report System{% endblock %}
 
-{% block tests_active %}active{% endblock %}
+{% block subjects_active %}active{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -14,7 +14,7 @@
                 <li class="breadcrumb-item active" aria-current="page">Delete Subject</li>
             </ol>
         </nav>
-        <h1 class="h3 mb-0 text-gray-800">Delete Subject: {{ subject.name }}</h1>
+        <h1 class="h3 mb-0 text-gray-800">Delete Subject: {{ subject.subject_name }}</h1>
     </div>
 </div>
 
@@ -27,7 +27,7 @@
             <div class="card-body">
                 <div class="alert alert-danger">
                     <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Warning!</h5>
-                    <p>You are about to delete the subject <strong>{{ subject.name }}</strong>. This action cannot be undone.</p>
+                    <p>You are about to delete the subject <strong>{{ subject.subject_name }}</strong>. This action cannot be undone.</p>
                 </div>
 
                 <form method="post">

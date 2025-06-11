@@ -12,7 +12,7 @@ from .models import UserProfile
 from schools.models import School
 from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher
 from academics.views import get_current_school_year_and_term
-from core.utils import get_current_year_and_term
+from core.utils import get_current_year_and_term, set_teacher_class_session, clear_teacher_session
 
 class HomeView(TemplateView):
     """Home page view"""
@@ -49,17 +49,22 @@ class HomeView(TemplateView):
                         ).first()
 
                         if teacher_assignment:
+                            # Set teacher class information in session for easy access
+                            set_teacher_class_session(request, teacher_assignment.standard, current_year)
+
                             # Redirect to their class detail page (teacher dashboard)
                             return redirect('schools:standard_detail',
                                           school_slug=school.slug,
                                           pk=teacher_assignment.standard.pk)
                         else:
-                            # Teacher not assigned to a class - show message
+                            # Teacher not assigned to a class - clear any old session data and show message
+                            clear_teacher_session(request)
                             self.teacher_not_assigned = True
                             self.school = school
                             return super().dispatch(request, *args, **kwargs)
                     else:
-                        # No current year - show message
+                        # No current year - clear session and show message
+                        clear_teacher_session(request)
                         self.no_current_year = True
                         self.school = school
                         return super().dispatch(request, *args, **kwargs)
@@ -294,6 +299,9 @@ class CustomLogoutView(View):
         return redirect('core:home')
 
     def post(self, request):
+        # Clear teacher session data before logout
+        clear_teacher_session(request)
+
         # For POST requests, log the user out
         logout(request)
         messages.success(request, "You have been logged out successfully.")

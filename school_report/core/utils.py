@@ -40,3 +40,34 @@ def get_current_year_and_term(school=None):
 
     # If no terms found, we're on vacation or no school year exists
     return None, None, True
+
+
+def get_teacher_class_from_session(request):
+    """
+    Get teacher's assigned class from session.
+    Returns (class_id, class_name, school_year_id) or (None, None, None)
+    """
+    if hasattr(request.user, 'profile') and request.user.profile.user_type == 'teacher':
+        class_id = request.session.get('teacher_class_id')
+        class_name = request.session.get('teacher_class_name')
+        year_id = request.session.get('teacher_school_year_id')
+        return class_id, class_name, year_id
+    return None, None, None
+
+
+def set_teacher_class_session(request, standard, school_year):
+    """
+    Set teacher's class information in session.
+    """
+    request.session['teacher_class_id'] = standard.id
+    request.session['teacher_class_name'] = str(standard)
+    request.session['teacher_school_year_id'] = school_year.id
+
+
+def clear_teacher_session(request):
+    """
+    Clear teacher session variables.
+    """
+    keys_to_remove = ['teacher_class_id', 'teacher_class_name', 'teacher_school_year_id']
+    for key in keys_to_remove:
+        request.session.pop(key, None)

@@ -3,7 +3,7 @@
 
 {% block title %}{% if is_edit %}Edit Subject{% else %}Create Subject{% endif %} - School Report System{% endblock %}
 
-{% block tests_active %}active{% endblock %}
+{% block subjects_active %}active{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -37,17 +37,17 @@
                     {% endif %}
 
                     <div class="form-group mb-3">
-                        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}
+                        <label for="{{ form.subject_name.id_for_label }}">{{ form.subject_name.label }}</label>
+                        {{ form.subject_name }}
+                        {% if form.subject_name.errors %}
                         <div class="invalid-feedback d-block">
-                            {% for error in form.name.errors %}
+                            {% for error in form.subject_name.errors %}
                             {{ error }}
                             {% endfor %}
                         </div>
                         {% endif %}
-                        {% if form.name.help_text %}
-                        <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                        {% if form.subject_name.help_text %}
+                        <small class="form-text text-muted">{{ form.subject_name.help_text }}</small>
                         {% endif %}
                     </div>
 

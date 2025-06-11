@@ -3,7 +3,7 @@
 
 {% block title %}Subjects - School Report System{% endblock %}
 
-{% block tests_active %}active{% endblock %}
+{% block subjects_active %}active{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -38,16 +38,16 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for assigned in assigned_subjects %}
+                            {% for subject in assigned_subjects %}
                             <tr>
-                                <td>{{ assigned.subject.name }}</td>
-                                <td>{{ assigned.subject.description|truncatechars:50 }}</td>
+                                <td>{{ subject.subject_name }}</td>
+                                <td>{{ subject.description|truncatechars:50 }}</td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="{% url 'reports:subject_edit' school_slug=school_slug subject_id=assigned.subject.id %}" class="btn btn-sm btn-info">
+                                        <a href="{% url 'reports:subject_edit' school_slug=school_slug subject_id=subject.id %}" class="btn btn-sm btn-info">
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
-                                        <a href="{% url 'reports:subject_delete' school_slug=school_slug subject_id=assigned.subject.id %}" class="btn btn-sm btn-danger">
+                                        <a href="{% url 'reports:subject_delete' school_slug=school_slug subject_id=subject.id %}" class="btn btn-sm btn-danger">
                                             <i class="bi bi-trash"></i> Delete
                                         </a>
                                     </div>
