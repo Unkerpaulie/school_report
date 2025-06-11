@@ -71,3 +71,65 @@ def clear_teacher_session(request):
     keys_to_remove = ['teacher_class_id', 'teacher_class_name', 'teacher_school_year_id']
     for key in keys_to_remove:
         request.session.pop(key, None)
+
+
+def get_current_teacher_assignment(teacher, school_year):
+    """
+    Get the current (latest) assignment for a teacher in a given year.
+    Returns StandardTeacher object or None.
+    """
+    from academics.models import StandardTeacher
+
+    latest_assignment = StandardTeacher.objects.filter(
+        teacher=teacher,
+        year=school_year
+    ).order_by('-created_at').first()
+
+    # Return assignment only if it has a standard (not unassigned)
+    if latest_assignment and latest_assignment.standard:
+        return latest_assignment
+    return None
+
+
+def get_current_student_enrollment(student, school_year):
+    """
+    Get the current (latest) enrollment for a student in a given year.
+    Returns Enrollment object or None.
+    """
+    from academics.models import Enrollment
+
+    latest_enrollment = Enrollment.objects.filter(
+        student=student,
+        year=school_year
+    ).order_by('-created_at').first()
+
+    # Return enrollment only if it has a standard (not unenrolled)
+    if latest_enrollment and latest_enrollment.standard:
+        return latest_enrollment
+    return None
+
+
+def unassign_teacher(teacher, school_year):
+    """
+    Unassign a teacher by creating a new record with null standard.
+    """
+    from academics.models import StandardTeacher
+
+    StandardTeacher.objects.create(
+        teacher=teacher,
+        year=school_year,
+        standard=None  # Null = unassigned
+    )
+
+
+def unenroll_student(student, school_year):
+    """
+    Unenroll a student by creating a new record with null standard.
+    """
+    from academics.models import Enrollment
+
+    Enrollment.objects.create(
+        student=student,
+        year=school_year,
+        standard=None  # Null = unenrolled
+    )

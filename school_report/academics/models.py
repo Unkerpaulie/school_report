@@ -45,38 +45,53 @@ class Term(models.Model):
     
 class StandardTeacher(models.Model):
     """
-    Represents the assignment of a teacher to a standard for a specific academic year
+    Represents teacher assignment history for a specific academic year.
+    Latest record with non-null standard = current assignment.
+    Latest record with null standard = unassigned.
     """
     year = models.ForeignKey(SchoolYear, on_delete=models.CASCADE, related_name='standard_teachers')
-    standard = models.ForeignKey('schools.Standard', on_delete=models.CASCADE, related_name='teacher_assignments')
-    # Change from Teacher to UserProfile with constraint
-    teacher = models.ForeignKey('core.UserProfile', on_delete=models.CASCADE, 
+    standard = models.ForeignKey('schools.Standard', on_delete=models.CASCADE,
+                               related_name='teacher_assignments',
+                               null=True, blank=True)  # Null = unassigned
+    teacher = models.ForeignKey('core.UserProfile', on_delete=models.CASCADE,
                                related_name='standard_assignments',
                                limit_choices_to={'user_type': 'teacher'})
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['year', 'standard', 'teacher']
+        # Remove unique constraint to allow assignment history
+        ordering = ['-created_at']  # Latest first
 
     def __str__(self):
-        return f"{self.year} - {self.standard} - {self.teacher.get_full_name()}"
+        if self.standard:
+            return f"{self.year} - {self.standard} - {self.teacher.get_full_name()}"
+        else:
+            return f"{self.year} - Unassigned - {self.teacher.get_full_name()}"
 
 class Enrollment(models.Model):
     """
-    Represents the enrollment of a student in a standard for a specific academic year
+    Represents student enrollment history for a specific academic year.
+    Latest record with non-null standard = current enrollment.
+    Latest record with null standard = unenrolled.
     """
     year = models.ForeignKey(SchoolYear, on_delete=models.CASCADE, related_name='enrollments')
-    standard = models.ForeignKey('schools.Standard', on_delete=models.CASCADE, related_name='student_enrollments')
+    standard = models.ForeignKey('schools.Standard', on_delete=models.CASCADE,
+                               related_name='student_enrollments',
+                               null=True, blank=True)  # Null = unenrolled
     student = models.ForeignKey('schools.Student', on_delete=models.CASCADE, related_name='standard_enrollments')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['year', 'standard', 'student']
+        # Remove unique constraint to allow enrollment history
+        ordering = ['-created_at']  # Latest first
 
     def __str__(self):
-        return f"{self.year} - {self.standard} - {self.student}"
+        if self.standard:
+            return f"{self.year} - {self.standard} - {self.student}"
+        else:
+            return f"{self.year} - Unenrolled - {self.student}"
 
 class StandardSubject(models.Model):
     """

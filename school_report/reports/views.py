@@ -7,7 +7,7 @@ from django.forms import modelformset_factory
 from academics.models import StandardSubject, StandardTeacher, SchoolStaff
 from schools.models import Student, School, Standard
 from core.models import UserProfile
-from core.utils import get_current_year_and_term, get_teacher_class_from_session
+from core.utils import get_current_year_and_term, get_teacher_class_from_session, get_current_teacher_assignment
 from .models import Test, TestSubject, TestScore
 
 # Create your forms here

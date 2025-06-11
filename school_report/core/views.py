@@ -12,7 +12,7 @@ from .models import UserProfile
 from schools.models import School
 from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher
 from academics.views import get_current_school_year_and_term
-from core.utils import get_current_year_and_term, set_teacher_class_session, clear_teacher_session
+from core.utils import get_current_year_and_term, set_teacher_class_session, clear_teacher_session, get_current_teacher_assignment
 
 class HomeView(TemplateView):
     """Home page view"""
@@ -42,11 +42,8 @@ class HomeView(TemplateView):
                     current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
 
                     if current_year:
-                        # Check if teacher is assigned to a class
-                        teacher_assignment = StandardTeacher.objects.filter(
-                            teacher=user_profile,
-                            year=current_year
-                        ).first()
+                        # Check if teacher is assigned to a class using new historical logic
+                        teacher_assignment = get_current_teacher_assignment(user_profile, current_year)
 
                         if teacher_assignment:
                             # Set teacher class information in session for easy access

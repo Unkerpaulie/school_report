@@ -9,8 +9,8 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib import messages
 from django.core.validators import FileExtensionValidator
 from core.models import UserProfile
-from core.utils import get_current_year_and_term
-from academics.models import SchoolYear, StandardTeacher, Enrollment, SchoolStaff
+from core.utils import get_current_year_and_term, unassign_teacher, get_current_teacher_assignment, unenroll_student, get_current_student_enrollment
+from academics.models import SchoolYear, Term, StandardTeacher, Enrollment, SchoolStaff
 from .models import School, Standard, Student
 import csv
 from datetime import datetime
@@ -60,19 +60,19 @@ class StaffListView(LoginRequiredMixin, ListView):
         # Create a list to hold all staff members with their type
         staff_list = []
 
-        # Get teacher assignments for the current year
+        # Get current teacher assignments for the current year using historical logic
         teacher_assignments = {}
-        assignments = StandardTeacher.objects.filter(
-            year=current_year,
-            standard__school=self.school
-        ).select_related('teacher', 'standard')
 
-        # Create a dictionary of teacher_id -> assignment info for quick lookup
-        for assignment in assignments:
-            teacher_assignments[assignment.teacher_id] = {
-                'standard': assignment.standard,
-                'assignment_id': assignment.id
-            }
+        # Get all teachers in this school
+        teacher_profiles = [staff.staff for staff in school_staff if staff.staff.user_type == 'teacher']
+
+        for teacher_profile in teacher_profiles:
+            current_assignment = get_current_teacher_assignment(teacher_profile, current_year)
+            if current_assignment:
+                teacher_assignments[teacher_profile.id] = {
+                    'standard': current_assignment.standard,
+                    'assignment_id': current_assignment.id
+                }
 
         # Process each staff member
         for staff_member in school_staff:
@@ -210,7 +210,6 @@ class TeacherCreateView(LoginRequiredMixin, FormView):
 
         if not current_year:
             # If no current year found, create a default school year with terms
-            from academics.models import Term
             import datetime
             current_date = datetime.date.today()
             current_year_num = current_date.year
@@ -305,24 +304,45 @@ class StudentListView(LoginRequiredMixin, ListView):
             # If no current year, return empty queryset
             return Student.objects.none()
 
-        # For principals and administration, show all students enrolled in this school
+        # For principals and administration, show all students currently enrolled in this school
         if self.request.user.profile.user_type in ['principal', 'administration']:
+            # Get all students who have current enrollments (non-null standard) in this school
             students = Student.objects.filter(
                 standard_enrollments__year=current_year,
-                standard_enrollments__standard__school=self.school
+                standard_enrollments__standard__school=self.school,
+                standard_enrollments__standard__isnull=False  # Only current enrollments
             ).distinct()
 
-            return students
+            # Filter to only students with current (latest) enrollment
+            current_students = []
+            for student in students:
+                current_enrollment = get_current_student_enrollment(student, current_year)
+                if current_enrollment and current_enrollment.standard.school == self.school:
+                    current_students.append(student)
+
+            return current_students
 
         # For teachers, show only students in their assigned classes
         elif self.request.user.profile.user_type == 'teacher':
             user_profile = self.request.user.profile
-            return Student.objects.filter(
-                standard_enrollments__year=current_year,
-                standard_enrollments__standard__school=self.school,
-                standard_enrollments__standard__teacher_assignments__teacher=user_profile,
-                standard_enrollments__standard__teacher_assignments__year=current_year
-            ).distinct()
+            teacher_assignment = get_current_teacher_assignment(user_profile, current_year)
+
+            if teacher_assignment:
+                # Get students currently enrolled in teacher's assigned class
+                students = Student.objects.filter(
+                    standard_enrollments__year=current_year,
+                    standard_enrollments__standard=teacher_assignment.standard,
+                    standard_enrollments__standard__isnull=False
+                ).distinct()
+
+                # Filter to only students with current enrollment in this class
+                current_students = []
+                for student in students:
+                    current_enrollment = get_current_student_enrollment(student, current_year)
+                    if current_enrollment and current_enrollment.standard == teacher_assignment.standard:
+                        current_students.append(student)
+
+                return current_students
 
         return Student.objects.none()
 
@@ -459,25 +479,45 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
         # Get current school year using the centralized function
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
-        # Get teacher assignments for this standard in the current year
+        # Get current teacher assignments for this standard using historical logic
         if current_year:
-            context['teacher_assignments'] = StandardTeacher.objects.filter(
+            # Get all teachers who might be assigned to this standard
+            all_assignments = StandardTeacher.objects.filter(
                 standard=standard,
                 year=current_year
-            )
-        else:
-            context['teacher_assignments'] = StandardTeacher.objects.none()
+            ).values_list('teacher', flat=True).distinct()
 
-        # Get students enrolled in this standard for the current year
+            current_assignments = []
+            for teacher_id in all_assignments:
+                from core.models import UserProfile
+                teacher = UserProfile.objects.get(id=teacher_id)
+                current_assignment = get_current_teacher_assignment(teacher, current_year)
+                if current_assignment and current_assignment.standard == standard:
+                    current_assignments.append(current_assignment)
+
+            context['teacher_assignments'] = current_assignments
+        else:
+            context['teacher_assignments'] = []
+
+        # Get students currently enrolled in this standard using historical logic
         if current_year:
-            enrolled_students = Student.objects.filter(
-                standard_enrollments__standard=standard,
-                standard_enrollments__year=current_year
-            ).distinct()
+            # Get all students who might be enrolled in this standard
+            all_enrollments = Enrollment.objects.filter(
+                standard=standard,
+                year=current_year
+            ).values_list('student', flat=True).distinct()
 
-            context['enrolled_students'] = enrolled_students
+            current_students = []
+            for student_id in all_enrollments:
+                from schools.models import Student
+                student = Student.objects.get(id=student_id)
+                current_enrollment = get_current_student_enrollment(student, current_year)
+                if current_enrollment and current_enrollment.standard == standard:
+                    current_students.append(student)
+
+            context['enrolled_students'] = current_students
         else:
-            context['enrolled_students'] = Student.objects.none()
+            context['enrolled_students'] = []
 
         return context
 
@@ -531,11 +571,8 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
             messages.warning(self.request, "No academic year found for this school. Please set up the academic year first.")
             return form
 
-        # Check if the teacher is already assigned to a class
-        existing_assignment = StandardTeacher.objects.filter(
-            teacher=teacher,
-            year=current_year
-        ).first()
+        # Check if the teacher is already assigned to a class using historical logic
+        existing_assignment = get_current_teacher_assignment(teacher, current_year)
 
         if existing_assignment:
             # If teacher is already assigned, show no standards
@@ -599,25 +636,27 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
             messages.warning(self.request, "This class does not belong to this school.")
             return self.form_invalid(form)
 
-        # Check if the teacher is already assigned to a class
-        existing_teacher_assignment = StandardTeacher.objects.filter(
-            teacher=teacher,
-            year=current_year
-        ).first()
+        # Check if the teacher is already assigned to a class using historical logic
+        existing_teacher_assignment = get_current_teacher_assignment(teacher, current_year)
 
         if existing_teacher_assignment:
             messages.warning(self.request, f"This teacher is already assigned to {existing_teacher_assignment.standard}.")
             return self.form_invalid(form)
 
-        # Check if the class already has a teacher assigned
-        existing_class_assignment = StandardTeacher.objects.filter(
+        # Check if the class already has a teacher assigned using historical logic
+        # Get all teachers who might be assigned to this standard
+        all_assignments = StandardTeacher.objects.filter(
             standard=standard,
             year=current_year
-        ).first()
+        ).values_list('teacher', flat=True).distinct()
 
-        if existing_class_assignment:
-            messages.warning(self.request, f"This class already has {existing_class_assignment.teacher.get_full_name()} assigned to it.")
-            return self.form_invalid(form)
+        for teacher_id in all_assignments:
+            from core.models import UserProfile
+            potential_teacher = UserProfile.objects.get(id=teacher_id)
+            current_assignment = get_current_teacher_assignment(potential_teacher, current_year)
+            if current_assignment and current_assignment.standard == standard:
+                messages.warning(self.request, f"This class already has {potential_teacher.get_full_name()} assigned to it.")
+                return self.form_invalid(form)
 
         # Create the assignment
         assignment = form.save(commit=False)
@@ -720,8 +759,8 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         teacher = assignment.teacher
         standard = assignment.standard
 
-        # Delete the assignment (since we don't have is_active field)
-        assignment.delete()
+        # Create unassignment record instead of deleting
+        unassign_teacher(teacher, assignment.year)
 
         messages.success(request, f"Teacher {teacher.get_full_name()} has been unassigned from {standard} successfully!")
         return redirect('schools:staff_list', school_slug=school_slug)
@@ -797,7 +836,6 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
 
         # Enroll the student if a standard was selected
         if 'standard' in form.cleaned_data and form.cleaned_data['standard'] and 'academic_year' in form.cleaned_data and form.cleaned_data['academic_year']:
-            from academics.models import Enrollment
             standard = form.cleaned_data['standard']
             academic_year = form.cleaned_data['academic_year']
 
@@ -881,9 +919,6 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
         context['school_slug'] = self.school_slug
         context['is_update'] = True
 
-        # Get current enrollment
-        from academics.models import Enrollment
-
         # Get current academic year for this school
         current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
 
@@ -960,8 +995,6 @@ class StudentDetailView(LoginRequiredMixin, DetailView):
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
         # Get enrollment history
-        from academics.models import Enrollment
-
         enrollments = Enrollment.objects.filter(
             student=self.object
         ).select_related('year', 'standard').order_by('-year__start_year')
@@ -1041,20 +1074,23 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         academic_year = form.cleaned_data['academic_year']
+        new_standard = form.cleaned_data['standard']
 
-        # Delete any existing enrollments for this student in the selected year
-        # (since we don't have is_active field, we'll delete and recreate)
-        existing_enrollments = Enrollment.objects.filter(
+        # Check if student has a current enrollment in this year
+        current_enrollment = get_current_student_enrollment(self.student, academic_year)
+
+        if current_enrollment:
+            # If changing to a different class, create unenrollment record first
+            if current_enrollment.standard != new_standard:
+                unenroll_student(self.student, academic_year)
+                messages.info(self.request, f"Student {self.student} has been unenrolled from {current_enrollment.standard.get_name_display()}.")
+
+        # Create the new enrollment (even if it's the same class, for history)
+        enrollment = Enrollment.objects.create(
+            year=academic_year,
             student=self.student,
-            year=academic_year
+            standard=new_standard
         )
-        existing_enrollments.delete()
-
-        # Create the new enrollment
-        enrollment = form.save(commit=False)
-        enrollment.year = academic_year
-        enrollment.student = self.student
-        enrollment.save()
 
         messages.success(self.request, f"Student {self.student} has been enrolled in {enrollment.standard.get_name_display()} for the {academic_year} academic year.")
         return redirect(self.get_success_url())
@@ -1476,7 +1512,6 @@ class AdminStaffCreateView(LoginRequiredMixin, FormView):
 
         if not current_year:
             # If no current year found, create a default school year with terms
-            from academics.models import Term
             import datetime
             current_date = datetime.date.today()
             current_year_num = current_date.year
