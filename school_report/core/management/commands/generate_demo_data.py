@@ -1,4 +1,6 @@
 import random
+import json
+import os
 from datetime import date
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
@@ -7,27 +9,25 @@ from django.db import transaction
 
 from core.models import UserProfile
 from schools.models import School, Standard, Student
-from academics.models import Year, StandardSubject, Subject
-from reports.models import Test, TestSubject, TestScore, TEST_TYPE_CHOICES
+from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher, Enrollment, StandardSubject
+from core.utils import get_current_year_and_term
 
 class Command(BaseCommand):
-    help = 'Generate demo data for the school reporting system'
+    help = 'Generate comprehensive demo data for the school reporting system'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fake = Faker()
         self.usernames = set()  # Track used usernames
+        self.school_users = []  # Track users for JSON output
 
     def add_arguments(self, parser):
-        num_students = random.randint(13, 18)
         parser.add_argument('--schools', type=int, default=1, help='Number of schools to create')
-        parser.add_argument('--teachers', type=int, default=7, help='Number of teachers per school')
-        parser.add_argument('--admin-staff', type=int, default=2, help='Number of admin staff per school')
-        parser.add_argument('--students', type=int, default=num_students, help='Number of students per standard')
-        parser.add_argument('--subjects', type=int, default=5, help='Number of subjects per standard')
-        parser.add_argument('--tests', type=int, default=3, help='Number of tests per term')
+        parser.add_argument('--students-per-class', type=int, default=None, help='Number of students per class (random 13-18 if not specified)')
+        parser.add_argument('--output-dir', type=str, default='try', help='Directory to save user info JSON files')
 
     def generate_phone_number(self):
+        """Generate a Trinidad & Tobago phone number"""
         return f"(868) {random.choice([2, 3, 4, 6, 7])}{str(random.randint(0, 99)).zfill(2)}-{str(random.randint(0, 9999)).zfill(4)}"
 
     def generate_unique_username(self, first_name, last_name):
@@ -35,19 +35,19 @@ class Command(BaseCommand):
         base_username = f"{first_name[0].lower()}{last_name.lower()}"[:15]
         username = base_username
         counter = 2
-        
-        while username in self.usernames:
+
+        while username in self.usernames or User.objects.filter(username=username).exists():
             username = f"{base_username}{counter}"[:15]
             counter += 1
-            
+
         self.usernames.add(username)
         return username
 
-    def create_user(self, first_name, last_name, user_type, school=None, title=None, position=None, phone_number=None):
+    def create_user(self, first_name, last_name, user_type, title=None, position=None):
         """Create a user with the given details"""
         username = self.generate_unique_username(first_name, last_name)
         email = f"{username}@moe.gov.tt"
-        
+
         user = User.objects.create_user(
             username=username,
             email=email,
@@ -55,204 +55,286 @@ class Command(BaseCommand):
             first_name=first_name,
             last_name=last_name
         )
-        
-        # Update profile
+
+        # Update profile (automatically created via signals)
         profile = user.profile
         profile.user_type = user_type
-        profile.phone_number = phone_number or self.generate_phone_number()
+        profile.phone_number = self.generate_phone_number()
         profile.must_change_password = True
-        
-        # Set school-specific fields
-        if school:
-            profile.school = school
-        
+
         # Set title if provided
         if title:
             profile.title = title
-            
+
         # Set position for admin staff
         if position and user_type == 'administration':
             profile.position = position
-            
+
         profile.save()
-        
+
+        # Track user for JSON output
+        self.school_users.append({
+            'full_name': profile.get_full_name(),
+            'username': username,
+            'user_type': user_type,
+            'position': position if position else 'N/A'
+        })
+
         return user
+
+    def get_school_standards(self, school):
+        """Get the automatically created standards for the school"""
+        standards = Standard.objects.filter(school=school).order_by('name')
+        self.stdout.write(f'📚 Using {standards.count()} automatically created standards:')
+        for standard in standards:
+            self.stdout.write(f'   - {standard.get_name_display()}')
+        return standards
+
+    def create_students_for_standard(self, school, standard, current_year, num_students):
+        """Create students and enroll them in the given standard"""
+        # Age mapping for Caribbean primary school standards
+        age_mapping = {
+            'INF1': (5, 6), 
+            'INF2': (6, 7), 
+            'STD1': (7, 8), 
+            'STD2': (8, 9), 
+            'STD3': (9, 10), 
+            'STD4': (10, 11), 
+            'STD5': (11, 12),
+        }
+
+        min_age, max_age = age_mapping.get(standard.name, (8, 9))  # Default fallback
+
+        students = []
+        for _ in range(num_students):
+            first_name = self.fake.first_name()
+            last_name = self.fake.last_name()
+
+            # Age appropriate for the standard
+            dob = self.fake.date_of_birth(minimum_age=min_age, maximum_age=max_age)
+
+            student = Student.objects.create(
+                first_name=first_name,
+                last_name=last_name,
+                date_of_birth=dob,
+                contact_email=self.fake.email(),
+                contact_phone=self.generate_phone_number(),
+                parent_name=f"{self.fake.first_name()} {last_name}" if random.random() < 0.8 else f"{self.fake.first_name()} {self.fake.last_name()}"
+            )
+
+            # Enroll student in the standard using new historical system
+            Enrollment.objects.create(
+                year=current_year,
+                standard=standard,
+                student=student
+            )
+
+            students.append(student)
+            self.stdout.write(f'Created and enrolled student: {student.first_name} {student.last_name} in {standard}')
+
+        return students
+
+    def create_subjects_for_class(self, teacher, standard, current_year):
+        """Create subjects for a teacher's assigned class"""
+        # Core subjects for Caribbean primary schools
+        subject_names = [
+            'Mathematics', 'English Language', 'Science', 'Social Studies',
+            'Art & Craft', 'Physical Education', 'Music'
+        ]
+
+        # Add additional subjects for higher standards (STD3, STD4, STD5)
+        if standard.name in ['STD3', 'STD4', 'STD5']:
+            subject_names.extend(['Creative Writing', 'Religious Instruction'])
+
+        subjects = []
+        for subject_name in subject_names:
+            standard_subject = StandardSubject.objects.create(
+                year=current_year,
+                standard=standard,
+                subject_name=subject_name,
+                description=f'{subject_name} for {standard}',
+                created_by=teacher
+            )
+            subjects.append(standard_subject)
+            self.stdout.write(f'Created subject: {subject_name} for {standard} (Teacher: {teacher.get_full_name()})')
+
+        return subjects
+
+    def save_user_info_json(self, school, output_dir):
+        """Save user information to JSON file"""
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Generate filename based on school name
+        school_slug = school.slug
+        filename = f"{school_slug}_users.json"
+        filepath = os.path.join(output_dir, filename)
+
+        # Prepare user data
+        user_data = {
+            'school_name': school.name,
+            'school_slug': school_slug,
+            'generated_date': date.today().isoformat(),
+            'users': self.school_users
+        }
+
+        # Save to JSON file
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(user_data, f, indent=2, ensure_ascii=False)
+
+        self.stdout.write(self.style.SUCCESS(f'User information saved to: {filepath}'))
+        return filepath
 
     def handle(self, *args, **options):
         num_schools = options['schools']
-        num_teachers = options['teachers']
-        num_admin_staff = options['admin_staff']
-        num_students = options['students']
-        num_subjects = options['subjects']
-        num_tests = options['tests']
-        
-        self.stdout.write(self.style.SUCCESS(f'Starting demo data generation...'))
-        
-        with transaction.atomic():
-            for s in range(num_schools):
-                # 1. Create principal
+        students_per_class = options['students_per_class']
+        output_dir = options['output_dir']
+
+        self.stdout.write(self.style.SUCCESS('🏫 Starting comprehensive demo data generation...'))
+
+        for school_num in range(num_schools):
+            self.school_users = []  # Reset for each school
+
+            with transaction.atomic():
+                self.stdout.write(f'\n📚 Creating School {school_num + 1} of {num_schools}')
+
+                # 1. Create Principal
                 principal_first_name = self.fake.first_name()
                 principal_last_name = self.fake.last_name()
                 principal_title = random.choice(['Mr', 'Mrs', 'Ms', 'Dr'])
+
                 principal_user = self.create_user(
-                    principal_first_name, 
-                    principal_last_name, 
+                    principal_first_name,
+                    principal_last_name,
                     'principal',
                     title=principal_title
                 )
-                
-                self.stdout.write(f'Created principal: {principal_user.profile.get_full_name()}')
-                
-                # 2. Create school and current year
-                school_name = f"{self.fake.city()} {random.choice(['Government Primary', 'RC', 'AC', 'SDA', 'Presbyterian', 'Hindu'])} School"
+
+                self.stdout.write(f'👨‍💼 Created principal: {principal_user.profile.get_full_name()}')
+
+                # 2. Create School
+                caribbean_cities = ['Port of Spain', 'San Fernando', 'Chaguanas', 'Arima', 'Point Fortin', 'Sangre Grande', 'Tunapuna', 'Penal']
+                school_types = ['Government', 'RC', 'Anglican', 'SDA', 'Presbyterian', 'Hindu']
+
+                city = random.choice(caribbean_cities)
+                school_type = random.choice(school_types)
+                school_name = f"{city} {school_type} Primary School"
+
                 school = School.objects.create(
                     name=school_name,
-                    address=self.fake.address(),
+                    address=f"{random.randint(1, 999)} {self.fake.street_name()}, {city}, Trinidad and Tobago",
                     contact_phone=self.generate_phone_number(),
-                    contact_email=f"info@{school_name.lower().replace(' ', '')}.gov.tt",
-                    principal_user=principal_user
+                    contact_email=f"info@{school_name.lower().replace(' ', '').replace('&', 'and')}.edu.tt"
                 )
-                
-                # Update principal's profile with school
-                principal_user.profile.school = school
-                principal_user.profile.save()
-                
-                self.stdout.write(f'Created school: {school.name}')
-                
-                # Create current year
-                current_year = Year.objects.create(
-                    start_year=2024,
-                    term1_start_date=date(2024, 9, 2),
-                    term1_end_date=date(2024, 12, 20),
-                    term1_school_days=80,
-                    term2_start_date=date(2025, 1, 6),
-                    term2_end_date=date(2025, 4, 10),
-                    term2_school_days=70,
-                    term3_start_date=date(2025, 4, 28),
-                    term3_end_date=date(2025, 6, 27),
-                    term3_school_days=45
+
+                self.stdout.write(f'🏫 Created school: {school.name}')
+
+                # 3. Get Current School Year (will auto-create if needed)
+                current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+                self.stdout.write(f'📅 School year: {current_year} (Term: {current_term}, Vacation: {is_on_vacation})')
+
+                # 4. Create SchoolStaff entry for Principal
+                SchoolStaff.objects.create(
+                    year=current_year,
+                    school=school,
+                    staff=principal_user.profile,
+                    position='Principal',
+                    is_active=True
                 )
-                
-                self.stdout.write(f'Created year: {current_year}')
-                
-                # 3. Create admin staff
-                admin_staff_list = []
-                for a in range(num_admin_staff):
+
+                # 5. Get School Standards (automatically created by signal)
+                standards = self.get_school_standards(school)
+
+                # 6. Create Administrative Staff (3 positions as specified)
+                admin_positions = ['Vice Principal', 'Secretary', 'Administrative Assistant']
+                admin_staff = []
+
+                for position in admin_positions:
                     first_name = self.fake.first_name()
                     last_name = self.fake.last_name()
-                    title = random.choice(['Mr', 'Mrs', 'Ms', 'Dr'])
-                    position = random.choice(['Vice Principal', 'Secretary', 'Administrator'])
-                    
+                    title = random.choice(['Mr', 'Mrs', 'Ms'])
+
                     admin_user = self.create_user(
-                        first_name, 
-                        last_name, 
+                        first_name,
+                        last_name,
                         'administration',
-                        school=school,
                         title=title,
                         position=position
                     )
-                    
-                    admin_staff_list.append(admin_user.profile)
-                    self.stdout.write(f'Created admin staff: {admin_user.profile.get_full_name()} ({position})')
-                
-                # Create teachers
+
+                    # Create SchoolStaff entry
+                    SchoolStaff.objects.create(
+                        year=current_year,
+                        school=school,
+                        staff=admin_user.profile,
+                        position=position,
+                        is_active=True
+                    )
+
+                    admin_staff.append(admin_user.profile)
+                    self.stdout.write(f'👩‍💼 Created admin staff: {admin_user.profile.get_full_name()} ({position})')
+
+                # 7. Create 7 Teachers and Assign to Classes
                 teachers = []
-                for t in range(num_teachers):
+                for i, standard in enumerate(standards):
                     first_name = self.fake.first_name()
                     last_name = self.fake.last_name()
-                    title = random.choice(UserProfile.TITLE_CHOICES)[0]
-                    
+                    title = random.choice(['Mr', 'Mrs', 'Ms'])
+
                     teacher_user = self.create_user(
-                        first_name, 
-                        last_name, 
+                        first_name,
+                        last_name,
                         'teacher',
-                        school=school,
                         title=title
                     )
-                    
+
+                    # Create SchoolStaff entry
+                    SchoolStaff.objects.create(
+                        year=current_year,
+                        school=school,
+                        staff=teacher_user.profile,
+                        position='Teacher',
+                        is_active=True
+                    )
+
+                    # Assign teacher to this standard using new historical system
+                    StandardTeacher.objects.create(
+                        year=current_year,
+                        standard=standard,
+                        teacher=teacher_user.profile
+                    )
+
                     teachers.append(teacher_user.profile)
-                    self.stdout.write(f'Created teacher: {teacher_user.profile.get_full_name()}')
-                
-                # 4. Create students and assign to standards
-                standards = Standard.objects.filter(school=school)
-                
-                for a, standard in enumerate(standards):
-                    for _ in range(num_students):
-                        first_name = self.fake.first_name()
-                        last_name = self.fake.last_name()
-                        dob = self.fake.date_of_birth(minimum_age=a+5, maximum_age=a+6)
-                        
-                        student = Student.objects.create(
-                            school=school,
-                            standard=standard,
-                            first_name=first_name,
-                            last_name=last_name,
-                            date_of_birth=dob,
-                            contact_email=self.fake.email(),
-                            contact_phone=self.generate_phone_number(),
-                            parent_name=f"{self.fake.first_name()} {last_name}" if random.random() < 0.8 else f"{self.fake.first_name()} {self.fake.last_name()}"
-                        )
-                        self.stdout.write(f'Created student: {student.first_name} {student.last_name} in {standard}')
-                
-                # 5. Create subjects for each standard
-                subject_names = [
-                    'Mathematics', 'English', 'Science', 'Social Studies', 'Art', 
-                    'Physical Education', 'Music', 'Creative Writing', 'Religious Instruction'
-                ]
-                
-                for standard in standards:
-                    # Assign a teacher to this standard
-                    standard_teacher = random.choice(teachers)
-                    
-                    # Create subjects for this standard
-                    for i in range(min(num_subjects, len(subject_names))):
-                        subject_name = subject_names[i]
-                        subject, _ = Subject.objects.get_or_create(
-                            name=subject_name,
-                            defaults={'description': f'Study of {subject_name}'}
-                        )
-                        
-                        standard_subject = StandardSubject.objects.create(
-                            standard=standard,
-                            subject=subject,
-                            teacher=standard_teacher,
-                            year=current_year
-                        )
-                        self.stdout.write(f'Created subject {subject.name} for {standard}')
-                        
-                        # 6. Create tests for each term
-                        for term in [1, 2, 3]:
-                            for t in range(num_tests):
-                                test_type = random.choice(TEST_TYPE_CHOICES)[0]
-                                test_date = self.fake.date_this_year()
-                                
-                                test = Test.objects.create(
-                                    standard=standard,
-                                    year=current_year,
-                                    term=term,
-                                    test_type=test_type,
-                                    test_date=test_date,
-                                    description=f'{test_type.replace("_", " ").title()} Test {t+1}',
-                                    created_by=standard_teacher
-                                )
-                                
-                                # Create test subject
-                                test_subject = TestSubject.objects.create(
-                                    test=test,
-                                    standard_subject=standard_subject,
-                                    max_score=100
-                                )
-                                
-                                # 7. Add scores for each student
-                                students = Student.objects.filter(standard=standard)
-                                for student in students:
-                                    score = random.randint(40, 100)
-                                    TestScore.objects.create(
-                                        test_subject=test_subject,
-                                        student=student,
-                                        score=score
-                                    )
-                                
-                                self.stdout.write(f'Created test {test} with scores for {len(students)} students')
-        
-        self.stdout.write(self.style.SUCCESS('Demo data generation completed successfully!'))
+                    self.stdout.write(f'👨‍🏫 Created teacher: {teacher_user.profile.get_full_name()} → {standard}')
+
+                # 8. Create Students for Each Class
+                total_students = 0
+                for i, standard in enumerate(standards):
+                    # Determine number of students (random 13-18 if not specified)
+                    num_students = students_per_class if students_per_class else random.randint(13, 18)
+
+                    students = self.create_students_for_standard(school, standard, current_year, num_students)
+                    total_students += len(students)
+                    self.stdout.write(f'👥 Created {len(students)} students for {standard}')
+
+                # 9. Have Teachers Create Subjects for Their Classes
+                for i, standard in enumerate(standards):
+                    teacher = teachers[i]  # Each teacher corresponds to their standard
+                    subjects = self.create_subjects_for_class(teacher, standard, current_year)
+                    self.stdout.write(f'📚 Created {len(subjects)} subjects for {standard} (Teacher: {teacher.get_full_name()})')
+
+                # 10. Save User Information to JSON
+                json_file = self.save_user_info_json(school, output_dir)
+
+                self.stdout.write(self.style.SUCCESS(f'✅ School {school.name} completed successfully!'))
+                self.stdout.write(f'   - Principal: 1')
+                self.stdout.write(f'   - Admin Staff: {len(admin_staff)}')
+                self.stdout.write(f'   - Teachers: {len(teachers)}')
+                self.stdout.write(f'   - Standards: {len(standards)}')
+                self.stdout.write(f'   - Students: {total_students}')
+                self.stdout.write(f'   - User info saved to: {json_file}')
+
+        self.stdout.write(self.style.SUCCESS(f'\n🎉 Demo data generation completed successfully!'))
+        self.stdout.write(f'📁 User information files saved in: {output_dir}/')
+        self.stdout.write(f'🔑 All users have password: ChangeMe!')
+        self.stdout.write(f'📊 Total schools created: {num_schools}')

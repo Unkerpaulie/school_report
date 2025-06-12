@@ -19,6 +19,9 @@
             <li class="{% block staff_active %}{% endblock %}">
                 <a href="{% url 'schools:staff_list' school_slug=school.slug %}"><i class="bi bi-people"></i> Staff</a>
             </li>
+            <li class="{% block students_active %}{% endblock %}">
+                <a href="{% url 'schools:student_list' school_slug=school.slug %}"><i class="bi bi-people"></i> Students</a>
+            </li>
             <li class="{% block classes_active %}{% endblock %}">
                 <a href="{% url 'schools:standard_list' school_slug=school.slug %}"><i class="bi bi-mortarboard"></i> Classes</a>
             </li>
