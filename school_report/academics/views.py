@@ -171,7 +171,7 @@ class YearForm(forms.ModelForm):
 
         return start_year
 
-class YearListView(LoginRequiredMixin, SchoolAdminRequiredMixin, ListView):
+class YearListView(SchoolAdminRequiredMixin, ListView):
     """
     View for listing academic years
     """
@@ -193,7 +193,7 @@ class YearListView(LoginRequiredMixin, SchoolAdminRequiredMixin, ListView):
         return context
 
 
-class YearUpdateView(LoginRequiredMixin, SchoolAdminRequiredMixin, UpdateView):
+class YearUpdateView(SchoolAdminRequiredMixin, UpdateView):
     """
     View for updating an existing academic year
     """
@@ -227,7 +227,7 @@ class YearUpdateView(LoginRequiredMixin, SchoolAdminRequiredMixin, UpdateView):
         return response
 
 
-class YearDeleteView(LoginRequiredMixin, SchoolAdminRequiredMixin, DeleteView):
+class YearDeleteView(SchoolAdminRequiredMixin, DeleteView):
     """
     View for deleting an academic year
     """
@@ -253,7 +253,7 @@ class YearDeleteView(LoginRequiredMixin, SchoolAdminRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-class SchoolYearSetupView(LoginRequiredMixin, SchoolAdminRequiredMixin, CreateView):
+class SchoolYearSetupView(SchoolAdminRequiredMixin, CreateView):
     """
     View for setting up the school year
     """

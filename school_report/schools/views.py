@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.core.validators import FileExtensionValidator
 from core.models import UserProfile
 from core.utils import get_current_year_and_term, unassign_teacher, get_current_teacher_assignment, unenroll_student, get_current_student_enrollment
+from core.mixins import SchoolAccessRequiredMixin
 from academics.models import SchoolYear, Term, StandardTeacher, Enrollment, SchoolStaff
 from .models import School, Standard, Student
 import csv
@@ -888,37 +889,13 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
         return redirect(self.get_success_url())
 
 
-class StudentDetailView(LoginRequiredMixin, DetailView):
+class StudentDetailView(SchoolAccessRequiredMixin, DetailView):
     """
     View for showing details of a student
     """
     model = Student
     template_name = 'schools/student_detail.html'
     context_object_name = 'student'
-
-    def dispatch(self, request, *args, **kwargs):
-        # Get the school by slug
-        self.school_slug = kwargs.get('school_slug')
-        self.school = get_object_or_404(School, slug=self.school_slug)
-
-        # Check if user has access to this school
-        if request.user.profile.user_type == 'principal':
-            # Principals should only access their own school
-            if not hasattr(request.user, 'administered_schools') or not request.user.administered_schools.filter(pk=self.school.pk).exists():
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'administration':
-            # Administration users can only access their assigned school
-            if not hasattr(request.user, 'admin_profile') or request.user.admin_profile.school.pk != self.school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-        elif request.user.profile.user_type == 'teacher':
-            # Teachers should only access their assigned school
-            if not hasattr(request.user, 'teacher_profile') or request.user.teacher_profile.school.pk != self.school.pk:
-                messages.warning(request, "You do not have access to this school.")
-                return redirect('core:home')
-
-        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
         # Get the student by ID and ensure it's enrolled in this school

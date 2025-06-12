@@ -255,3 +255,128 @@ def unenroll_student(student, school_year):
         year=school_year,
         standard=None  # Null = unenrolled
     )
+
+
+def user_has_school_access(user, school):
+    """
+    Check if a user has access to a specific school.
+
+    Returns:
+        tuple: (has_access, user_role, details)
+        - has_access: Boolean indicating if user can access the school
+        - user_role: String indicating the user's role in the school
+        - details: Dict with additional information about the access
+    """
+    if not hasattr(user, 'profile'):
+        return False, None, {'reason': 'No user profile'}
+
+    user_profile = user.profile
+    user_type = user_profile.user_type
+
+    # Get current year for the school
+    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+
+    if user_type == 'principal':
+        # Check if user is a principal of this school via SchoolStaff
+        from academics.models import SchoolStaff
+        principal_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=school,
+            is_active=True
+        ).filter(
+            staff__user_type='principal'
+        ).first()
+
+        if principal_staff:
+            return True, 'principal', {
+                'school_staff_id': principal_staff.id,
+                'position': principal_staff.position or 'Principal'
+            }
+        else:
+            return False, None, {'reason': 'Not a principal of this school'}
+
+    elif user_type == 'administration':
+        # Check if user is admin staff of this school via SchoolStaff
+        from academics.models import SchoolStaff
+        admin_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=school,
+            is_active=True
+        ).filter(
+            staff__user_type='administration'
+        ).first()
+
+        if admin_staff:
+            return True, 'administration', {
+                'school_staff_id': admin_staff.id,
+                'position': admin_staff.position or 'Administrator'
+            }
+        else:
+            return False, None, {'reason': 'Not an administrator of this school'}
+
+    elif user_type == 'teacher':
+        # Check if user is a teacher of this school via SchoolStaff
+        from academics.models import SchoolStaff
+        teacher_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=school,
+            is_active=True
+        ).filter(
+            staff__user_type='teacher'
+        ).first()
+
+        if teacher_staff:
+            # Get current teacher assignment
+            current_assignment = get_current_teacher_assignment(user_profile, current_year)
+            return True, 'teacher', {
+                'school_staff_id': teacher_staff.id,
+                'position': teacher_staff.position or 'Teacher',
+                'current_assignment': current_assignment,
+                'assigned_class': current_assignment.standard if current_assignment else None
+            }
+        else:
+            return False, None, {'reason': 'Not a teacher of this school'}
+
+    else:
+        return False, None, {'reason': f'User type {user_type} not supported'}
+
+
+def set_user_school_session(request, school, access_details):
+    """
+    Set school access information in session for easy access.
+    """
+    request.session['current_school_id'] = school.id
+    request.session['current_school_slug'] = school.slug
+    request.session['current_school_name'] = school.name
+    request.session['user_school_role'] = access_details.get('position', 'Unknown')
+
+    # For teachers, also set class information
+    if 'assigned_class' in access_details and access_details['assigned_class']:
+        assigned_class = access_details['assigned_class']
+        request.session['teacher_class_id'] = assigned_class.id
+        request.session['teacher_class_name'] = str(assigned_class)
+
+
+def clear_user_school_session(request):
+    """
+    Clear school access session variables.
+    """
+    keys_to_remove = [
+        'current_school_id', 'current_school_slug', 'current_school_name',
+        'user_school_role', 'teacher_class_id', 'teacher_class_name'
+    ]
+    for key in keys_to_remove:
+        request.session.pop(key, None)
+
+
+def get_user_school_from_session(request):
+    """
+    Get user's current school information from session.
+    Returns (school_id, school_slug, school_name, role) or (None, None, None, None)
+    """
+    school_id = request.session.get('current_school_id')
+    school_slug = request.session.get('current_school_slug')
+    school_name = request.session.get('current_school_name')
+    role = request.session.get('user_school_role')
+
+    return school_id, school_slug, school_name, role

@@ -61,13 +61,11 @@
                             <tr>
                                 <td>{{ student.first_name }} {{ student.last_name }}</td>
                                 <td>
-                                    {% for enrollment in student.standard_enrollments.all %}
-                                        {% if enrollment.year == current_year %}
-                                            {{ enrollment.standard.get_name_display }}
-                                        {% endif %}
-                                    {% empty %}
+                                    {% if student.standard_enrollments.last.standard %}
+                                        {{ student.standard_enrollments.last.standard.get_name_display }}
+                                    {% else %}
                                         <span class="text-muted">Not enrolled</span>
-                                    {% endfor %}
+                                    {% endif %}
                                 </td>
                                 <td>{{ student.date_of_birth|date:"Y, M d"|default:"-" }}</td>
                                 <td>{{ student.parent_name }}</td>
