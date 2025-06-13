@@ -1,7 +1,9 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
+from django.contrib.auth.signals import user_logged_in
 from .models import UserProfile
+from .utils import setup_user_session
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, raw, **kwargs):
@@ -35,3 +37,11 @@ def save_user_profile(sender, instance, created, raw, **kwargs):
         instance._profile_creating = True
         instance.profile.save()
         delattr(instance, '_profile_creating')
+
+
+@receiver(user_logged_in)
+def setup_session_on_login(sender, request, user, **kwargs):
+    """
+    Set up comprehensive user session when user logs in
+    """
+    setup_user_session(request, user)

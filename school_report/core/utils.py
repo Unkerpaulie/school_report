@@ -341,42 +341,152 @@ def user_has_school_access(user, school):
         return False, None, {'reason': f'User type {user_type} not supported'}
 
 
-def set_user_school_session(request, school, access_details):
+def setup_user_session(request, user):
     """
-    Set school access information in session for easy access.
+    Set up comprehensive user session with all necessary information at login.
+    This is the single point where we determine user access and capabilities.
     """
-    request.session['current_school_id'] = school.id
-    request.session['current_school_slug'] = school.slug
-    request.session['current_school_name'] = school.name
-    request.session['user_school_role'] = access_details.get('position', 'Unknown')
+    # Clear any existing session data first
+    clear_user_session(request)
 
-    # For teachers, also set class information
-    if 'assigned_class' in access_details and access_details['assigned_class']:
-        assigned_class = access_details['assigned_class']
-        request.session['teacher_class_id'] = assigned_class.id
-        request.session['teacher_class_name'] = str(assigned_class)
+    if not hasattr(user, 'profile'):
+        return False
+
+    user_profile = user.profile
+
+    # Set basic user information
+    request.session['user_id'] = user.id
+    request.session['user_type'] = user_profile.user_type
+
+    # Find user's school association via SchoolStaff
+    from academics.models import SchoolStaff
+    school_staff = SchoolStaff.objects.filter(
+        staff=user_profile,
+        is_active=True
+    ).select_related('school').first()
+
+    if school_staff:
+        school = school_staff.school
+
+        # Set school information
+        request.session['user_school_id'] = school.id
+        request.session['user_school_slug'] = school.slug
+        request.session['user_role'] = user_profile.user_type
+        request.session['user_position'] = school_staff.position or user_profile.user_type.title()
+
+        # Get current academic year and term information
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+
+        if current_year:
+            request.session['current_year_id'] = current_year.id
+            request.session['current_term'] = current_term
+            request.session['is_on_vacation'] = is_on_vacation
+
+            # For teachers, get their current class assignment
+            if user_profile.user_type == 'teacher':
+                teacher_assignment = get_current_teacher_assignment(user_profile, current_year)
+                if teacher_assignment:
+                    request.session['teacher_class_id'] = teacher_assignment.standard.id
+                    request.session['teacher_class_name'] = str(teacher_assignment.standard)
+        else:
+            # School exists but no academic year set up
+            request.session['current_year_id'] = None
+            request.session['current_term'] = None
+            request.session['is_on_vacation'] = None
+    else:
+        # User not associated with any school
+        request.session['user_school_id'] = None
+        request.session['user_school_slug'] = None
+        request.session['user_role'] = user_profile.user_type
+        request.session['current_year_id'] = None
+        request.session['current_term'] = None
+        request.session['is_on_vacation'] = None
+
+    return True
 
 
-def clear_user_school_session(request):
+def clear_user_session(request):
     """
-    Clear school access session variables.
+    Clear all user session variables.
     """
-    keys_to_remove = [
-        'current_school_id', 'current_school_slug', 'current_school_name',
-        'user_school_role', 'teacher_class_id', 'teacher_class_name'
+    session_keys = [
+        'user_id', 'user_type', 'user_school_id', 'user_school_slug',
+        'user_role', 'user_position', 'current_year_id', 'current_term',
+        'is_on_vacation', 'teacher_class_id', 'teacher_class_name'
     ]
-    for key in keys_to_remove:
+    for key in session_keys:
         request.session.pop(key, None)
 
 
-def get_user_school_from_session(request):
+def get_user_session_info(request):
     """
-    Get user's current school information from session.
-    Returns (school_id, school_slug, school_name, role) or (None, None, None, None)
+    Get comprehensive user session information.
+    Returns a dictionary with all session data.
     """
-    school_id = request.session.get('current_school_id')
-    school_slug = request.session.get('current_school_slug')
-    school_name = request.session.get('current_school_name')
-    role = request.session.get('user_school_role')
+    return {
+        'user_id': request.session.get('user_id'),
+        'user_type': request.session.get('user_type'),
+        'user_school_id': request.session.get('user_school_id'),
+        'user_school_slug': request.session.get('user_school_slug'),
+        'user_role': request.session.get('user_role'),
+        'user_position': request.session.get('user_position'),
+        'current_year_id': request.session.get('current_year_id'),
+        'current_term': request.session.get('current_term'),
+        'is_on_vacation': request.session.get('is_on_vacation'),
+        'teacher_class_id': request.session.get('teacher_class_id'),
+        'teacher_class_name': request.session.get('teacher_class_name'),
+    }
 
-    return school_id, school_slug, school_name, role
+
+def user_has_school_access_session(request, school_slug):
+    """
+    Check if user has access to a specific school using session data.
+    Much faster than database queries.
+    """
+    session_school_slug = request.session.get('user_school_slug')
+    return session_school_slug == school_slug
+
+
+def user_can_access_view(request, required_role=None, required_school_slug=None):
+    """
+    Universal access control function using session data.
+
+    Args:
+        request: Django request object
+        required_role: Required user role ('principal', 'administration', 'teacher') or list of roles
+        required_school_slug: Required school slug for access
+
+    Returns:
+        tuple: (can_access, redirect_url, message)
+    """
+    if not request.user.is_authenticated:
+        return False, 'login', 'Please log in to continue.'
+
+    session_info = get_user_session_info(request)
+
+    # Check if user has basic session setup
+    if not session_info['user_id']:
+        return False, 'core:home', 'Session expired. Please log in again.'
+
+    # Check role requirements
+    if required_role:
+        user_role = session_info['user_role']
+        if isinstance(required_role, list):
+            if user_role not in required_role:
+                return False, 'core:home', f'Access restricted to {", ".join(required_role)} only.'
+        else:
+            if user_role != required_role:
+                return False, 'core:home', f'Access restricted to {required_role} only.'
+
+    # Check school access requirements
+    if required_school_slug:
+        if not session_info['user_school_slug']:
+            if session_info['user_role'] == 'principal':
+                return False, 'core:register_school', 'Please register your school first.'
+            else:
+                return False, 'core:home', 'You are not associated with any school. Please contact your principal.'
+
+        if session_info['user_school_slug'] != required_school_slug:
+            return False, 'core:home', 'You do not have access to this school.'
+
+    return True, None, None

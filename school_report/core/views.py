@@ -11,68 +11,65 @@ from django.http import HttpResponseRedirect, Http404
 from .models import UserProfile
 from schools.models import School
 from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher
-from academics.views import get_current_school_year_and_term
-from core.utils import get_current_year_and_term, set_teacher_class_session, clear_teacher_session, get_current_teacher_assignment
+from core.utils import get_user_session_info, user_can_access_view, clear_teacher_session, get_current_year_and_term
 
 class HomeView(TemplateView):
     """Home page view"""
     template_name = 'core/home.html'
 
     def dispatch(self, request, *args, **kwargs):
-        # If user is authenticated, redirect to their appropriate dashboard
+        # If user is authenticated, use session data for routing
         if request.user.is_authenticated:
-            user_profile = request.user.profile
+            session_info = get_user_session_info(request)
 
-            # Check if user is associated with any school via SchoolStaff
-            school_staff = SchoolStaff.objects.filter(
-                staff=user_profile,
-                is_active=True
-            ).first()
-
-            if school_staff:
+            # Check if user has a school association
+            if session_info['user_school_id']:
                 # User is associated with a school
-                school = school_staff.school
+                school_slug = session_info['user_school_slug']
+                user_role = session_info['user_role']
 
-                if user_profile.user_type in ['principal', 'administration']:
+                # Check if school year is set up
+                if not session_info['current_year_id']:
+                    # School exists but no academic year - redirect to setup
+                    if user_role == 'principal':
+                        return redirect('academics:school_year_setup', school_slug=school_slug)
+                    else:
+                        # Non-principals wait for principal to set up year
+                        self.year_setup_required = True
+                        self.school_slug = school_slug
+                        return super().dispatch(request, *args, **kwargs)
+
+                # School and year are set up - route to appropriate dashboard
+                if user_role in ['principal', 'administration']:
                     # Principals and administration go to admin dashboard
-                    return redirect('schools:dashboard', school_slug=school.slug)
+                    return redirect('schools:dashboard', school_slug=school_slug)
 
-                elif user_profile.user_type == 'teacher':
-                    # Teachers should go to their assigned class detail page
-                    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
-
-                    # Current year is guaranteed to exist now, so check teacher assignment
-                    teacher_assignment = get_current_teacher_assignment(user_profile, current_year)
-
-                    if teacher_assignment:
-                        # Set teacher class information in session for easy access
-                        set_teacher_class_session(request, teacher_assignment.standard, current_year)
-
+                elif user_role == 'teacher':
+                    # Teachers go to their assigned class detail page
+                    teacher_class_id = session_info['teacher_class_id']
+                    if teacher_class_id:
                         # Redirect to their class detail page (teacher dashboard)
                         return redirect('schools:standard_detail',
-                                      school_slug=school.slug,
-                                      pk=teacher_assignment.standard.pk)
+                                      school_slug=school_slug,
+                                      pk=teacher_class_id)
                     else:
-                        # Teacher not assigned to a class - clear any old session data and show message
-                        clear_teacher_session(request)
+                        # Teacher not assigned to a class - show message
                         self.teacher_not_assigned = True
-                        self.school = school
+                        self.school_slug = school_slug
                         return super().dispatch(request, *args, **kwargs)
-                else:
-                    # User type not recognized - show message to assign role
-                    self.assign_role_required = True
-                    self.school = school
-                    return super().dispatch(request, *args, **kwargs)
 
-            # User is NOT associated with a school
-            if user_profile.user_type == 'principal':
-                # Principal NOT associated with a school - redirect to school registration
-                return redirect('core:register_school')
-            elif user_profile.user_type in ['administration', 'teacher']:
-                # Teacher/admin NOT associated with a school - show message to contact principal
-                self.school_registration_required = True
-                self.user_type = user_profile.user_type
-                return super().dispatch(request, *args, **kwargs)
+            else:
+                # User NOT associated with a school
+                user_role = session_info['user_role']
+
+                if user_role == 'principal':
+                    # Principal NOT associated with a school - redirect to school registration
+                    return redirect('core:register_school')
+                elif user_role in ['administration', 'teacher']:
+                    # Teacher/admin NOT associated with a school - show message to contact principal
+                    self.school_registration_required = True
+                    self.user_type = user_role
+                    return super().dispatch(request, *args, **kwargs)
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -86,11 +83,11 @@ class HomeView(TemplateView):
 
         if hasattr(self, 'teacher_not_assigned'):
             context['teacher_not_assigned'] = True
-            context['school'] = self.school
+            context['school_slug'] = self.school_slug
 
-        if hasattr(self, 'assign_role_required'):
-            context['assign_role_required'] = True
-            context['school'] = self.school
+        if hasattr(self, 'year_setup_required'):
+            context['year_setup_required'] = True
+            context['school_slug'] = self.school_slug
 
         return context
 
@@ -184,10 +181,10 @@ class ProfileView(LoginRequiredMixin, UpdateView):
         context['school_slug'] = self.school.slug
 
         # Get current school year and term
-        current_year_term = get_current_school_year_and_term(self.request)
-        context['current_year'] = current_year_term['current_year']
-        context['current_term'] = current_year_term['current_term']
-        context['is_on_vacation'] = current_year_term['is_on_vacation']
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        context['current_year'] = current_year
+        context['current_term'] = current_term
+        context['is_on_vacation'] = is_on_vacation
 
         return context
 
