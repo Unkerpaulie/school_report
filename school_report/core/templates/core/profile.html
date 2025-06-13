@@ -23,11 +23,20 @@
                     {% csrf_token %}
                     
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-3">
+                            <label for="id_title" class="form-label">Title</label>
+                            <select name="title" id="id_title" class="form-select">
+                                <option value="">Select Title</option>
+                                {% for value, text in title_choices %}
+                                <option value="{{ value }}" {% if user.profile.title == value %}selected{% endif %}>{{ text }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
                             <label for="id_first_name" class="form-label">First Name</label>
                             <input type="text" name="first_name" id="id_first_name" class="form-control" value="{{ user.first_name }}" required>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <label for="id_last_name" class="form-label">Last Name</label>
                             <input type="text" name="last_name" id="id_last_name" class="form-control" value="{{ user.last_name }}" required>
                         </div>

@@ -185,6 +185,7 @@ class ProfileView(LoginRequiredMixin, UpdateView):
         context['current_year'] = current_year
         context['current_term'] = current_term
         context['is_on_vacation'] = is_on_vacation
+        context['title_choices'] = UserProfile.TITLE_CHOICES
 
         return context
 

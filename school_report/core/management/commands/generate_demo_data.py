@@ -43,6 +43,21 @@ class Command(BaseCommand):
         self.usernames.add(username)
         return username
 
+    def create_person_name(self):
+        """Generate a random person's name with gender-specific title"""
+        male_titles = ['Mr', 'Dr', 'Prof']
+        female_titles = ['Mrs', 'Ms', 'Dr', 'Prof']
+        if random.random() < 0.5:
+            title = random.choice(male_titles)
+            first_name = self.fake.first_name_male()
+            last_name = self.fake.last_name()
+        else:
+            title = random.choice(female_titles)
+            first_name = self.fake.first_name_female()
+            last_name = self.fake.last_name()
+
+        return first_name, last_name, title
+
     def create_user(self, first_name, last_name, user_type, title=None, position=None):
         """Create a user with the given details"""
         username = self.generate_unique_username(first_name, last_name)
@@ -199,9 +214,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'\n📚 Creating School {school_num + 1} of {num_schools}')
 
                 # 1. Create Principal
-                principal_first_name = self.fake.first_name()
-                principal_last_name = self.fake.last_name()
-                principal_title = random.choice(['Mr', 'Mrs', 'Ms', 'Dr'])
+                principal_first_name, principal_last_name, principal_title = self.create_person_name()
 
                 principal_user = self.create_user(
                     principal_first_name,
@@ -250,9 +263,7 @@ class Command(BaseCommand):
                 admin_staff = []
 
                 for position in admin_positions:
-                    first_name = self.fake.first_name()
-                    last_name = self.fake.last_name()
-                    title = random.choice(['Mr', 'Mrs', 'Ms'])
+                    first_name, last_name, title = self.create_person_name()
 
                     admin_user = self.create_user(
                         first_name,
@@ -277,9 +288,7 @@ class Command(BaseCommand):
                 # 7. Create 7 Teachers and Assign to Classes
                 teachers = []
                 for i, standard in enumerate(standards):
-                    first_name = self.fake.first_name()
-                    last_name = self.fake.last_name()
-                    title = random.choice(['Mr', 'Mrs', 'Ms'])
+                    first_name, last_name, title = self.create_person_name()
 
                     teacher_user = self.create_user(
                         first_name,
