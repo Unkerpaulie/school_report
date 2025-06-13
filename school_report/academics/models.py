@@ -55,7 +55,8 @@ class StandardTeacher(models.Model):
                                null=True, blank=True)  # Null = unassigned
     teacher = models.ForeignKey('core.UserProfile', on_delete=models.CASCADE,
                                related_name='standard_assignments',
-                               limit_choices_to={'user_type': 'teacher'})
+                               limit_choices_to={'user_type': 'teacher'},
+                               null=True, blank=True)  # Null = unassigned
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -64,10 +65,14 @@ class StandardTeacher(models.Model):
         ordering = ['-created_at']  # Latest first
 
     def __str__(self):
-        if self.standard:
+        if self.standard and self.teacher:
             return f"{self.year} - {self.standard} - {self.teacher.get_full_name()}"
+        elif self.standard and not self.teacher:
+            return f"{self.year} - {self.standard} - No Teacher Assigned"
+        elif not self.standard and self.teacher:
+            return f"{self.year} - {self.teacher.get_full_name()} - Unassigned"
         else:
-            return f"{self.year} - Unassigned - {self.teacher.get_full_name()}"
+            return f"{self.year} - Invalid Assignment Record"
 
 class Enrollment(models.Model):
     """

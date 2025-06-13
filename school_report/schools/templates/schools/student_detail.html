@@ -84,13 +84,11 @@
                 <div class="row mb-2">
                     <div class="col-5 text-muted">Teacher:</div>
                     <div class="col-7">
-                        {% for assignment in current_enrollment.standard.teacher_assignments.all %}
-                            {% if assignment.is_active and assignment.year == current_enrollment.year %}
-                                {{ assignment.teacher }}
-                            {% endif %}
-                        {% empty %}
+                        {% if current_enrollment.standard.teacher_assignments.first %}
+                            {{ current_enrollment.standard.teacher_assignments.first.teacher.get_full_name }}
+                        {% else %}
                             <span class="text-muted">Not assigned</span>
-                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
                 

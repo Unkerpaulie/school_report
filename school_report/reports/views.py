@@ -52,7 +52,7 @@ def test_list(request, school_slug):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to view tests for this school.")
         return redirect('core:home')
 
@@ -60,7 +60,7 @@ def test_list(request, school_slug):
     teacher_standard = Standard.objects.filter(
         teacher_assignments__teacher=teacher,
         teacher_assignments__is_active=True
-    ).last()
+    ).first()
 
     if not teacher_standard:
         messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
@@ -96,7 +96,7 @@ def test_create(request, school_slug):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to create tests for this school.")
         return redirect('core:home')
 
@@ -104,7 +104,7 @@ def test_create(request, school_slug):
     teacher_standard = Standard.objects.filter(
         teacher_assignments__teacher=teacher,
         teacher_assignments__is_active=True
-    ).last()
+    ).first()
 
     if not teacher_standard:
         messages.warning(request, "You are not assigned to any class. Please contact the administrator.")
@@ -168,7 +168,7 @@ def test_detail(request, school_slug, test_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to view tests for this school.")
         return redirect('core:home')
 
@@ -188,7 +188,7 @@ def test_detail(request, school_slug, test_id):
 
     # Organize scores by student and subject
     students = Student.objects.filter(
-        school=teacher.school_assignments.last().school,
+        school=teacher.school_assignments.first().school,
         standard_enrollments__standard=test.standard,
         standard_enrollments__is_active=True
     ).distinct()
@@ -231,7 +231,7 @@ def test_edit(request, school_slug, test_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to edit tests for this school.")
         return redirect('core:home')
 
@@ -254,7 +254,7 @@ def test_edit(request, school_slug, test_id):
     teacher_standard = Standard.objects.filter(
         teacher_assignments__teacher=teacher,
         teacher_assignments__is_active=True
-    ).last()
+    ).first()
 
     return render(request, 'reports/test_form.html', {
         'form': form,
@@ -281,7 +281,7 @@ def test_delete(request, school_slug, test_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to delete tests for this school.")
         return redirect('core:home')
 
@@ -318,7 +318,7 @@ def test_subject_add(request, school_slug, test_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to edit tests for this school.")
         return redirect('core:home')
 
@@ -387,7 +387,7 @@ def test_subject_edit(request, school_slug, test_id, subject_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to edit tests for this school.")
         return redirect('core:home')
 
@@ -439,7 +439,7 @@ def test_subject_delete(request, school_slug, test_id, subject_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to edit tests for this school.")
         return redirect('core:home')
 
@@ -489,7 +489,7 @@ def subject_scores(request, school_slug, test_id, subject_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to manage scores for this school.")
         return redirect('core:home')
 
@@ -504,7 +504,7 @@ def subject_scores(request, school_slug, test_id, subject_id):
 
     # Get all students in this standard
     students = Student.objects.filter(
-        school=teacher.school_assignments.last().school,
+        school=teacher.school_assignments.first().school,
         standard_enrollments__standard=test.standard,
         standard_enrollments__is_active=True
     ).order_by('last_name', 'first_name')
@@ -572,7 +572,7 @@ def test_finalize(request, school_slug, test_id):
     teacher = request.user.profile
 
     # Verify teacher belongs to this school
-    if teacher.school_assignments.last().school != school:
+    if teacher.school_assignments.first().school != school:
         messages.error(request, "You don't have permission to finalize tests for this school.")
         return redirect('core:home')
 
@@ -593,7 +593,7 @@ def test_finalize(request, school_slug, test_id):
 
     # Get all students in this standard
     students = Student.objects.filter(
-        school=teacher.school_assignments.last().school,
+        school=teacher.school_assignments.first().school,
         standard_enrollments__standard=test.standard,
         standard_enrollments__is_active=True
     )

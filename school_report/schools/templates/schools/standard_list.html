@@ -35,12 +35,11 @@
                             <tr>
                                 <td>{{ standard.get_name_display }}</td>
                                 <td>
-                                    {% for assignment in standard.teacher_assignments.all %}
-                                        {{ assignment.teacher.get_full_name }}
-                                        {% if not forloop.last %}, {% endif %}
-                                    {% empty %}
+                                    {% if standard.teacher_assignments.first.standard %}
+                                        {{ standard.teacher_assignments.first.teacher.get_full_name }}
+                                    {% else %}
                                         <span class="text-muted">Not assigned</span>
-                                    {% endfor %}
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% with enrolled_students=standard.student_enrollments.all %}

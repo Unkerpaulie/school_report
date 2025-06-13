@@ -94,8 +94,8 @@
                             <tr>
                                 <td>{{ standard.get_name_display }}</td>
                                 <td>
-                                    {% if standard.teacher_assignments.last %}
-                                        {{ standard.teacher_assignments.last.teacher.get_full_name }}
+                                    {% if standard.teacher_assignments.first %}
+                                        {{ standard.teacher_assignments.first.teacher.get_full_name }}
                                     {% else %}
                                         <span class="text-muted">Not assigned</span>
                                     {% endif %}

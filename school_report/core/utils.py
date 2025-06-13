@@ -213,6 +213,28 @@ def get_current_teacher_assignment(teacher, school_year):
     return None
 
 
+def get_current_standard_teacher(standard, school_year):
+    """
+    Get the current teacher assigned to a standard in a given school year.
+    Returns the latest StandardTeacher record with a non-null teacher.
+
+    This is the complement to get_current_teacher_assignment() and solves
+    the asymmetry problem by checking from the standard's perspective.
+    """
+    from academics.models import StandardTeacher
+
+    # Get the latest assignment record for this standard in this year
+    latest_assignment = StandardTeacher.objects.filter(
+        standard=standard,
+        year=school_year
+    ).order_by('-created_at').first()
+
+    # Return the assignment if it has a teacher (not unassigned)
+    if latest_assignment and latest_assignment.teacher:
+        return latest_assignment
+    return None
+
+
 def get_current_student_enrollment(student, school_year):
     """
     Get the current (latest) enrollment for a student in a given year.
@@ -231,16 +253,36 @@ def get_current_student_enrollment(student, school_year):
     return None
 
 
-def unassign_teacher(teacher, school_year):
+def unassign_teacher(teacher, standard, school_year):
     """
-    Unassign a teacher by creating a new record with null standard.
+    Unassign a teacher by creating bidirectional unassignment records.
+
+    This creates two records to maintain historical integrity:
+    1. Teacher record with standard=None (teacher is unassigned)
+    2. Standard record with teacher=None (standard has no teacher)
+
+    This ensures both sides of the relationship show the unassignment
+    in their latest records, solving the asymmetry problem.
+
+    Args:
+        teacher: UserProfile instance of the teacher to unassign
+        standard: Standard instance to unassign the teacher from
+        school_year: SchoolYear instance for the academic year
     """
     from academics.models import StandardTeacher
 
+    # Create teacher unassignment record
     StandardTeacher.objects.create(
         teacher=teacher,
         year=school_year,
-        standard=None  # Null = unassigned
+        standard=None  # Teacher is unassigned from any standard
+    )
+
+    # Create standard unassignment record
+    StandardTeacher.objects.create(
+        teacher=None,  # Standard has no teacher assigned
+        year=school_year,
+        standard=standard
     )
 
 

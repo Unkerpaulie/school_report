@@ -532,14 +532,20 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
 
         # Filter standards to only show those from the current school
         # and exclude standards that already have a teacher assigned
-        assigned_standards = StandardTeacher.objects.filter(
-            year=current_year
-        ).values_list('standard_id', flat=True)
+        # With bidirectional unassignment, we need to check the latest record for each standard
+        from core.utils import get_current_standard_teacher
+
+        all_standards = Standard.objects.filter(school=self.school)
+        available_standards = []
+
+        for standard in all_standards:
+            current_teacher = get_current_standard_teacher(standard, current_year)
+            if not current_teacher:  # No teacher currently assigned
+                available_standards.append(standard.id)
 
         available_standards = Standard.objects.filter(
-            school=self.school
-        ).exclude(
-            id__in=assigned_standards
+            school=self.school,
+            id__in=available_standards
         )
 
         form.fields['standard'].queryset = available_standards
@@ -591,20 +597,13 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
             messages.warning(self.request, f"This teacher is already assigned to {existing_teacher_assignment.standard}.")
             return self.form_invalid(form)
 
-        # Check if the class already has a teacher assigned using historical logic
-        # Get all teachers who might be assigned to this standard
-        all_assignments = StandardTeacher.objects.filter(
-            standard=standard,
-            year=current_year
-        ).values_list('teacher', flat=True).distinct()
+        # Check if the class already has a teacher assigned using the new bidirectional logic
+        from core.utils import get_current_standard_teacher
+        current_standard_teacher = get_current_standard_teacher(standard, current_year)
 
-        for teacher_id in all_assignments:
-            from core.models import UserProfile
-            potential_teacher = UserProfile.objects.get(id=teacher_id)
-            current_assignment = get_current_teacher_assignment(potential_teacher, current_year)
-            if current_assignment and current_assignment.standard == standard:
-                messages.warning(self.request, f"This class already has {potential_teacher.get_full_name()} assigned to it.")
-                return self.form_invalid(form)
+        if current_standard_teacher:
+            messages.warning(self.request, f"This class already has {current_standard_teacher.teacher.get_full_name()} assigned to it.")
+            return self.form_invalid(form)
 
         # Create the assignment
         assignment = form.save(commit=False)
@@ -707,8 +706,8 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         teacher = assignment.teacher
         standard = assignment.standard
 
-        # Create unassignment record instead of deleting
-        unassign_teacher(teacher, assignment.year)
+        # Create bidirectional unassignment records
+        unassign_teacher(teacher, standard, assignment.year)
 
         messages.success(request, f"Teacher {teacher.get_full_name()} has been unassigned from {standard} successfully!")
         return redirect('schools:staff_list', school_slug=school_slug)
