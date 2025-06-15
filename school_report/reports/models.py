@@ -49,10 +49,71 @@ class Test(models.Model):
     def save(self, *args, **kwargs):
         """
         Save the Test and ensure it's linked to the appropriate Term
+        Auto-create test subjects and scores for new tests
         """
         self.full_clean()
+        is_new = self.pk is None
         super().save(*args, **kwargs)
-    
+
+        # Auto-create test subjects and scores for new tests
+        if is_new:
+            self.create_test_subjects_and_scores()
+
+    def create_test_subjects_and_scores(self):
+        """
+        Auto-create TestSubject entries for all available subjects in the standard/year
+        and TestScore entries for all enrolled students (all disabled and zero by default)
+        """
+        from academics.models import StandardSubject
+        from schools.models import Student
+        from core.utils import get_current_student_enrollment
+
+        # Get all subjects for this standard and year
+        standard_subjects = StandardSubject.objects.filter(
+            standard=self.standard,
+            year=self.term.year
+        )
+
+        # Get all currently enrolled students for this standard and year
+        potential_students = Student.objects.filter(
+            standard_enrollments__standard=self.standard,
+            standard_enrollments__year=self.term.year
+        ).distinct()
+
+        # Filter to only currently enrolled students
+        enrolled_students = []
+        for student in potential_students:
+            current_enrollment = get_current_student_enrollment(student, self.term.year)
+            if current_enrollment and current_enrollment.standard == self.standard:
+                enrolled_students.append(student)
+
+        # Create TestSubject entries for all subjects (disabled by default)
+        test_subjects = []
+        for standard_subject in standard_subjects:
+            test_subject, created = TestSubject.objects.get_or_create(
+                test=self,
+                standard_subject=standard_subject,
+                defaults={
+                    'max_score': 100,
+                    'enabled': False
+                }
+            )
+            test_subjects.append(test_subject)
+
+        # Create TestScore entries for all students and all subjects (score=0 by default)
+        for test_subject in test_subjects:
+            for student in enrolled_students:
+                TestScore.objects.get_or_create(
+                    test_subject=test_subject,
+                    student=student,
+                    defaults={'score': 0}
+                )
+
+    @property
+    def enabled_subjects_count(self):
+        """Return the count of enabled subjects for this test"""
+        return self.subjects.filter(enabled=True).count()
+
     @classmethod
     def get_term_tests(cls, term, standard=None):
         """
@@ -77,7 +138,8 @@ class TestSubject(models.Model):
     """
     test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='subjects')
     standard_subject = models.ForeignKey('academics.StandardSubject', on_delete=models.CASCADE, related_name='test_subjects')
-    max_score = models.PositiveIntegerField()
+    max_score = models.PositiveIntegerField(default=100)
+    enabled = models.BooleanField(default=False, help_text="Whether this subject is active for this test")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

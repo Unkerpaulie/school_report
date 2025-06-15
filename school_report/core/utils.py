@@ -172,7 +172,7 @@ def get_teacher_class_from_session(request):
     if hasattr(request.user, 'profile') and request.user.profile.user_type == 'teacher':
         class_id = request.session.get('teacher_class_id')
         class_name = request.session.get('teacher_class_name')
-        year_id = request.session.get('teacher_school_year_id')
+        year_id = request.session.get('current_year_id')  # Updated to use new session key
         return class_id, class_name, year_id
     return None, None, None
 

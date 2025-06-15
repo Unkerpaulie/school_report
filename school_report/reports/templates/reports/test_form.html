@@ -131,6 +131,147 @@
         document.querySelectorAll('input[type="text"], input[type="date"], select, textarea').forEach(function(el) {
             el.classList.add('form-control');
         });
+
+        // Term and date filtering functionality
+        const termSelect = document.getElementById('id_term');
+        const testDateInput = document.getElementById('id_test_date');
+
+        // Add data attributes to term options
+        if (termSelect) {
+            {% if term_data_json %}
+            const termData = {{ term_data_json|safe }};
+
+            // Add data attributes to each option
+            Array.from(termSelect.options).forEach(option => {
+                if (option.value && termData[option.value]) {
+                    const data = termData[option.value];
+                    option.setAttribute('data-start-date', data.start_date);
+                    option.setAttribute('data-end-date', data.end_date);
+                    option.setAttribute('data-name', data.name);
+                }
+            });
+            {% endif %}
+        }
+
+        function updateDateConstraints() {
+            const selectedOption = termSelect.options[termSelect.selectedIndex];
+
+            if (selectedOption && selectedOption.value) {
+                const startDate = selectedOption.getAttribute('data-start-date');
+                const endDate = selectedOption.getAttribute('data-end-date');
+                const termName = selectedOption.getAttribute('data-name');
+
+                if (startDate && endDate) {
+                    // Set min and max dates for the date input
+                    testDateInput.setAttribute('min', startDate);
+                    testDateInput.setAttribute('max', endDate);
+
+                    // Update help text
+                    let helpText = testDateInput.parentNode.querySelector('.form-text.date-constraint');
+                    if (helpText) {
+                        helpText.textContent = `Test date must be between ${startDate} and ${endDate} for ${termName}`;
+                    } else {
+                        // Create help text if it doesn't exist
+                        const newHelpText = document.createElement('small');
+                        newHelpText.className = 'form-text text-muted date-constraint';
+                        newHelpText.textContent = `Test date must be between ${startDate} and ${endDate} for ${termName}`;
+                        testDateInput.parentNode.appendChild(newHelpText);
+                    }
+
+                    // Validate current date if one is selected
+                    const currentDate = testDateInput.value;
+                    if (currentDate) {
+                        if (currentDate < startDate || currentDate > endDate) {
+                            // Clear invalid date and show warning
+                            testDateInput.value = '';
+                            testDateInput.classList.add('is-invalid');
+
+                            // Show validation message
+                            let feedback = testDateInput.parentNode.querySelector('.invalid-feedback');
+                            if (!feedback) {
+                                feedback = document.createElement('div');
+                                feedback.className = 'invalid-feedback';
+                                testDateInput.parentNode.appendChild(feedback);
+                            }
+                            feedback.textContent = `Please select a date between ${startDate} and ${endDate}`;
+                            feedback.style.display = 'block';
+                        } else {
+                            // Remove validation styling if date is valid
+                            testDateInput.classList.remove('is-invalid');
+                            const feedback = testDateInput.parentNode.querySelector('.invalid-feedback');
+                            if (feedback) {
+                                feedback.style.display = 'none';
+                            }
+                        }
+                    }
+                }
+            } else {
+                // No term selected, remove constraints
+                testDateInput.removeAttribute('min');
+                testDateInput.removeAttribute('max');
+                testDateInput.classList.remove('is-invalid');
+
+                // Remove help text
+                const helpText = testDateInput.parentNode.querySelector('.form-text.date-constraint');
+                if (helpText) {
+                    helpText.remove();
+                }
+
+                // Hide validation feedback
+                const feedback = testDateInput.parentNode.querySelector('.invalid-feedback');
+                if (feedback) {
+                    feedback.style.display = 'none';
+                }
+            }
+        }
+
+        // Validate date when it changes
+        function validateDate() {
+            const selectedOption = termSelect.options[termSelect.selectedIndex];
+            const selectedDate = testDateInput.value;
+
+            if (selectedOption && selectedOption.value && selectedDate) {
+                const startDate = selectedOption.getAttribute('data-start-date');
+                const endDate = selectedOption.getAttribute('data-end-date');
+                const termName = selectedOption.getAttribute('data-name');
+
+                if (startDate && endDate) {
+                    if (selectedDate < startDate || selectedDate > endDate) {
+                        testDateInput.classList.add('is-invalid');
+
+                        let feedback = testDateInput.parentNode.querySelector('.invalid-feedback');
+                        if (!feedback) {
+                            feedback = document.createElement('div');
+                            feedback.className = 'invalid-feedback';
+                            testDateInput.parentNode.appendChild(feedback);
+                        }
+                        feedback.textContent = `Date must be between ${startDate} and ${endDate} for ${termName}`;
+                        feedback.style.display = 'block';
+                    } else {
+                        testDateInput.classList.remove('is-invalid');
+                        const feedback = testDateInput.parentNode.querySelector('.invalid-feedback');
+                        if (feedback) {
+                            feedback.style.display = 'none';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add event listeners
+        if (termSelect) {
+            termSelect.addEventListener('change', updateDateConstraints);
+
+            // Initialize constraints if a term is already selected
+            if (termSelect.value) {
+                updateDateConstraints();
+            }
+        }
+
+        if (testDateInput) {
+            testDateInput.addEventListener('change', validateDate);
+            testDateInput.addEventListener('blur', validateDate);
+        }
     });
 </script>
 {% endblock %}

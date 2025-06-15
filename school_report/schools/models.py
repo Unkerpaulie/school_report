@@ -86,6 +86,10 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    def get_full_name(self):
+        """Return the student's full name"""
+        return f"{self.first_name} {self.last_name}"
+
 
 # Signal to create standard classes when a school is created
 @receiver(post_save, sender=School)

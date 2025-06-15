@@ -19,7 +19,7 @@
             <h1 class="h3 mb-0 text-gray-800">{{ test.standard.get_name_display }} {{ test.get_test_type_display }}</h1>
             <div class="btn-group">
                 <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-success">
-                    <i class="bi bi-plus-circle"></i> Add Subject
+                    <i class="bi bi-check2-square"></i> Manage Subjects
                 </a>
                 <a href="{% url 'reports:test_edit' school_slug=school_slug test_id=test.id %}" class="btn btn-primary">
                     <i class="bi bi-pencil"></i> Edit Test
@@ -32,8 +32,9 @@
     </div>
 </div>
 
+<!-- Test Information and Subjects Row -->
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold">Test Information</h6>
@@ -44,12 +45,8 @@
                     <div class="col-7">{{ test.standard.get_name_display }}</div>
                 </div>
                 <div class="row mb-2">
-                    <div class="col-5 font-weight-bold">Academic Year:</div>
-                    <div class="col-7">{{ test.year }}</div>
-                </div>
-                <div class="row mb-2">
                     <div class="col-5 font-weight-bold">Term:</div>
-                    <div class="col-7">{{ test.get_term_display }}</div>
+                    <div class="col-7">{{ test.term }}</div>
                 </div>
                 <div class="row mb-2">
                     <div class="col-5 font-weight-bold">Test Type:</div>
@@ -70,40 +67,26 @@
         </div>
     </div>
 
-    <div class="col-md-8">
+    <div class="col-md-6">
         <div class="card shadow mb-4">
-            <div class="card-header py-3">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold">Test Subjects</h6>
             </div>
             <div class="card-body">
                 {% if test_subjects %}
                 <div class="table-responsive">
-                    <table class="table table-bordered">
+                    <table class="table table-bordered table-sm">
                         <thead>
                             <tr>
                                 <th>Subject</th>
                                 <th>Max Score</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for subject in test_subjects %}
                             <tr>
-                                <td>{{ subject.standard_subject.subject.name }}</td>
+                                <td>{{ subject.standard_subject.subject_name }}</td>
                                 <td>{{ subject.max_score }}</td>
-                                <td>
-                                    <div class="btn-group">
-                                        <a href="{% url 'reports:subject_scores' school_slug=school_slug test_id=test.id subject_id=subject.id %}" class="btn btn-sm btn-success">
-                                            <i class="bi bi-pencil-square"></i> Scores
-                                        </a>
-                                        <a href="{% url 'reports:test_subject_edit' school_slug=school_slug test_id=test.id subject_id=subject.id %}" class="btn btn-sm btn-info">
-                                            <i class="bi bi-pencil"></i> Edit
-                                        </a>
-                                        <a href="{% url 'reports:test_subject_delete' school_slug=school_slug test_id=test.id subject_id=subject.id %}" class="btn btn-sm btn-danger">
-                                            <i class="bi bi-trash"></i> Delete
-                                        </a>
-                                    </div>
-                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -111,43 +94,46 @@
                 </div>
                 {% else %}
                 <div class="text-center py-4">
-                    <p class="lead text-muted">No subjects added to this test yet.</p>
-                    <p>Click the "Add Subject" button above to add subjects to this test.</p>
+                    <p class="lead text-muted">No subjects enabled for this test yet.</p>
+                    <p>Click the "Manage Subjects" button above to enable subjects for this test.</p>
                 </div>
                 {% endif %}
             </div>
         </div>
+    </div>
+</div>
 
-        {% if student_scores %}
+<!-- Student Scores Row (Full Width) -->
+{% if test_subjects %}
+<div class="row">
+    <div class="col-12">
         <div class="card shadow mb-4">
-            <div class="card-header py-3">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold">Student Scores</h6>
+                <a href="{% url 'reports:test_scores_bulk' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-warning">
+                    <i class="bi bi-calculator"></i> Manage Scores
+                </a>
             </div>
             <div class="card-body">
+                {% if student_scores %}
                 <div class="table-responsive">
                     <table class="table table-bordered" id="scoresTable">
                         <thead>
                             <tr>
                                 <th>Student</th>
                                 {% for subject in test_subjects %}
-                                <th>{{ subject.standard_subject.subject.name }}</th>
+                                <th class="text-center">{{ subject.standard_subject.subject_name }}</th>
                                 {% endfor %}
                             </tr>
                         </thead>
                         <tbody>
                             {% for score_data in student_scores %}
                             <tr>
-                                <td>{{ score_data.student.last_name }}, {{ score_data.student.first_name }}</td>
+                                <td><strong>{{ score_data.student.get_full_name }}</strong></td>
                                 {% for subject in test_subjects %}
-                                <td>
-                                    {% with score=score_data.subjects|get_item:subject.standard_subject.subject.id %}
-                                    {% if score %}
-                                    {{ score.score }}/{{ subject.max_score }}
-                                    ({{ score.percentage|floatformat:1 }}%)
-                                    {% else %}
-                                    -
-                                    {% endif %}
-                                    {% endwith %}
+                                <td class="text-center" data-student="{{ score_data.student.id }}" data-subject="{{ subject.standard_subject.id }}">
+                                    <span class="text-muted">0/{{ subject.max_score }}</span>
+                                    <br><small class="text-muted">(0.0%)</small>
                                 </td>
                                 {% endfor %}
                             </tr>
@@ -155,20 +141,49 @@
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="lead text-muted">No student scores entered yet.</p>
+                    <p>Click the "Manage Scores" button above to enter scores for all students and subjects.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Populate scores from backend data
+        {% if scores_data_json %}
+        const scoresData = {{ scores_data_json|safe }};
+
+        // Find all score cells and populate them
+        document.querySelectorAll('td[data-student][data-subject]').forEach(function(cell) {
+            const studentId = cell.getAttribute('data-student');
+            const subjectId = cell.getAttribute('data-subject');
+            const key = studentId + '_' + subjectId;
+
+            if (scoresData[key]) {
+                const scoreInfo = scoresData[key];
+                cell.innerHTML = `
+                    ${scoreInfo.score}/${scoreInfo.max_score}
+                    <br><small class="text-muted">(${scoreInfo.percentage}%)</small>
+                `;
+                cell.className = 'text-center';
+            }
+        });
+        {% endif %}
+
         // Initialize DataTable if it exists
         if (document.getElementById('scoresTable')) {
             $('#scoresTable').DataTable({
-                "order": [[0, "asc"]]  // Sort by student name (column 0) in ascending order
+                "order": [[0, "asc"]],  // Sort by student name (column 0) in ascending order
+                "pageLength": 25,
+                "responsive": true
             });
         }
     });

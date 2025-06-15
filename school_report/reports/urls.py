@@ -18,6 +18,7 @@ urlpatterns = [
     
     # Test scores
     path('tests/<int:test_id>/scores/', views.test_scores, name='test_scores'),
+    path('tests/<int:test_id>/scores/bulk/', views.test_scores_bulk, name='test_scores_bulk'),
     path('tests/<int:test_id>/subjects/<int:subject_id>/scores/', views.subject_scores, name='subject_scores'),
     
     # Test status

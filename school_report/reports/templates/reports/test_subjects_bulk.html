@@ -1,0 +1,242 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Manage Test Subjects - {{ test.test_type|title }} - {{ test.test_date }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-list-check"></i> Manage Test Subjects
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.test_type|title }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Manage Subjects</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Test Info Card -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-clipboard-data"></i> {{ test.test_type|title }} - {{ test.test_date }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Standard:</strong> {{ test.standard.get_name_display }}</p>
+                            <p><strong>Term:</strong> {{ test.term }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Date:</strong> {{ test.test_date }}</p>
+                            {% if test.description %}
+                            <p><strong>Description:</strong> {{ test.description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subjects Management Form -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-check2-square"></i> Select Subjects and Set Max Scores
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="subjectsForm">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Instructions:</strong> Check the subjects you want to include in this test and set their maximum scores. 
+                            Only enabled subjects will be used for scoring and reports.
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th width="10%">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="selectAll">
+                                                <label class="form-check-label" for="selectAll">
+                                                    <strong>Enable</strong>
+                                                </label>
+                                            </div>
+                                        </th>
+                                        <th width="60%"><strong>Subject Name</strong></th>
+                                        <th width="30%"><strong>Max Score</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for test_subject in test_subjects %}
+                                    <tr>
+                                        <td>
+                                            <div class="form-check">
+                                                <input type="checkbox"
+                                                       name="enabled_{{ test_subject.id }}"
+                                                       id="id_enabled_{{ test_subject.id }}"
+                                                       class="form-check-input subject-checkbox"
+                                                       data-subject-id="{{ test_subject.id }}"
+                                                       {% if test_subject.enabled %}checked{% endif %}>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong>{{ test_subject.standard_subject.subject_name }}</strong>
+                                            {% if test_subject.standard_subject.description %}
+                                            <br><small class="text-muted">{{ test_subject.standard_subject.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <input type="number"
+                                                   name="max_score_{{ test_subject.id }}"
+                                                   id="id_max_score_{{ test_subject.id }}"
+                                                   class="form-control max-score-input"
+                                                   data-subject-id="{{ test_subject.id }}"
+                                                   value="{{ test_subject.max_score }}"
+                                                   min="1"
+                                                   max="1000"
+                                                   {% if not test_subject.enabled %}disabled{% endif %}>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            No subjects available for this standard and year.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="form-group mt-4">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg"></i> Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get all checkbox and max score inputs
+    const checkboxes = document.querySelectorAll('.subject-checkbox');
+    const maxScoreInputs = document.querySelectorAll('.max-score-input');
+    const selectAllCheckbox = document.getElementById('selectAll');
+
+    // Function to toggle max score input based on checkbox state
+    function toggleMaxScoreInput(checkbox) {
+        const subjectId = checkbox.getAttribute('data-subject-id');
+        const maxScoreInput = document.querySelector(`.max-score-input[data-subject-id="${subjectId}"]`);
+        
+        if (maxScoreInput) {
+            maxScoreInput.disabled = !checkbox.checked;
+            if (checkbox.checked) {
+                maxScoreInput.focus();
+                // Set default value if empty
+                if (!maxScoreInput.value || maxScoreInput.value === '0') {
+                    maxScoreInput.value = '100';
+                }
+            }
+        }
+    }
+
+    // Add event listeners to all subject checkboxes
+    checkboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            toggleMaxScoreInput(this);
+            updateSelectAllState();
+        });
+        
+        // Initialize state on page load
+        toggleMaxScoreInput(checkbox);
+    });
+
+    // Select All functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        const isChecked = this.checked;
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = isChecked;
+            toggleMaxScoreInput(checkbox);
+        });
+    });
+
+    // Update Select All state based on individual checkboxes
+    function updateSelectAllState() {
+        const totalCheckboxes = checkboxes.length;
+        const checkedCheckboxes = document.querySelectorAll('.subject-checkbox:checked').length;
+        
+        if (checkedCheckboxes === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (checkedCheckboxes === totalCheckboxes) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    // Initialize Select All state
+    updateSelectAllState();
+
+    // Form validation
+    document.getElementById('subjectsForm').addEventListener('submit', function(e) {
+        const checkedCheckboxes = document.querySelectorAll('.subject-checkbox:checked');
+        
+        if (checkedCheckboxes.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one subject for this test.');
+            return false;
+        }
+
+        // Validate max scores for enabled subjects
+        let hasInvalidScore = false;
+        checkedCheckboxes.forEach(function(checkbox) {
+            const subjectId = checkbox.getAttribute('data-subject-id');
+            const maxScoreInput = document.querySelector(`.max-score-input[data-subject-id="${subjectId}"]`);
+            
+            if (maxScoreInput && (!maxScoreInput.value || parseInt(maxScoreInput.value) < 1)) {
+                hasInvalidScore = true;
+                maxScoreInput.classList.add('is-invalid');
+            } else if (maxScoreInput) {
+                maxScoreInput.classList.remove('is-invalid');
+            }
+        });
+
+        if (hasInvalidScore) {
+            e.preventDefault();
+            alert('Please enter valid max scores (minimum 1) for all selected subjects.');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Manage Test Scores - {{ test.test_type|title }} - {{ test.test_date }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-calculator"></i> Manage Test Scores
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_list' school_slug=school_slug %}">Tests</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}">{{ test.test_type|title }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Manage Scores</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Test Info Card -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-clipboard-data"></i> {{ test.test_type|title }} - {{ test.test_date }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Standard:</strong> {{ test.standard.get_name_display }}</p>
+                            <p><strong>Term:</strong> {{ test.term }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Date:</strong> {{ test.test_date }}</p>
+                            <p><strong>Test Subjects:</strong> {{ test_subjects.count }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scores Matrix -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-grid-3x3-gap"></i> Student Scores Matrix
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="scoresForm">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Instructions:</strong> Enter scores for each student and subject. 
+                            Maximum scores are shown in the column headers. Leave blank for 0.
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th class="sticky-left"><strong>Student</strong></th>
+                                        {% for test_subject in test_subjects %}
+                                        <th class="text-center">
+                                            <strong>{{ test_subject.standard_subject.subject_name }}</strong>
+                                            <br><small class="text-muted">Max: {{ test_subject.max_score }}</small>
+                                        </th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student in students %}
+                                    <tr>
+                                        <td class="sticky-left">
+                                            <strong>{{ student.get_full_name }}</strong>
+                                        </td>
+                                        {% for test_subject in test_subjects %}
+                                        <td class="text-center">
+                                            <input type="number"
+                                                   name="score_{{ student.id }}_{{ test_subject.id }}"
+                                                   class="form-control form-control-sm score-input"
+                                                   value="0"
+                                                   min="0"
+                                                   max="{{ test_subject.max_score }}"
+                                                   data-max="{{ test_subject.max_score }}"
+                                                   data-student="{{ student.id }}"
+                                                   data-subject="{{ test_subject.id }}"
+                                                   style="width: 80px;">
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="{{ test_subjects.count|add:1 }}" class="text-center text-muted">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            No students enrolled in this standard.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="form-group mt-4">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back to Test
+                                </a>
+                                <div>
+                                    <button type="button" class="btn btn-outline-primary me-2" id="clearAllBtn">
+                                        <i class="bi bi-eraser"></i> Clear All
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check-lg"></i> Save All Scores
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.sticky-left {
+    position: sticky;
+    left: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    min-width: 200px;
+}
+
+.score-input {
+    text-align: center;
+}
+
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.thead-light th {
+    position: sticky;
+    top: 0;
+    z-index: 11;
+}
+
+.thead-light th.sticky-left {
+    z-index: 12;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scoreInputs = document.querySelectorAll('.score-input');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const scoresForm = document.getElementById('scoresForm');
+
+    // Populate existing scores
+    const existingScores = {{ existing_scores_json|safe }};
+    scoreInputs.forEach(function(input) {
+        const studentId = input.getAttribute('data-student');
+        const subjectId = input.getAttribute('data-subject');
+        const key = studentId + '_' + subjectId;
+
+        if (existingScores[key] !== undefined) {
+            input.value = existingScores[key];
+        }
+    });
+
+    // Validate score inputs
+    scoreInputs.forEach(function(input) {
+        input.addEventListener('input', function() {
+            const maxScore = parseInt(this.getAttribute('data-max'));
+            const currentValue = parseInt(this.value);
+            
+            if (currentValue > maxScore) {
+                this.value = maxScore;
+                this.classList.add('is-invalid');
+                setTimeout(() => this.classList.remove('is-invalid'), 2000);
+            } else if (currentValue < 0) {
+                this.value = 0;
+            }
+        });
+
+        // Select all text on focus for easy editing
+        input.addEventListener('focus', function() {
+            this.select();
+        });
+    });
+
+    // Clear all scores
+    clearAllBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear all scores? This action cannot be undone.')) {
+            scoreInputs.forEach(function(input) {
+                input.value = '0';
+            });
+        }
+    });
+
+    // Form validation
+    scoresForm.addEventListener('submit', function(e) {
+        let hasInvalidScore = false;
+        
+        scoreInputs.forEach(function(input) {
+            const maxScore = parseInt(input.getAttribute('data-max'));
+            const currentValue = parseInt(input.value) || 0;
+            
+            if (currentValue > maxScore || currentValue < 0) {
+                hasInvalidScore = true;
+                input.classList.add('is-invalid');
+            } else {
+                input.classList.remove('is-invalid');
+            }
+        });
+
+        if (hasInvalidScore) {
+            e.preventDefault();
+            alert('Please correct the invalid scores before saving.');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}
