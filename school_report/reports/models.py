@@ -12,8 +12,8 @@ class Test(models.Model):
         ('assignment', 'Assignment'),
         ('quiz', 'Quiz'),
         ('midterm', 'Mid-Term Test'),
-        ('endterm', 'End of Term Test'),  # This is the formal term assessment
         ('project', 'Project'),
+        ('final_exam', 'Final Exam'),  # Special test type that triggers report generation
         ('other', 'Other'),
     ]
 
@@ -22,7 +22,14 @@ class Test(models.Model):
     test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES)
     test_date = models.DateField()
     description = models.TextField(blank=True, null=True)
-    created_by = models.ForeignKey('core.UserProfile', on_delete=models.CASCADE, 
+
+    # Finalization tracking
+    is_finalized = models.BooleanField(default=False, help_text="Whether this test has been finalized")
+    finalized_at = models.DateTimeField(null=True, blank=True, help_text="When this test was finalized")
+    finalized_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='finalized_tests', help_text="Who finalized this test")
+
+    created_by = models.ForeignKey('core.UserProfile', on_delete=models.CASCADE,
                                   related_name='created_tests',
                                   limit_choices_to={'user_type': 'teacher'})
     created_at = models.DateTimeField(auto_now_add=True)
@@ -113,6 +120,124 @@ class Test(models.Model):
     def enabled_subjects_count(self):
         """Return the count of enabled subjects for this test"""
         return self.subjects.filter(enabled=True).count()
+
+    def finalize_test(self, user):
+        """
+        Finalize this test and update term reviews accordingly
+        """
+        from django.utils import timezone
+
+        if self.is_finalized:
+            return False, "Test is already finalized"
+
+        # Mark test as finalized
+        self.is_finalized = True
+        self.finalized_at = timezone.now()
+        self.finalized_by = user
+        self.save()
+
+        # Update term reviews based on test type
+        if self.test_type == 'final_exam':
+            # Final exam: Update final exam scores and trigger report generation
+            self._update_final_exam_scores()
+            return True, "Final exam finalized! Term reports updated."
+        else:
+            # Regular test: Update term assessment averages
+            self._update_term_assessments()
+            return True, "Test finalized and term assessments updated."
+
+    def _update_final_exam_scores(self):
+        """Update final exam scores in StudentSubjectScore records"""
+        # Get all scores for this test
+        test_scores = TestScore.objects.filter(
+            test_subject__test=self,
+            test_subject__enabled=True
+        ).select_related('student', 'test_subject__standard_subject')
+
+        for test_score in test_scores:
+            # Find or create the student's term review
+            term_review, created = StudentTermReview.objects.get_or_create(
+                term=self.term,
+                student=test_score.student,
+                defaults={
+                    'days_present': 0,
+                    'days_late': 0,
+                    'attitude': 3,
+                    'respect': 3,
+                    'parental_support': 3,
+                    'attendance': 3,
+                    'assignment_completion': 3,
+                    'class_participation': 3,
+                    'time_management': 3,
+                    'remarks': ''
+                }
+            )
+
+            # Find or create the subject score record
+            subject_score, created = StudentSubjectScore.objects.get_or_create(
+                term_review=term_review,
+                standard_subject=test_score.test_subject.standard_subject,
+                defaults={
+                    'term_assessment_percentage': 0.0,
+                    'final_exam_score': 0,
+                    'final_exam_max_score': 100
+                }
+            )
+
+            # Update final exam score
+            subject_score.update_final_exam_score(test_score)
+
+    def _update_term_assessments(self):
+        """Update term assessment averages in StudentSubjectScore records"""
+        # Get all scores for this test
+        test_scores = TestScore.objects.filter(
+            test_subject__test=self,
+            test_subject__enabled=True
+        ).select_related('student', 'test_subject__standard_subject')
+
+        # Group by student and subject
+        student_subjects = {}
+        for test_score in test_scores:
+            key = (test_score.student.id, test_score.test_subject.standard_subject.id)
+            if key not in student_subjects:
+                student_subjects[key] = {
+                    'student': test_score.student,
+                    'standard_subject': test_score.test_subject.standard_subject
+                }
+
+        # Update term assessments for each student-subject combination
+        for (student_id, subject_id), data in student_subjects.items():
+            # Find or create the student's term review
+            term_review, created = StudentTermReview.objects.get_or_create(
+                term=self.term,
+                student=data['student'],
+                defaults={
+                    'days_present': 0,
+                    'days_late': 0,
+                    'attitude': 3,
+                    'respect': 3,
+                    'parental_support': 3,
+                    'attendance': 3,
+                    'assignment_completion': 3,
+                    'class_participation': 3,
+                    'time_management': 3,
+                    'remarks': ''
+                }
+            )
+
+            # Find or create the subject score record
+            subject_score, created = StudentSubjectScore.objects.get_or_create(
+                term_review=term_review,
+                standard_subject=data['standard_subject'],
+                defaults={
+                    'term_assessment_percentage': 0.0,
+                    'final_exam_score': 0,
+                    'final_exam_max_score': 100
+                }
+            )
+
+            # Update term assessment average
+            subject_score.update_term_assessment()
 
     @classmethod
     def get_term_tests(cls, term, standard=None):
@@ -239,5 +364,152 @@ class StudentTermReview(models.Model):
         if term_days > 0:
             return (self.days_present / term_days) * 100
         return 0
-    
+
+    @classmethod
+    def generate_blank_reports(cls, term, standard):
+        """
+        Generate blank term reports for all students in a standard for a given term
+        """
+        from core.utils import get_current_student_enrollment
+        from academics.models import StandardSubject
+
+        # Get all students enrolled in this standard for the term's year
+        potential_students = Student.objects.filter(
+            standard_enrollments__standard=standard,
+            standard_enrollments__year=term.year
+        ).distinct()
+
+        # Filter to only currently enrolled students
+        enrolled_students = []
+        for student in potential_students:
+            current_enrollment = get_current_student_enrollment(student, term.year)
+            if current_enrollment and current_enrollment.standard == standard:
+                enrolled_students.append(student)
+
+        # Create blank reports for each student
+        reports_created = 0
+        for student in enrolled_students:
+            report, created = cls.objects.get_or_create(
+                term=term,
+                student=student,
+                defaults={
+                    'days_present': 0,
+                    'days_late': 0,
+                    'attitude': 3,
+                    'respect': 3,
+                    'parental_support': 3,
+                    'attendance': 3,
+                    'assignment_completion': 3,
+                    'class_participation': 3,
+                    'time_management': 3,
+                    'remarks': ''
+                }
+            )
+            if created:
+                reports_created += 1
+
+                # Create subject score entries for this report
+                standard_subjects = StandardSubject.objects.filter(
+                    standard=standard,
+                    year=term.year
+                )
+
+                for subject in standard_subjects:
+                    StudentSubjectScore.objects.get_or_create(
+                        term_review=report,
+                        standard_subject=subject,
+                        defaults={
+                            'term_assessment_percentage': 0.0,
+                            'final_exam_score': 0,
+                            'final_exam_max_score': 100
+                        }
+                    )
+
+        return reports_created
+
+
+class StudentSubjectScore(models.Model):
+    """
+    Represents a student's scores for a specific subject in a term review
+    """
+    term_review = models.ForeignKey(StudentTermReview, on_delete=models.CASCADE, related_name='subject_scores')
+    standard_subject = models.ForeignKey('academics.StandardSubject', on_delete=models.CASCADE, related_name='student_scores')
+
+    # Term Assessment: Average of all non-final tests (quizzes, midterms, assignments, projects)
+    term_assessment_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.0,
+                                                   help_text="Average percentage of all term assessments")
+
+    # Final Exam: Separate score
+    final_exam_score = models.PositiveIntegerField(default=0, help_text="Raw score on final exam")
+    final_exam_max_score = models.PositiveIntegerField(default=100, help_text="Maximum possible score on final exam")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['term_review', 'standard_subject']
+        verbose_name = "Student Subject Score"
+        verbose_name_plural = "Student Subject Scores"
+
+    def __str__(self):
+        return f"{self.term_review.student} - {self.standard_subject.subject_name} - {self.term_review.term}"
+
+    @property
+    def final_exam_percentage(self):
+        """Calculate final exam percentage"""
+        if self.final_exam_max_score > 0:
+            return (self.final_exam_score / self.final_exam_max_score) * 100
+        return 0
+
+    @property
+    def final_grade(self):
+        """Calculate final grade based on final exam percentage"""
+        percentage = self.final_exam_percentage
+        if percentage >= 90:
+            return 'A+'
+        elif percentage >= 80:
+            return 'A'
+        elif percentage >= 70:
+            return 'B'
+        elif percentage >= 60:
+            return 'C'
+        elif percentage >= 50:
+            return 'D'
+        else:
+            return 'F'
+
+    def update_term_assessment(self):
+        """
+        Calculate and update term assessment percentage from all non-final tests
+        """
+        from django.db.models import Avg
+
+        # Get all non-final test scores for this student and subject
+        term_scores = TestScore.objects.filter(
+            student=self.term_review.student,
+            test_subject__standard_subject=self.standard_subject,
+            test_subject__test__term=self.term_review.term,
+            test_subject__test__test_type__in=['quiz', 'midterm', 'assignment', 'project'],
+            test_subject__test__is_finalized=True
+        )
+
+        if term_scores.exists():
+            # Calculate average percentage
+            total_percentage = sum(score.percentage for score in term_scores)
+            self.term_assessment_percentage = total_percentage / term_scores.count()
+            self.save()
+
+        return self.term_assessment_percentage
+
+    def update_final_exam_score(self, test_score):
+        """
+        Update final exam score from a finalized final exam test
+        """
+        if test_score.test_subject.test.test_type == 'final_exam':
+            self.final_exam_score = test_score.score
+            self.final_exam_max_score = test_score.test_subject.max_score
+            self.save()
+
+            return True
+        return False
 

@@ -1,0 +1,249 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Report Card - {{ report.student.get_full_name }} - {{ report.term }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-file-earmark-text"></i> Report Card
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ report.student.get_full_name }}</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Report Card -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-primary text-white">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4 class="m-0 font-weight-bold">{{ school.name }}</h4>
+                            <p class="m-0">Term Report Card</p>
+                        </div>
+                        <div class="col-md-4 text-right">
+                            <button onclick="window.print()" class="btn btn-light btn-sm">
+                                <i class="bi bi-printer"></i> Print Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Student Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5><strong>Student Information</strong></h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ report.student.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Class:</strong></td>
+                                    <td>
+                                        {% with enrollment=report.student.standard_enrollments.last %}
+                                        {% if enrollment.standard %}
+                                        {{ enrollment.standard.get_name_display }}
+                                        {% else %}
+                                        Not enrolled
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Term:</strong></td>
+                                    <td>{{ report.term }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><strong>Attendance Summary</strong></h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Days Present:</strong></td>
+                                    <td>{{ report.days_present }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Days Late:</strong></td>
+                                    <td>{{ report.days_late }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total School Days:</strong></td>
+                                    <td>{{ report.get_term_days }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Attendance Rate:</strong></td>
+                                    <td>
+                                        <span class="badge {% if report.attendance_percentage >= 90 %}badge-success{% elif report.attendance_percentage >= 75 %}badge-warning{% else %}badge-danger{% endif %}">
+                                            {{ report.attendance_percentage|floatformat:1 }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Academic Performance -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5><strong>Academic Performance</strong></h5>
+                            {% if subject_scores %}
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Subject</th>
+                                            <th class="text-center">Term Assessment (%)</th>
+                                            <th class="text-center">Final Exam Score</th>
+                                            <th class="text-center">Max Exam Score</th>
+                                            <th class="text-center">Percentage / Grade</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for subject_score in subject_scores %}
+                                        <tr>
+                                            <td><strong>{{ subject_score.standard_subject.subject_name }}</strong></td>
+                                            <td class="text-center">
+                                                {% if subject_score.term_assessment_percentage > 0 %}
+                                                {{ subject_score.term_assessment_percentage|floatformat:1 }}%
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if subject_score.final_exam_score > 0 %}
+                                                {{ subject_score.final_exam_score }}
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">{{ subject_score.final_exam_max_score }}</td>
+                                            <td class="text-center">
+                                                {% if subject_score.final_exam_score > 0 %}
+                                                <span class="badge {% if subject_score.final_exam_percentage >= 90 %}badge-success{% elif subject_score.final_exam_percentage >= 80 %}badge-primary{% elif subject_score.final_exam_percentage >= 70 %}badge-info{% elif subject_score.final_exam_percentage >= 60 %}badge-warning{% else %}badge-danger{% endif %}">
+                                                    {{ subject_score.final_exam_percentage|floatformat:1 }}% / {{ subject_score.final_grade }}
+                                                </span>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                No subject scores have been recorded for this student yet.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Behavioral Assessment -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5><strong>Behavioral Assessment</strong></h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Attitude:</strong></td>
+                                            <td>{{ report.get_attitude_display }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Respect:</strong></td>
+                                            <td>{{ report.get_respect_display }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Class Participation:</strong></td>
+                                            <td>{{ report.get_class_participation_display }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Time Management:</strong></td>
+                                            <td>{{ report.get_time_management_display }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Assignment Completion:</strong></td>
+                                            <td>{{ report.get_assignment_completion_display }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Parental Support:</strong></td>
+                                            <td>{{ report.get_parental_support_display }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Attendance Rating:</strong></td>
+                                            <td>{{ report.get_attendance_display }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Teacher Remarks -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5><strong>Teacher Remarks</strong></h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    {% if report.remarks %}
+                                    <p class="mb-0">{{ report.remarks|linebreaks }}</p>
+                                    {% else %}
+                                    <p class="text-muted mb-0"><em>No remarks provided.</em></p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="row">
+                        <div class="col-12 text-center">
+                            <a href="{% url 'reports:report_list' school_slug=school_slug %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Reports
+                            </a>
+                            <button onclick="window.print()" class="btn btn-primary ml-2">
+                                <i class="bi bi-printer"></i> Print Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    .btn, .breadcrumb, .card-header .btn {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-header {
+        background-color: #007bff !important;
+        -webkit-print-color-adjust: exact;
+    }
+}
+</style>
+{% endblock %}

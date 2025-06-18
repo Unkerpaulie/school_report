@@ -10,7 +10,7 @@ from schools.models import Student, School, Standard
 from core.models import UserProfile
 from core.utils import get_current_year_and_term, get_teacher_class_from_session, get_current_teacher_assignment
 import json
-from .models import Test, TestSubject, TestScore
+from .models import Test, TestSubject, TestScore, StudentTermReview, StudentSubjectScore
 
 # Create your forms here
 from django import forms
@@ -915,7 +915,11 @@ def test_finalize(request, school_slug, test_id):
         return redirect('reports:test_scores', school_slug=school_slug, test_id=test.id)
 
     if request.method == 'POST':
-        messages.success(request, f"Test has been finalized successfully.")
+        success, message = test.finalize_test(teacher)
+        if success:
+            messages.success(request, message)
+        else:
+            messages.error(request, message)
         return redirect('reports:test_detail', school_slug=school_slug, test_id=test.id)
 
     return render(request, 'reports/test_finalize.html', {
@@ -1155,6 +1159,245 @@ def subject_delete(request, school_slug, subject_id):
 
     return render(request, 'reports/subject_delete.html', {
         'subject': standard_subject,
+        'school': school,
+        'school_slug': school_slug
+    })
+
+@login_required
+def report_list(request, school_slug):
+    """
+    View to list term reports
+    Teachers see only their class reports, Principals/Admins see all reports
+    """
+    # Get the school
+    school = get_object_or_404(School, slug=school_slug)
+
+    # Check user permissions
+    if not hasattr(request.user, 'profile'):
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    user_profile = request.user.profile
+
+    # Get current year and term
+    from core.utils import get_current_year_and_term
+    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+
+    if not current_year:
+        messages.error(request, "No academic year set up for this school.")
+        return redirect('core:home')
+
+    # Get available terms for filtering
+    available_terms = current_year.terms.all().order_by('term_number')
+
+    # Get selected term from request (default to current term)
+    selected_term_id = request.GET.get('term')
+    if selected_term_id:
+        try:
+            selected_term = available_terms.get(id=selected_term_id)
+        except:
+            selected_term = current_term
+    else:
+        selected_term = current_term
+
+    # Filter reports based on user type
+    if user_profile.user_type == 'teacher':
+        # Teachers see only their class reports
+        class_id, class_name, year_id = get_teacher_class_from_session(request)
+
+        if not class_id:
+            messages.warning(request, "You are not assigned to any class.")
+            return redirect('core:home')
+
+        try:
+            from schools.models import Standard
+            teacher_standard = Standard.objects.get(id=class_id)
+        except Standard.DoesNotExist:
+            messages.error(request, "Invalid class assignment.")
+            return redirect('core:home')
+
+        # Get reports for teacher's class only
+        reports = StudentTermReview.objects.filter(
+            term=selected_term,
+            student__standard_enrollments__standard=teacher_standard,
+            student__standard_enrollments__year=current_year
+        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject')
+
+        page_title = f"Term Reports - {teacher_standard.get_name_display()}"
+
+    elif user_profile.user_type in ['principal', 'administration']:
+        # Principals and admins see all reports for the school
+        reports = StudentTermReview.objects.filter(
+            term=selected_term,
+            term__year__school=school
+        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject')
+
+        page_title = "All Term Reports"
+
+    else:
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    # Filter to only show students currently enrolled
+    from core.utils import get_current_student_enrollment
+    filtered_reports = []
+    for report in reports:
+        current_enrollment = get_current_student_enrollment(report.student, current_year)
+        if current_enrollment:
+            filtered_reports.append(report)
+
+    return render(request, 'reports/report_list.html', {
+        'reports': filtered_reports,
+        'selected_term': selected_term,
+        'available_terms': available_terms,
+        'current_year': current_year,
+        'page_title': page_title,
+        'user_type': user_profile.user_type,
+        'school': school,
+        'school_slug': school_slug
+    })
+
+@login_required
+def report_detail(request, school_slug, report_id):
+    """
+    View to show detailed term report for a student
+    """
+    # Get the school
+    school = get_object_or_404(School, slug=school_slug)
+
+    # Check user permissions
+    if not hasattr(request.user, 'profile'):
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    user_profile = request.user.profile
+
+    # Get the report
+    report = get_object_or_404(StudentTermReview, id=report_id)
+
+    # Verify school access
+    if report.term.year.school != school:
+        messages.error(request, "Report not found in this school.")
+        return redirect('core:home')
+
+    # Check permissions based on user type
+    if user_profile.user_type == 'teacher':
+        # Teachers can only view reports for their assigned class
+        class_id, class_name, year_id = get_teacher_class_from_session(request)
+
+        if not class_id:
+            messages.error(request, "You are not assigned to any class.")
+            return redirect('core:home')
+
+        # Check if this student is in teacher's class
+        from core.utils import get_current_student_enrollment
+        current_enrollment = get_current_student_enrollment(report.student, report.term.year)
+
+        if not current_enrollment or current_enrollment.standard.id != class_id:
+            messages.error(request, "You can only view reports for students in your assigned class.")
+            return redirect('reports:report_list', school_slug=school_slug)
+
+    elif user_profile.user_type not in ['principal', 'administration']:
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    # Get subject scores for this report
+    subject_scores = report.subject_scores.all().select_related('standard_subject').order_by('standard_subject__subject_name')
+
+    return render(request, 'reports/report_detail.html', {
+        'report': report,
+        'subject_scores': subject_scores,
+        'school': school,
+        'school_slug': school_slug
+    })
+
+@login_required
+def generate_blank_reports(request, school_slug):
+    """
+    View to generate blank reports for a term and standard
+    Only accessible by teachers, principals, and admins
+    """
+    # Get the school
+    school = get_object_or_404(School, slug=school_slug)
+
+    # Check user permissions
+    if not hasattr(request.user, 'profile'):
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    user_profile = request.user.profile
+
+    if user_profile.user_type not in ['teacher', 'principal', 'administration']:
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    # Get current year and available terms
+    from core.utils import get_current_year_and_term
+    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+
+    if not current_year:
+        messages.error(request, "No academic year set up for this school.")
+        return redirect('core:home')
+
+    available_terms = current_year.terms.all().order_by('term_number')
+
+    # Get available standards based on user type
+    if user_profile.user_type == 'teacher':
+        # Teachers can only generate for their assigned class
+        class_id, class_name, year_id = get_teacher_class_from_session(request)
+
+        if not class_id:
+            messages.error(request, "You are not assigned to any class.")
+            return redirect('core:home')
+
+        try:
+            from schools.models import Standard
+            available_standards = [Standard.objects.get(id=class_id)]
+        except Standard.DoesNotExist:
+            messages.error(request, "Invalid class assignment.")
+            return redirect('core:home')
+    else:
+        # Principals and admins can generate for any class in their school
+        from schools.models import Standard
+        available_standards = Standard.objects.filter(school=school).order_by('name')
+
+    if request.method == 'POST':
+        term_id = request.POST.get('term')
+        standard_id = request.POST.get('standard')
+
+        try:
+            selected_term = available_terms.get(id=term_id)
+            selected_standard = None
+
+            # Verify standard selection based on user permissions
+            if user_profile.user_type == 'teacher':
+                if int(standard_id) == available_standards[0].id:
+                    selected_standard = available_standards[0]
+            else:
+                selected_standard = available_standards.get(id=standard_id)
+
+            if not selected_standard:
+                messages.error(request, "Invalid standard selection.")
+                return redirect('reports:generate_blank_reports', school_slug=school_slug)
+
+            # Generate blank reports
+            reports_created = StudentTermReview.generate_blank_reports(selected_term, selected_standard)
+
+            if reports_created > 0:
+                messages.success(request, f"Generated {reports_created} blank reports for {selected_standard.get_name_display()} - {selected_term}.")
+            else:
+                messages.info(request, f"All reports already exist for {selected_standard.get_name_display()} - {selected_term}.")
+
+            return redirect('reports:report_list', school_slug=school_slug)
+
+        except Exception as e:
+            messages.error(request, f"Error generating reports: {str(e)}")
+
+    return render(request, 'reports/generate_blank_reports.html', {
+        'available_terms': available_terms,
+        'available_standards': available_standards,
+        'current_year': current_year,
+        'user_type': user_profile.user_type,
         'school': school,
         'school_slug': school_slug
     })

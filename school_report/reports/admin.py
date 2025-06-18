@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Test, TestSubject, TestScore, StudentTermReview
+    Test, TestSubject, TestScore, StudentTermReview, StudentSubjectScore
 )
 
 @admin.register(Test)
@@ -30,3 +30,15 @@ class StudentTermReviewAdmin(admin.ModelAdmin):
                    'assignment_completion', 'class_participation', 'time_management')
     list_filter = ('term__year', 'term__term_number')
     search_fields = ('student__first_name', 'student__last_name', 'remarks')
+
+@admin.register(StudentSubjectScore)
+class StudentSubjectScoreAdmin(admin.ModelAdmin):
+    list_display = ('term_review', 'standard_subject', 'term_assessment_percentage',
+                   'final_exam_score', 'final_exam_max_score', 'final_exam_percentage', 'final_grade')
+    list_filter = ('term_review__term__year', 'term_review__term__term_number', 'standard_subject__subject_name')
+    search_fields = ('term_review__student__first_name', 'term_review__student__last_name',
+                    'standard_subject__subject_name')
+
+    def final_exam_percentage(self, obj):
+        return f"{obj.final_exam_percentage:.1f}%"
+    final_exam_percentage.short_description = 'Final Exam %'

@@ -21,12 +21,18 @@
                 <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-success">
                     <i class="bi bi-check2-square"></i> Manage Subjects
                 </a>
+                {% if not test.is_finalized %}
                 <a href="{% url 'reports:test_edit' school_slug=school_slug test_id=test.id %}" class="btn btn-primary">
                     <i class="bi bi-pencil"></i> Edit Test
                 </a>
                 <a href="{% url 'reports:test_finalize' school_slug=school_slug test_id=test.id %}" class="btn btn-warning">
                     <i class="bi bi-lock"></i> Finalize Test
                 </a>
+                {% else %}
+                <span class="btn btn-success disabled">
+                    <i class="bi bi-check-circle"></i> Test Finalized
+                </span>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -55,6 +61,21 @@
                 <div class="row mb-2">
                     <div class="col-5 font-weight-bold">Test Date:</div>
                     <div class="col-7">{{ test.test_date|date:"d M Y" }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-5 font-weight-bold">Status:</div>
+                    <div class="col-7">
+                        {% if test.is_finalized %}
+                        <span class="badge badge-success">
+                            <i class="bi bi-check-circle"></i> Finalized
+                        </span>
+                        <br><small class="text-muted">{{ test.finalized_at|date:"d M Y H:i" }}</small>
+                        {% else %}
+                        <span class="badge badge-warning">
+                            <i class="bi bi-clock"></i> Draft
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
 
                 {% if test.description %}

@@ -29,4 +29,9 @@ urlpatterns = [
     path('subjects/create/', views.subject_create, name='subject_create'),
     path('subjects/<int:subject_id>/edit/', views.subject_edit, name='subject_edit'),
     path('subjects/<int:subject_id>/delete/', views.subject_delete, name='subject_delete'),
+
+    # Report management
+    path('reports/', views.report_list, name='report_list'),
+    path('reports/<int:report_id>/', views.report_detail, name='report_detail'),
+    path('reports/generate/', views.generate_blank_reports, name='generate_blank_reports'),
 ]

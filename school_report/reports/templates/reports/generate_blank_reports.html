@@ -1,0 +1,181 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Generate Blank Reports - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-plus-circle"></i> Generate Blank Reports
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Generate Blank Reports</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Generate Form -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-file-earmark-plus"></i> Generate Blank Term Reports
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>About Blank Reports:</strong> This will create empty report cards for all students enrolled in the selected class and term. 
+                        The reports will include placeholders for attendance, behavioral assessments, and subject scores that can be filled in as tests are finalized throughout the term.
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <label for="term"><strong>Select Term:</strong></label>
+                            <select name="term" id="term" class="form-control" required>
+                                <option value="">-- Select Term --</option>
+                                {% for term in available_terms %}
+                                <option value="{{ term.id }}">{{ term }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Choose the term for which you want to generate reports.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="standard"><strong>Select Class:</strong></label>
+                            <select name="standard" id="standard" class="form-control" required>
+                                <option value="">-- Select Class --</option>
+                                {% for standard in available_standards %}
+                                <option value="{{ standard.id }}">{{ standard.get_name_display }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                {% if user_type == 'teacher' %}
+                                You can only generate reports for your assigned class.
+                                {% else %}
+                                Choose the class for which you want to generate reports.
+                                {% endif %}
+                            </small>
+                        </div>
+
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="bi bi-lightbulb"></i> What happens when you generate reports?</h6>
+                                <ul class="mb-0">
+                                    <li>A blank report card will be created for each student currently enrolled in the selected class</li>
+                                    <li>Subject score entries will be created for all subjects taught in that class</li>
+                                    <li>Default values will be set for behavioral assessments (can be updated later)</li>
+                                    <li>Attendance fields will be initialized to zero (to be updated as the term progresses)</li>
+                                    <li>If reports already exist for some students, only missing reports will be created</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="form-group text-center">
+                            <a href="{% url 'reports:report_list' school_slug=school_slug %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success ml-2">
+                                <i class="bi bi-plus-circle"></i> Generate Reports
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Cards -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Academic Year</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ current_year }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-calendar3 fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Available Terms</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ available_terms.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-list-ol fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                {% if user_type == 'teacher' %}Your Class{% else %}Available Classes{% endif %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ available_standards.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-mortarboard fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const termSelect = document.getElementById('term');
+    const standardSelect = document.getElementById('standard');
+    
+    // If teacher has only one class option, auto-select it
+    {% if user_type == 'teacher' and available_standards.count == 1 %}
+    standardSelect.value = '{{ available_standards.0.id }}';
+    {% endif %}
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (!termSelect.value || !standardSelect.value) {
+            e.preventDefault();
+            alert('Please select both a term and a class before generating reports.');
+            return false;
+        }
+        
+        // Confirm action
+        const termText = termSelect.options[termSelect.selectedIndex].text;
+        const standardText = standardSelect.options[standardSelect.selectedIndex].text;
+        
+        if (!confirm(`Are you sure you want to generate blank reports for ${standardText} - ${termText}?`)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}
