@@ -52,8 +52,6 @@
                         <thead>
                             <tr>
                                 <th>Date</th>
-                                <th>Year</th>
-                                <th>Term</th>
                                 <th>Type</th>
                                 <th>Subjects</th>
                                 <th>Actions</th>
@@ -63,8 +61,6 @@
                             {% for test in tests %}
                             <tr>
                                 <td>{{ test.test_date|date:"d M Y" }}</td>
-                                <td>{{ test.term.year.start_year }} - {{ test.term.year.start_year|add:1 }}</td>
-                                <td>{{ test.term.term_number }}</td>
                                 <td>
                                     {% if test.test_type == 'assignment' %}
                                         <span class="badge bg-primary">Assignment</span>
@@ -72,7 +68,7 @@
                                         <span class="badge bg-info">Quiz</span>
                                     {% elif test.test_type == 'midterm' %}
                                         <span class="badge bg-warning">Mid-Term</span>
-                                    {% elif test.test_type == 'final_exam' %}
+                                    {% elif test.test_type == 'endterm' %}
                                         <span class="badge bg-danger">End of Term</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ test.get_test_type_display }}</span>
