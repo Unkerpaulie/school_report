@@ -153,7 +153,7 @@ Table Test {
   id integer [pk]
   standard_id integer [ref: > Standard.id]
   term_id integer [ref: > Term.id]
-  test_type enum [note: 'assignment, quiz, midterm, endterm, project, other']
+  test_type enum [note: 'assignment, quiz, midterm, final_exam, project, other']
   test_date date
   description text
   created_by_id integer [ref: > UserProfile.id, note: 'where user_type=teacher']

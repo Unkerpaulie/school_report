@@ -249,7 +249,7 @@ class Test(models.Model):
         """
         filters = {
             'term': term,
-            'test_type': 'endterm',
+            'test_type': 'final_exam',
         }
         
         if standard:
@@ -306,7 +306,7 @@ class TestScore(models.Model):
             student=student,
             test_subject__test__year=year,
             test_subject__test__term=term,
-            test_subject__test__test_type='endterm'
+            test_subject__test__test_type='final_exam'
         )
 
         if not scores.exists():
@@ -386,6 +386,12 @@ class StudentTermReview(models.Model):
             if current_enrollment and current_enrollment.standard == standard:
                 enrolled_students.append(student)
 
+        # Get all subjects for this standard and year
+        standard_subjects = StandardSubject.objects.filter(
+            standard=standard,
+            year=term.year
+        )
+
         # Create blank reports for each student
         reports_created = 0
         for student in enrolled_students:
@@ -408,22 +414,17 @@ class StudentTermReview(models.Model):
             if created:
                 reports_created += 1
 
-                # Create subject score entries for this report
-                standard_subjects = StandardSubject.objects.filter(
-                    standard=standard,
-                    year=term.year
+            # Create subject score entries for this report (whether new or existing)
+            for subject in standard_subjects:
+                StudentSubjectScore.objects.get_or_create(
+                    term_review=report,
+                    standard_subject=subject,
+                    defaults={
+                        'term_assessment_percentage': 0.0,
+                        'final_exam_score': 0,
+                        'final_exam_max_score': 100
+                    }
                 )
-
-                for subject in standard_subjects:
-                    StudentSubjectScore.objects.get_or_create(
-                        term_review=report,
-                        standard_subject=subject,
-                        defaults={
-                            'term_assessment_percentage': 0.0,
-                            'final_exam_score': 0,
-                            'final_exam_max_score': 100
-                        }
-                    )
 
         return reports_created
 

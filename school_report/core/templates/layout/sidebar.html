@@ -41,7 +41,7 @@
         {% if user.profile.user_type == 'principal' or user.profile.user_type == 'administration' or user.profile.user_type == 'teacher' %}
             {% if school %}
             <li class="{% block reports_active %}{% endblock %}">
-                <a href="#"><i class="bi bi-file-earmark-text"></i> Reports</a>
+                <a href="{% url "reports:report_list" school_slug=school.slug %}"><i class="bi bi-file-earmark-text"></i> Reports</a>
             </li>
             {% endif %}
         {% endif %}

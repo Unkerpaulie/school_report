@@ -1,0 +1,221 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Edit Report - {{ report.student.get_full_name }} - {{ report.term }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-pencil-square"></i> Edit Report
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}">{{ report.student.get_full_name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Edit</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-person-circle"></i> {{ report.student.get_full_name }} - {{ report.term }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Student Info (Read-only) -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title"><i class="bi bi-info-circle"></i> Student Information</h6>
+                                        <p><strong>Name:</strong> {{ report.student.get_full_name }}</p>
+                                        <p><strong>Term:</strong> {{ report.term }}</p>
+                                        <p><strong>Total School Days:</strong> {{ report.get_term_days }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title"><i class="bi bi-exclamation-triangle"></i> Important Note</h6>
+                                        <p class="mb-0">Academic scores are automatically calculated from finalized tests. 
+                                        Use this form to update attendance, behavioral ratings, and teacher remarks only.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attendance Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="mb-3"><i class="bi bi-calendar-check"></i> Attendance</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="{{ form.days_present.id_for_label }}">{{ form.days_present.label }}</label>
+                                            {{ form.days_present }}
+                                            {% if form.days_present.help_text %}
+                                            <small class="form-text text-muted">{{ form.days_present.help_text }}</small>
+                                            {% endif %}
+                                            {% if form.days_present.errors %}
+                                            <div class="text-danger">{{ form.days_present.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="{{ form.days_late.id_for_label }}">{{ form.days_late.label }}</label>
+                                            {{ form.days_late }}
+                                            {% if form.days_late.help_text %}
+                                            <small class="form-text text-muted">{{ form.days_late.help_text }}</small>
+                                            {% endif %}
+                                            {% if form.days_late.errors %}
+                                            <div class="text-danger">{{ form.days_late.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Behavioral Assessment Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="mb-3"><i class="bi bi-person-check"></i> Behavioral Assessment</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="{{ form.attitude.id_for_label }}">{{ form.attitude.label }}</label>
+                                            {{ form.attitude }}
+                                            {% if form.attitude.errors %}
+                                            <div class="text-danger">{{ form.attitude.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="{{ form.respect.id_for_label }}">{{ form.respect.label }}</label>
+                                            {{ form.respect }}
+                                            {% if form.respect.errors %}
+                                            <div class="text-danger">{{ form.respect.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="{{ form.class_participation.id_for_label }}">{{ form.class_participation.label }}</label>
+                                            {{ form.class_participation }}
+                                            {% if form.class_participation.errors %}
+                                            <div class="text-danger">{{ form.class_participation.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="{{ form.time_management.id_for_label }}">{{ form.time_management.label }}</label>
+                                            {{ form.time_management }}
+                                            {% if form.time_management.errors %}
+                                            <div class="text-danger">{{ form.time_management.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="{{ form.assignment_completion.id_for_label }}">{{ form.assignment_completion.label }}</label>
+                                            {{ form.assignment_completion }}
+                                            {% if form.assignment_completion.errors %}
+                                            <div class="text-danger">{{ form.assignment_completion.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="{{ form.parental_support.id_for_label }}">{{ form.parental_support.label }}</label>
+                                            {{ form.parental_support }}
+                                            {% if form.parental_support.errors %}
+                                            <div class="text-danger">{{ form.parental_support.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="{{ form.attendance.id_for_label }}">Attendance Rating</label>
+                                            {{ form.attendance }}
+                                            {% if form.attendance.errors %}
+                                            <div class="text-danger">{{ form.attendance.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Teacher Remarks Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="mb-3"><i class="bi bi-chat-text"></i> Teacher Remarks</h5>
+                                <div class="form-group">
+                                    <label for="{{ form.remarks.id_for_label }}">{{ form.remarks.label }}</label>
+                                    {{ form.remarks }}
+                                    {% if form.remarks.help_text %}
+                                    <small class="form-text text-muted">{{ form.remarks.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.remarks.errors %}
+                                    <div class="text-danger">{{ form.remarks.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12 text-center">
+                                <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary ml-2">
+                                    <i class="bi bi-check-lg"></i> Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate and display attendance percentage
+    const daysPresent = document.getElementById('{{ form.days_present.id_for_label }}');
+    const daysLate = document.getElementById('{{ form.days_late.id_for_label }}');
+    const termDays = {{ report.get_term_days }};
+    
+    function updateAttendanceDisplay() {
+        const present = parseInt(daysPresent.value) || 0;
+        const late = parseInt(daysLate.value) || 0;
+        
+        // Validate that present + late doesn't exceed term days
+        if (present + late > termDays) {
+            daysLate.value = Math.max(0, termDays - present);
+        }
+        
+        // Calculate percentage
+        const percentage = termDays > 0 ? (present / termDays * 100).toFixed(1) : 0;
+        
+        // Update display (you could add a display element here)
+        console.log(`Attendance: ${percentage}%`);
+    }
+    
+    daysPresent.addEventListener('input', updateAttendanceDisplay);
+    daysLate.addEventListener('input', updateAttendanceDisplay);
+    
+    // Initial calculation
+    updateAttendanceDisplay();
+});
+</script>
+{% endblock %}

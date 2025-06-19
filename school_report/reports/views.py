@@ -115,6 +115,44 @@ class BulkTestSubjectForm(forms.Form):
                     })
                 )
 
+class StudentTermReviewForm(forms.ModelForm):
+    """
+    Form for editing student term review data (attendance, behavioral ratings, remarks)
+    """
+    class Meta:
+        model = StudentTermReview
+        fields = [
+            'days_present', 'days_late', 'attitude', 'respect', 'parental_support',
+            'attendance', 'assignment_completion', 'class_participation',
+            'time_management', 'remarks'
+        ]
+        widgets = {
+            'days_present': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'days_late': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'attitude': forms.Select(attrs={'class': 'form-control'}),
+            'respect': forms.Select(attrs={'class': 'form-control'}),
+            'parental_support': forms.Select(attrs={'class': 'form-control'}),
+            'attendance': forms.Select(attrs={'class': 'form-control'}),
+            'assignment_completion': forms.Select(attrs={'class': 'form-control'}),
+            'class_participation': forms.Select(attrs={'class': 'form-control'}),
+            'time_management': forms.Select(attrs={'class': 'form-control'}),
+            'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Add help text and labels
+        self.fields['days_present'].help_text = "Number of days the student was present"
+        self.fields['days_late'].help_text = "Number of days the student was late"
+        self.fields['remarks'].help_text = "Teacher's comments and observations about the student"
+
+        # Set max value for attendance fields based on term days
+        if self.instance and self.instance.term:
+            term_days = self.instance.get_term_days()
+            self.fields['days_present'].widget.attrs['max'] = term_days
+            self.fields['days_late'].widget.attrs['max'] = term_days
+
 @login_required
 def test_list(request, school_slug):
     """
@@ -1166,8 +1204,7 @@ def subject_delete(request, school_slug, subject_id):
 @login_required
 def report_list(request, school_slug):
     """
-    View to list term reports
-    Teachers see only their class reports, Principals/Admins see all reports
+    View to show available terms with reports
     """
     # Get the school
     school = get_object_or_404(School, slug=school_slug)
@@ -1187,18 +1224,85 @@ def report_list(request, school_slug):
         messages.error(request, "No academic year set up for this school.")
         return redirect('core:home')
 
-    # Get available terms for filtering
+    # Get available terms and count reports for each
     available_terms = current_year.terms.all().order_by('term_number')
+    terms_with_reports = []
 
-    # Get selected term from request (default to current term)
-    selected_term_id = request.GET.get('term')
-    if selected_term_id:
-        try:
-            selected_term = available_terms.get(id=selected_term_id)
-        except:
-            selected_term = current_term
-    else:
-        selected_term = current_term
+    for term in available_terms:
+        if user_profile.user_type == 'teacher':
+            # Teachers see only their class reports
+            class_id, class_name, year_id = get_teacher_class_from_session(request)
+
+            if not class_id:
+                continue
+
+            try:
+                from schools.models import Standard
+                teacher_standard = Standard.objects.get(id=class_id)
+            except Standard.DoesNotExist:
+                continue
+
+            # Count reports for teacher's class only
+            report_count = StudentTermReview.objects.filter(
+                term=term,
+                student__standard_enrollments__standard=teacher_standard,
+                student__standard_enrollments__year=current_year
+            ).count()
+
+        elif user_profile.user_type in ['principal', 'administration']:
+            # Count all reports for the school
+            report_count = StudentTermReview.objects.filter(
+                term=term,
+                term__year__school=school
+            ).count()
+        else:
+            continue
+
+        if report_count > 0:
+            terms_with_reports.append({
+                'term': term,
+                'report_count': report_count,
+                'is_current': term == current_term
+            })
+
+    return render(request, 'reports/report_list.html', {
+        'terms_with_reports': terms_with_reports,
+        'current_year': current_year,
+        'user_type': user_profile.user_type,
+        'school': school,
+        'school_slug': school_slug
+    })
+
+@login_required
+def report_list_by_term(request, school_slug, term_id):
+    """
+    View to list term reports for a specific term
+    Teachers see only their class reports, Principals/Admins see all reports
+    """
+    # Get the school
+    school = get_object_or_404(School, slug=school_slug)
+
+    # Check user permissions
+    if not hasattr(request.user, 'profile'):
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    user_profile = request.user.profile
+
+    # Get current year and selected term
+    from core.utils import get_current_year_and_term
+    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+
+    if not current_year:
+        messages.error(request, "No academic year set up for this school.")
+        return redirect('core:home')
+
+    # Get the selected term
+    try:
+        selected_term = current_year.terms.get(id=term_id)
+    except:
+        messages.error(request, "Invalid term selected.")
+        return redirect('reports:report_list', school_slug=school_slug)
 
     # Filter reports based on user type
     if user_profile.user_type == 'teacher':
@@ -1221,18 +1325,18 @@ def report_list(request, school_slug):
             term=selected_term,
             student__standard_enrollments__standard=teacher_standard,
             student__standard_enrollments__year=current_year
-        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject')
+        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject').order_by('student__last_name', 'student__first_name')
 
-        page_title = f"Term Reports - {teacher_standard.get_name_display()}"
+        page_title = f"{selected_term} Reports - {teacher_standard.get_name_display()}"
 
     elif user_profile.user_type in ['principal', 'administration']:
         # Principals and admins see all reports for the school
         reports = StudentTermReview.objects.filter(
             term=selected_term,
             term__year__school=school
-        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject')
+        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject').order_by('student__last_name', 'student__first_name')
 
-        page_title = "All Term Reports"
+        page_title = f"{selected_term} - All Reports"
 
     else:
         messages.error(request, "Access denied.")
@@ -1246,10 +1350,9 @@ def report_list(request, school_slug):
         if current_enrollment:
             filtered_reports.append(report)
 
-    return render(request, 'reports/report_list.html', {
+    return render(request, 'reports/report_list_by_term.html', {
         'reports': filtered_reports,
         'selected_term': selected_term,
-        'available_terms': available_terms,
         'current_year': current_year,
         'page_title': page_title,
         'user_type': user_profile.user_type,
@@ -1398,6 +1501,66 @@ def generate_blank_reports(request, school_slug):
         'available_standards': available_standards,
         'current_year': current_year,
         'user_type': user_profile.user_type,
+        'school': school,
+        'school_slug': school_slug
+    })
+
+@login_required
+def report_edit(request, school_slug, report_id):
+    """
+    View to edit a term report (attendance, behavioral ratings, remarks)
+    """
+    # Get the school
+    school = get_object_or_404(School, slug=school_slug)
+
+    # Check user permissions
+    if not hasattr(request.user, 'profile'):
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    user_profile = request.user.profile
+
+    # Get the report
+    report = get_object_or_404(StudentTermReview, id=report_id)
+
+    # Verify school access
+    if report.term.year.school != school:
+        messages.error(request, "Report not found in this school.")
+        return redirect('core:home')
+
+    # Check permissions based on user type
+    if user_profile.user_type == 'teacher':
+        # Teachers can only edit reports for their assigned class
+        class_id, class_name, year_id = get_teacher_class_from_session(request)
+
+        if not class_id:
+            messages.error(request, "You are not assigned to any class.")
+            return redirect('core:home')
+
+        # Check if this student is in teacher's class
+        from core.utils import get_current_student_enrollment
+        current_enrollment = get_current_student_enrollment(report.student, report.term.year)
+
+        if not current_enrollment or current_enrollment.standard.id != class_id:
+            messages.error(request, "You can only edit reports for students in your assigned class.")
+            return redirect('reports:report_list', school_slug=school_slug)
+
+    elif user_profile.user_type not in ['principal', 'administration']:
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    if request.method == 'POST':
+        form = StudentTermReviewForm(request.POST, instance=report)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Report for {report.student.get_full_name()} has been updated successfully.")
+            return redirect('reports:report_detail', school_slug=school_slug, report_id=report.id)
+    else:
+        form = StudentTermReviewForm(instance=report)
+
+    return render(request, 'reports/report_edit.html', {
+        'form': form,
+        'report': report,
         'school': school,
         'school_slug': school_slug
     })
