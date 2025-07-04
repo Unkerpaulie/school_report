@@ -14,6 +14,9 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                {% if current_enrollment %}
+                <li class="breadcrumb-item"><a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=report.term.id class_id=current_enrollment.standard.id %}">{{ current_enrollment.standard.get_name_display }} - {{ report.term }}</a></li>
+                {% endif %}
                 <li class="breadcrumb-item active" aria-current="page">{{ report.student.get_full_name }}</li>
             </ol>
         </nav>
@@ -30,6 +33,20 @@
                             <p class="m-0">Term Report Card</p>
                         </div>
                         <div class="col-md-4 text-right">
+                            <!-- Student Navigation -->
+                            {% if previous_report %}
+                            <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=previous_report.id %}"
+                               class="btn btn-secondary btn-sm mr-1" title="Previous Student: {{ previous_report.student.get_full_name }}">
+                                <i class="bi bi-arrow-left"></i> Previous
+                            </a>
+                            {% endif %}
+                            {% if next_report %}
+                            <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=next_report.id %}"
+                               class="btn btn-secondary btn-sm mr-2" title="Next Student: {{ next_report.student.get_full_name }}">
+                                Next <i class="bi bi-arrow-right"></i>
+                            </a>
+                            {% endif %}
+
                             <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}" class="btn btn-warning btn-sm mr-2">
                                 <i class="bi bi-pencil"></i> Edit Report
                             </a>
@@ -65,6 +82,14 @@
                                     <td><strong>Term:</strong></td>
                                     <td>{{ report.term }}</td>
                                 </tr>
+                                <tr>
+                                    <td><strong>Overall Average:</strong></td>
+                                    <td>
+                                        <span class="badge bg-{% if report.overall_average_percentage >= 90 %}success{% elif report.overall_average_percentage >= 80 %}primary{% elif report.overall_average_percentage >= 70 %}info{% elif report.overall_average_percentage >= 60 %}warning{% else %}danger{% endif %} bg-lg">
+                                            {{ report.overall_average_percentage|floatformat:1 }}% ({{ report.overall_grade }})
+                                        </span>
+                                    </td>
+                                </tr>
                             </table>
                         </div>
                         <div class="col-md-6">
@@ -85,7 +110,7 @@
                                 <tr>
                                     <td><strong>Attendance Rate:</strong></td>
                                     <td>
-                                        <span class="badge {% if report.attendance_percentage >= 90 %}badge-success{% elif report.attendance_percentage >= 75 %}badge-warning{% else %}badge-danger{% endif %}">
+                                        <span class="badge {% if report.attendance_percentage >= 90 %}text-bg-success{% elif report.attendance_percentage >= 75 %}text-bg-warning{% else %}text-bg-danger{% endif %}">
                                             {{ report.attendance_percentage|floatformat:1 }}%
                                         </span>
                                     </td>
@@ -131,7 +156,7 @@
                                             <td class="text-center">{{ subject_score.final_exam_max_score }}</td>
                                             <td class="text-center">
                                                 {% if subject_score.final_exam_score > 0 %}
-                                                <span class="badge {% if subject_score.final_exam_percentage >= 90 %}badge-success{% elif subject_score.final_exam_percentage >= 80 %}badge-primary{% elif subject_score.final_exam_percentage >= 70 %}badge-info{% elif subject_score.final_exam_percentage >= 60 %}badge-warning{% else %}badge-danger{% endif %}">
+                                                <span class="badge {% if subject_score.final_exam_percentage >= 90 %}text-bg-success{% elif subject_score.final_exam_percentage >= 80 %}text-bg-primary{% elif subject_score.final_exam_percentage >= 70 %}text-bg-info{% elif subject_score.final_exam_percentage >= 60 %}text-bg-warning{% else %}text-bg-danger{% endif %}">
                                                     {{ subject_score.final_exam_percentage|floatformat:1 }}% / {{ subject_score.final_grade }}
                                                 </span>
                                                 {% else %}

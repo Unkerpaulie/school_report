@@ -32,7 +32,7 @@ urlpatterns = [
 
     # Report management
     path('reports/', views.report_list, name='report_list'),
+    path('reports/term/<int:term_id>/class/<int:class_id>/', views.term_class_report_list, name='term_class_report_list'),
     path('reports/<int:report_id>/', views.report_detail, name='report_detail'),
     path('reports/<int:report_id>/edit/', views.report_edit, name='report_edit'),
-    path('reports/generate/', views.generate_blank_reports, name='generate_blank_reports'),
 ]

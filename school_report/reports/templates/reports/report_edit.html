@@ -1,4 +1,4 @@
-{% extends 'core/base.html' %}
+{% extends 'layout/base.html' %}
 {% load static %}
 
 {% block title %}Edit Report - {{ report.student.get_full_name }} - {{ report.term }}{% endblock %}
@@ -14,6 +14,9 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                {% if current_enrollment %}
+                <li class="breadcrumb-item"><a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=report.term.id class_id=current_enrollment.standard.id %}">{{ current_enrollment.standard.get_name_display }} - {{ report.term }}</a></li>
+                {% endif %}
                 <li class="breadcrumb-item"><a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}">{{ report.student.get_full_name }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">Edit</li>
             </ol>
@@ -177,6 +180,12 @@
                                 <button type="submit" class="btn btn-primary ml-2">
                                     <i class="bi bi-check-lg"></i> Save Changes
                                 </button>
+                                {% if next_report %}
+                                <button type="submit" name="save_and_next" class="btn btn-success ml-2"
+                                        title="Save and edit {{ next_report.student.get_full_name }}'s report">
+                                    <i class="bi bi-check-lg"></i> Save and Next Report
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
                     </form>

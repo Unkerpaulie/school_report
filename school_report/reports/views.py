@@ -5,7 +5,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.utils import timezone
 from django.db import transaction
 from django.forms import modelformset_factory
-from academics.models import StandardSubject, StandardTeacher, SchoolStaff, SchoolYear
+from academics.models import StandardSubject, StandardTeacher, SchoolStaff, SchoolYear, Term, Enrollment
 from schools.models import Student, School, Standard
 from core.models import UserProfile
 from core.utils import get_current_year_and_term, get_teacher_class_from_session, get_current_teacher_assignment
@@ -1204,8 +1204,7 @@ def subject_delete(request, school_slug, subject_id):
 @login_required
 def report_list(request, school_slug):
     """
-    View to list term reports
-    Teachers see only their class reports, Principals/Admins see all reports
+    View to show available terms with reports (term selection page)
     """
     # Get the school
     school = get_object_or_404(School, slug=school_slug)
@@ -1217,80 +1216,161 @@ def report_list(request, school_slug):
 
     user_profile = request.user.profile
 
-    # Get current year and term
-    from core.utils import get_current_year_and_term
-    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
-
-    if not current_year:
-        messages.error(request, "No academic year set up for this school.")
-        return redirect('core:home')
-
-    # Get available terms for filtering
-    available_terms = current_year.terms.all().order_by('term_number')
-
-    # Get selected term from request (default to current term)
-    selected_term_id = request.GET.get('term')
-    if selected_term_id:
-        try:
-            selected_term = available_terms.get(id=selected_term_id)
-        except:
-            selected_term = current_term
-    else:
-        selected_term = current_term
-
-    # Filter reports based on user type
+    # Check permissions based on user type
     if user_profile.user_type == 'teacher':
-        # Teachers see only their class reports
+        # Teachers can only see reports for their assigned class
         class_id, class_name, year_id = get_teacher_class_from_session(request)
 
         if not class_id:
-            messages.warning(request, "You are not assigned to any class.")
+            messages.error(request, "You are not assigned to any class.")
             return redirect('core:home')
 
-        try:
-            from schools.models import Standard
-            teacher_standard = Standard.objects.get(id=class_id)
-        except Standard.DoesNotExist:
-            messages.error(request, "Invalid class assignment.")
-            return redirect('core:home')
+        # Get terms that have reports for students in teacher's class
+        from core.utils import get_current_student_enrollment
+        from schools.models import Standard
 
-        # Get reports for teacher's class only
-        reports = StudentTermReview.objects.filter(
-            term=selected_term,
-            student__standard_enrollments__standard=teacher_standard,
-            student__standard_enrollments__year=current_year
-        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject')
+        teacher_standard = get_object_or_404(Standard, id=class_id)
 
-        page_title = f"Term Reports - {teacher_standard.get_name_display()}"
+        # Get terms that have reports for this standard
+        available_terms = Term.objects.filter(
+            year__school=school,
+            student_reviews__student__standard_enrollments__standard=teacher_standard,
+            student_reviews__student__standard_enrollments__year__id=year_id
+        ).distinct().order_by('year__start_year', 'term_number')
 
     elif user_profile.user_type in ['principal', 'administration']:
-        # Principals and admins see all reports for the school
-        reports = StudentTermReview.objects.filter(
-            term=selected_term,
-            term__year__school=school
-        ).select_related('student', 'term').prefetch_related('subject_scores__standard_subject')
-
-        page_title = "All Term Reports"
-
+        # Principals and admins see all terms with reports
+        available_terms = Term.objects.filter(
+            year__school=school,
+            student_reviews__isnull=False
+        ).distinct().order_by('year__start_year', 'term_number')
     else:
         messages.error(request, "Access denied.")
         return redirect('core:home')
 
-    # Filter to only show students currently enrolled
-    from core.utils import get_current_student_enrollment
-    filtered_reports = []
-    for report in reports:
-        current_enrollment = get_current_student_enrollment(report.student, current_year)
-        if current_enrollment:
-            filtered_reports.append(report)
+    # Build data for table display
+    terms_with_data = []
+
+    if user_profile.user_type == 'teacher':
+        # For teachers: show only their class data
+        for term in available_terms:
+            # Count reports for teacher's class only
+            report_count = StudentTermReview.objects.filter(
+                term=term,
+                student__standard_enrollments__standard=teacher_standard,
+                student__standard_enrollments__year=term.year
+            ).count()
+
+            # Count total students in teacher's class for this term
+            student_count = Enrollment.objects.filter(
+                year=term.year,
+                standard=teacher_standard,
+                student__isnull=False
+            ).count()
+
+            if report_count > 0 or student_count > 0:  # Show terms with students even if no reports yet
+                terms_with_data.append({
+                    'term': term,
+                    'class_name': teacher_standard.get_name_display(),
+                    'class_id': teacher_standard.id,
+                    'student_count': student_count,
+                    'report_count': report_count,
+                    'has_reports': report_count > 0
+                })
+
+    else:
+        # For admins/principals: show all classes with reports
+        from schools.models import Standard
+
+        # Get all standards that have enrollments in terms with reports
+        standards_with_reports = Standard.objects.filter(
+            school=school,
+            student_enrollments__year__terms__student_reviews__isnull=False
+        ).distinct()
+
+        for term in available_terms:
+            for standard in standards_with_reports:
+                # Count reports for this standard and term
+                report_count = StudentTermReview.objects.filter(
+                    term=term,
+                    student__standard_enrollments__standard=standard,
+                    student__standard_enrollments__year=term.year
+                ).count()
+
+                # Count total students in this standard for this term
+                student_count = Enrollment.objects.filter(
+                    year=term.year,
+                    standard=standard,
+                    student__isnull=False
+                ).count()
+
+                if report_count > 0 or student_count > 0:  # Show classes with students even if no reports yet
+                    terms_with_data.append({
+                        'term': term,
+                        'class_name': standard.get_name_display(),
+                        'class_id': standard.id,
+                        'student_count': student_count,
+                        'report_count': report_count,
+                        'has_reports': report_count > 0
+                    })
 
     return render(request, 'reports/report_list.html', {
-        'reports': filtered_reports,
-        'selected_term': selected_term,
-        'available_terms': available_terms,
-        'current_year': current_year,
-        'page_title': page_title,
-        'user_type': user_profile.user_type,
+        'terms_with_data': terms_with_data,
+        'school': school,
+        'school_slug': school_slug,
+        'user_type': user_profile.user_type
+    })
+
+@login_required
+def term_class_report_list(request, school_slug, term_id, class_id):
+    """
+    View to list all reports for a specific term and class
+    """
+    # Get the school, term, and class
+    school = get_object_or_404(School, slug=school_slug)
+    term = get_object_or_404(Term, id=term_id, year__school=school)
+    from schools.models import Standard
+    standard = get_object_or_404(Standard, id=class_id, school=school)
+
+    # Check user permissions
+    if not hasattr(request.user, 'profile'):
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    user_profile = request.user.profile
+
+    # Base queryset
+    reports = StudentTermReview.objects.filter(term=term).select_related('student').order_by('student__last_name', 'student__first_name')
+
+    # Check permissions based on user type
+    if user_profile.user_type == 'teacher':
+        # Teachers can only see reports for their assigned class
+        teacher_class_id, _, _ = get_teacher_class_from_session(request)
+
+        if not teacher_class_id:
+            messages.error(request, "You are not assigned to any class.")
+            return redirect('core:home')
+
+        # Verify teacher is accessing their own class
+        if teacher_class_id != class_id:
+            messages.error(request, "You can only view reports for your assigned class.")
+            return redirect('core:home')
+
+    elif user_profile.user_type not in ['principal', 'administration']:
+        messages.error(request, "Access denied.")
+        return redirect('core:home')
+
+    # Filter reports to only students in the specified class for this term
+    reports = StudentTermReview.objects.filter(
+        term=term,
+        student__standard_enrollments__standard=standard,
+        student__standard_enrollments__year=term.year
+    ).select_related('student').order_by('student__last_name', 'student__first_name')
+
+    return render(request, 'reports/term_class_report_list.html', {
+        'reports': reports,
+        'term': term,
+        'standard': standard,
         'school': school,
         'school_slug': school_slug
     })
@@ -1342,11 +1422,46 @@ def report_detail(request, school_slug, report_id):
     # Get subject scores for this report
     subject_scores = report.subject_scores.all().select_related('standard_subject').order_by('standard_subject__subject_name')
 
+    # Get previous and next students for navigation
+    # Get the student's current enrollment to determine their class
+    from core.utils import get_current_student_enrollment
+    current_enrollment = get_current_student_enrollment(report.student, report.term.year)
+
+    if current_enrollment:
+        # Get all reports for the same term and class, ordered by student last name, first name
+        all_reports = StudentTermReview.objects.filter(
+            term=report.term,
+            student__standard_enrollments__standard=current_enrollment.standard,
+            student__standard_enrollments__year=report.term.year
+        ).select_related('student').order_by('student__last_name', 'student__first_name')
+    else:
+        # Fallback to just this report if enrollment not found
+        all_reports = [report]
+
+    # Find current report position and get previous/next
+    report_list = list(all_reports)
+    current_index = None
+    for i, r in enumerate(report_list):
+        if r.id == report.id:
+            current_index = i
+            break
+
+    previous_report = None
+    next_report = None
+    if current_index is not None:
+        if current_index > 0:
+            previous_report = report_list[current_index - 1]
+        if current_index < len(report_list) - 1:
+            next_report = report_list[current_index + 1]
+
     return render(request, 'reports/report_detail.html', {
         'report': report,
         'subject_scores': subject_scores,
+        'previous_report': previous_report,
+        'next_report': next_report,
         'school': school,
-        'school_slug': school_slug
+        'school_slug': school_slug,
+        'current_enrollment': current_enrollment
     })
 
 @login_required
@@ -1463,19 +1578,20 @@ def report_edit(request, school_slug, report_id):
         messages.error(request, "Report not found in this school.")
         return redirect('core:home')
 
+    # Get the student's current enrollment to determine their class
+    from core.utils import get_current_student_enrollment
+    current_enrollment = get_current_student_enrollment(report.student, report.term.year)
+
     # Check permissions based on user type
     if user_profile.user_type == 'teacher':
         # Teachers can only edit reports for their assigned class
-        class_id, class_name, year_id = get_teacher_class_from_session(request)
+        class_id, _, _ = get_teacher_class_from_session(request)
 
         if not class_id:
             messages.error(request, "You are not assigned to any class.")
             return redirect('core:home')
 
         # Check if this student is in teacher's class
-        from core.utils import get_current_student_enrollment
-        current_enrollment = get_current_student_enrollment(report.student, report.term.year)
-
         if not current_enrollment or current_enrollment.standard.id != class_id:
             messages.error(request, "You can only edit reports for students in your assigned class.")
             return redirect('reports:report_list', school_slug=school_slug)
@@ -1484,18 +1600,52 @@ def report_edit(request, school_slug, report_id):
         messages.error(request, "Access denied.")
         return redirect('core:home')
 
+    # Get next report for "Save and Next" functionality
+    # Get all reports for the same term, ordered by student last name, first name
+    all_reports = StudentTermReview.objects.filter(term=report.term).select_related('student').order_by('student__last_name', 'student__first_name')
+
+    # Filter based on user permissions
+    if user_profile.user_type == 'teacher':
+        # Filter to teacher's class only
+        from core.utils import get_current_student_enrollment
+        teacher_reports = []
+        for r in all_reports:
+            current_enrollment = get_current_student_enrollment(r.student, report.term.year)
+            if current_enrollment and current_enrollment.standard.id == class_id:
+                teacher_reports.append(r)
+        all_reports = teacher_reports
+
+    # Find current report position and get next
+    report_list = list(all_reports)
+    current_index = None
+    for i, r in enumerate(report_list):
+        if r.id == report.id:
+            current_index = i
+            break
+
+    next_report = None
+    if current_index is not None and current_index < len(report_list) - 1:
+        next_report = report_list[current_index + 1]
+
     if request.method == 'POST':
         form = StudentTermReviewForm(request.POST, instance=report)
         if form.is_valid():
             form.save()
             messages.success(request, f"Report for {report.student.get_full_name()} has been updated successfully.")
-            return redirect('reports:report_detail', school_slug=school_slug, report_id=report.id)
+
+            # Check if "Save and Next" was clicked
+            if 'save_and_next' in request.POST and next_report:
+                return redirect('reports:report_edit', school_slug=school_slug, report_id=next_report.id)
+            else:
+                return redirect('reports:report_detail', school_slug=school_slug, report_id=report.id)
     else:
         form = StudentTermReviewForm(instance=report)
 
     return render(request, 'reports/report_edit.html', {
         'form': form,
         'report': report,
+        'next_report': next_report,
         'school': school,
-        'school_slug': school_slug
+        'school_slug': school_slug,
+        'current_enrollment': current_enrollment
     })

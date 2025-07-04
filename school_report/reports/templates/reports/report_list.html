@@ -1,14 +1,14 @@
 {% extends 'layout/base.html' %}
 {% load static %}
 
-{% block title %}{{ page_title }} - {{ school.name }}{% endblock %}
+{% block title %}Reports - {{ school.name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <!-- Page Heading -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-file-earmark-text"></i> {{ page_title }}
+            <i class="bi bi-file-earmark-text"></i> Term Reports
         </h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
@@ -18,140 +18,115 @@
         </nav>
     </div>
 
-    <!-- Filter and Actions Row -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <!-- Term Filter -->
-            <div class="card shadow">
-                <div class="card-body">
-                    <form method="get" class="form-inline">
-                        <label for="term" class="mr-2"><strong>Filter by Term:</strong></label>
-                        <select name="term" id="term" class="form-control mr-2" onchange="this.form.submit()">
-                            {% for term in available_terms %}
-                            <option value="{{ term.id }}" {% if term.id == selected_term.id %}selected{% endif %}>
-                                {{ term }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </form>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <!-- Actions -->
-            <div class="card shadow">
-                <div class="card-body text-right">
-                    <a href="{% url 'reports:generate_blank_reports' school_slug=school_slug %}" class="btn btn-success">
-                        <i class="bi bi-plus-circle"></i> Generate Blank Reports
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Reports List -->
+    <!-- Terms with Reports -->
     <div class="row">
         <div class="col-12">
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="bi bi-list-ul"></i> {{ selected_term }} Reports
-                        {% if reports %}
-                        <span class="badge badge-primary ml-2">{{ reports|length }} report{{ reports|length|pluralize }}</span>
-                        {% endif %}
+                        <i class="bi bi-calendar3"></i> Available Terms
                     </h6>
                 </div>
                 <div class="card-body">
-                    {% if reports %}
-                    <div class="table-responsive">
-                        <table class="table table-bordered" id="reportsTable">
-                            <thead>
-                                <tr>
-                                    <th>Student Name</th>
-                                    {% if user_type != 'teacher' %}
-                                    <th>Class</th>
-                                    {% endif %}
-                                    <th>Attendance</th>
-                                    <th>Subjects</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for report in reports %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ report.student.get_full_name }}</strong>
-                                    </td>
-                                    {% if user_type != 'teacher' %}
-                                    <td>
-                                        {% with enrollment=report.student.standard_enrollments.last %}
-                                        {% if enrollment.standard %}
-                                        {{ enrollment.standard.get_name_display }}
-                                        {% else %}
-                                        <span class="text-muted">Not enrolled</span>
+                    {% if terms_with_data %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="reportsTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        {% if user_type != 'teacher' %}
+                                        <th>Class</th>
                                         {% endif %}
-                                        {% endwith %}
-                                    </td>
-                                    {% endif %}
-                                    <td>
-                                        <span class="badge {% if report.attendance_percentage >= 90 %}badge-success{% elif report.attendance_percentage >= 75 %}badge-warning{% else %}badge-danger{% endif %}">
-                                            {{ report.attendance_percentage|floatformat:1 }}%
-                                        </span>
-                                        <br><small class="text-muted">{{ report.days_present }}/{{ report.get_term_days }} days</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-info">{{ report.subject_scores.count }} subject{{ report.subject_scores.count|pluralize }}</span>
-                                    </td>
-                                    <td>
-                                        {% if report.subject_scores.count > 0 %}
-                                        <span class="badge badge-success">Complete</span>
-                                        {% else %}
-                                        <span class="badge badge-warning">Pending</span>
+                                        <th>Term</th>
+                                        <th>Students</th>
+                                        <th>Reports</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for data in terms_with_data %}
+                                    <tr>
+                                        {% if user_type != 'teacher' %}
+                                        <td>
+                                            <strong>{{ data.class_name }}</strong>
+                                        </td>
                                         {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group">
-                                            <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}" class="btn btn-sm btn-primary">
-                                                <i class="bi bi-eye"></i> View
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                        <td>
+                                            {{ data.term }}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {{ data.student_count }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if data.report_count > 0 %}
+                                                <span class="badge bg-success">
+                                                    {{ data.report_count }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    0
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if data.has_reports %}
+                                                <a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=data.term.id class_id=data.class_id %}"
+                                                   class="btn btn-primary btn-sm" title="View Reports">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">
+                                                    <i class="bi bi-clock"></i> No Reports
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-file-earmark-text text-muted" style="font-size: 3rem;"></i>
-                        <h4 class="text-muted mt-3">No Reports Found</h4>
-                        <p class="text-muted">No term reports have been generated for {{ selected_term }} yet.</p>
-                        <a href="{% url 'reports:generate_blank_reports' school_slug=school_slug %}" class="btn btn-success">
-                            <i class="bi bi-plus-circle"></i> Generate Blank Reports
-                        </a>
-                    </div>
+                        <div class="text-center py-5">
+                            <i class="bi bi-file-earmark-x fa-3x text-gray-300 mb-3"></i>
+                            <h5 class="text-gray-600">No Data Available</h5>
+                            <p class="text-gray-500">
+                                {% if user_type == 'teacher' %}
+                                    Data will appear when students are enrolled in your class and tests are created.
+                                {% else %}
+                                    Data will appear when students are enrolled and teachers create tests.
+                                {% endif %}
+                            </p>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize DataTable if reports exist
+$(document).ready(function() {
+    // Initialize DataTable if table exists
     if (document.getElementById('reportsTable')) {
         $('#reportsTable').DataTable({
-            "order": [[0, "asc"]],  // Sort by student name
+            {% if user_type == 'teacher' %}
+            "order": [[0, "asc"]],  // Sort by Term for teachers
+            {% else %}
+            "order": [[0, "asc"]],  // Sort by Class for admins/principals
+            {% endif %}
             "pageLength": 25,
             "responsive": true,
+            "columnDefs": [
+                { "orderable": false, "targets": -1 } // Disable sorting on Actions column
+            ],
             "language": {
-                "search": "Search reports:",
-                "lengthMenu": "Show _MENU_ reports per page",
-                "info": "Showing _START_ to _END_ of _TOTAL_ reports"
+                "search": "Search:",
+                "lengthMenu": "Show _MENU_ entries per page",
+                "info": "Showing _START_ to _END_ of _TOTAL_ entries"
             }
         });
     }

@@ -16,7 +16,7 @@ class SchoolYear(models.Model):
         ordering = ['-start_year']
 
     def __str__(self):
-        return f"{self.school.name} {self.start_year}-{self.start_year + 1}"
+        return f"{self.start_year}-{self.start_year + 1}"
 
 class Term(models.Model):
     """

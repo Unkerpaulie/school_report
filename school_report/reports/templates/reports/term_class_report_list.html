@@ -1,0 +1,118 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}{{ standard.get_name_display }} - {{ term }} Reports - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-file-earmark-text"></i> {{ standard.get_name_display }} - {{ term }} Reports
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ standard.get_name_display }} - {{ term }}</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Reports List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-people"></i> Student Reports - {{ standard.get_name_display }} - {{ term }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if reports %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Student Name</th>
+                                        <th>Attendance</th>
+                                        <th>Academic Performance</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for report in reports %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ report.student.get_full_name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if report.attendance_percentage >= 90 %}success{% elif report.attendance_percentage >= 80 %}warning{% else %}danger{% endif %}">
+                                                {{ report.attendance_percentage|floatformat:1 }}%
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">{{ report.days_present }}/{{ report.get_term_days }} days</small>
+                                        </td>
+                                        <td>
+                                            {% with subject_count=report.subjects_count overall_avg=report.overall_average_percentage %}
+                                            {% if subject_count > 0 %}
+                                                <span class="badge bg-{% if overall_avg >= 90 %}success{% elif overall_avg >= 80 %}primary{% elif overall_avg >= 70 %}info{% elif overall_avg >= 60 %}warning{% else %}danger{% endif %}">
+                                                    {{ overall_avg|floatformat:1 }}% ({{ report.overall_grade }})
+                                                </span>
+                                                <br>
+                                                <small class="text-muted">{{ subject_count }} Subject{{ subject_count|pluralize }}</small>
+                                            {% else %}
+                                                <span class="badge bg-secondary">No Scores</span>
+                                            {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}" 
+                                                   class="btn btn-primary btn-sm" title="View Report">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}" 
+                                                   class="btn btn-warning btn-sm" title="Edit Report">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-file-earmark-x fa-3x text-gray-300 mb-3"></i>
+                            <h5 class="text-gray-600">No Reports Found</h5>
+                            <p class="text-gray-500">No reports are available for {{ term }}.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        "order": [[0, "asc"]],  // Sort by student name
+        "pageLength": 25,
+        "responsive": true,
+        "columnDefs": [
+            { "orderable": false, "targets": -1 } // Disable sorting on Actions column
+        ],
+        "language": {
+            "search": "Search students:",
+            "lengthMenu": "Show _MENU_ students per page",
+            "info": "Showing _START_ to _END_ of _TOTAL_ students"
+        }
+    });
+});
+</script>
+{% endblock %}

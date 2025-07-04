@@ -365,6 +365,46 @@ class StudentTermReview(models.Model):
             return (self.days_present / term_days) * 100
         return 0
 
+    @property
+    def overall_average_percentage(self):
+        """
+        Calculate overall term average percentage across all subjects
+        This is the sum of all subject final exam scores divided by sum of all max scores
+        """
+        subject_scores = self.subject_scores.all()
+
+        if not subject_scores.exists():
+            return 0
+
+        total_score = sum(score.final_exam_score for score in subject_scores)
+        total_max_score = sum(score.final_exam_max_score for score in subject_scores)
+
+        if total_max_score > 0:
+            return (total_score / total_max_score) * 100
+        return 0
+
+    @property
+    def overall_grade(self):
+        """Calculate overall grade based on overall average percentage"""
+        percentage = self.overall_average_percentage
+        if percentage >= 90:
+            return 'A+'
+        elif percentage >= 80:
+            return 'A'
+        elif percentage >= 70:
+            return 'B'
+        elif percentage >= 60:
+            return 'C'
+        elif percentage >= 50:
+            return 'D'
+        else:
+            return 'F'
+
+    @property
+    def subjects_count(self):
+        """Return the count of subjects for this term review"""
+        return self.subject_scores.count()
+
     @classmethod
     def generate_blank_reports(cls, term, standard):
         """

@@ -66,12 +66,12 @@
                     <div class="col-5 font-weight-bold">Status:</div>
                     <div class="col-7">
                         {% if test.is_finalized %}
-                        <span class="badge badge-success">
+                        <span class="badge text-bg-success">
                             <i class="bi bi-check-circle"></i> Finalized
                         </span>
                         <br><small class="text-muted">{{ test.finalized_at|date:"d M Y H:i" }}</small>
                         {% else %}
-                        <span class="badge badge-warning">
+                        <span class="badge text-bg-warning">
                             <i class="bi bi-clock"></i> Draft
                         </span>
                         {% endif %}
