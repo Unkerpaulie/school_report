@@ -2,7 +2,9 @@
 {% load static %}
 
 {% block title %}Edit Report - {{ report.student.get_full_name }} - {{ report.term }}{% endblock %}
-
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/stars.css' %}">
+{% endblock extra_css %}
 {% block content %}
 <div class="container-fluid">
     <!-- Page Heading -->
@@ -99,29 +101,81 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="{{ form.attitude.id_for_label }}">{{ form.attitude.label }}</label>
-                                            {{ form.attitude }}
+                                            <div class="row">
+                                                <div class="col-6 align-middle">
+                                                    <label for="{{ form.attitude.id_for_label }}">{{ form.attitude.label }}</label>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="stars" style="--s:25px">
+                                                        <input type="radio" name="attitude" value="1" />
+                                                        <input type="radio" name="attitude" value="2" />
+                                                        <input type="radio" name="attitude" value="3" />
+                                                        <input type="radio" name="attitude" value="4" />
+                                                        <input type="radio" name="attitude" value="5" />
+                                                        <i></i>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {% if form.attitude.errors %}
                                             <div class="text-danger">{{ form.attitude.errors }}</div>
                                             {% endif %}
                                         </div>
                                         <div class="form-group">
-                                            <label for="{{ form.respect.id_for_label }}">{{ form.respect.label }}</label>
-                                            {{ form.respect }}
+                                            <div class="row">
+                                                <div class="col-6 align-middle">
+                                                    <label for="{{ form.respect.id_for_label }}">{{ form.respect.label }}</label>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="stars" style="--s:25px">
+                                                        <input type="radio" name="respect" value="1" />
+                                                        <input type="radio" name="respect" value="2" />
+                                                        <input type="radio" name="respect" value="3" />
+                                                        <input type="radio" name="respect" value="4" />
+                                                        <input type="radio" name="respect" value="5" />
+                                                        <i></i>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {% if form.respect.errors %}
                                             <div class="text-danger">{{ form.respect.errors }}</div>
                                             {% endif %}
                                         </div>
                                         <div class="form-group">
-                                            <label for="{{ form.class_participation.id_for_label }}">{{ form.class_participation.label }}</label>
-                                            {{ form.class_participation }}
+                                            <div class="row">
+                                                <div class="col-6 align-middle">
+                                                    <label for="{{ form.class_participation.id_for_label }}">{{ form.class_participation.label }}</label>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="stars" style="--s:25px">
+                                                        <input type="radio" name="class_participation" value="1" />
+                                                        <input type="radio" name="class_participation" value="2" />
+                                                        <input type="radio" name="class_participation" value="3" />
+                                                        <input type="radio" name="class_participation" value="4" />
+                                                        <input type="radio" name="class_participation" value="5" />
+                                                        <i></i>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {% if form.class_participation.errors %}
                                             <div class="text-danger">{{ form.class_participation.errors }}</div>
                                             {% endif %}
                                         </div>
                                         <div class="form-group">
-                                            <label for="{{ form.time_management.id_for_label }}">{{ form.time_management.label }}</label>
-                                            {{ form.time_management }}
+                                            <div class="row">
+                                                <div class="col-6 align-middle">
+                                                    <label for="{{ form.time_management.id_for_label }}">{{ form.time_management.label }}</label>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="stars" style="--s:25px">
+                                                        <input type="radio" name="time_management" value="1" />
+                                                        <input type="radio" name="time_management" value="2" />
+                                                        <input type="radio" name="time_management" value="3" />
+                                                        <input type="radio" name="time_management" value="4" />
+                                                        <input type="radio" name="time_management" value="5" />
+                                                        <i></i>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {% if form.time_management.errors %}
                                             <div class="text-danger">{{ form.time_management.errors }}</div>
                                             {% endif %}
@@ -129,22 +183,61 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="{{ form.assignment_completion.id_for_label }}">{{ form.assignment_completion.label }}</label>
-                                            {{ form.assignment_completion }}
+                                            <div class="row">
+                                                <div class="col-6 align-middle">
+                                                    <label for="{{ form.assignment_completion.id_for_label }}">{{ form.assignment_completion.label }}</label>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="stars" style="--s:25px">
+                                                        <input type="radio" name="assignment_completion" value="1" />
+                                                        <input type="radio" name="assignment_completion" value="2" />
+                                                        <input type="radio" name="assignment_completion" value="3" />
+                                                        <input type="radio" name="assignment_completion" value="4" />
+                                                        <input type="radio" name="assignment_completion" value="5" />
+                                                        <i></i>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {% if form.assignment_completion.errors %}
                                             <div class="text-danger">{{ form.assignment_completion.errors }}</div>
                                             {% endif %}
                                         </div>
                                         <div class="form-group">
-                                            <label for="{{ form.parental_support.id_for_label }}">{{ form.parental_support.label }}</label>
-                                            {{ form.parental_support }}
+                                            <div class="row">
+                                                <div class="col-6 align-middle">
+                                                    <label for="{{ form.parental_support.id_for_label }}">{{ form.parental_support.label }}</label>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="stars" style="--s:25px">
+                                                        <input type="radio" name="parental_support" value="1" />
+                                                        <input type="radio" name="parental_support" value="2" />
+                                                        <input type="radio" name="parental_support" value="3" />
+                                                        <input type="radio" name="parental_support" value="4" />
+                                                        <input type="radio" name="parental_support" value="5" />
+                                                        <i></i>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {% if form.parental_support.errors %}
                                             <div class="text-danger">{{ form.parental_support.errors }}</div>
                                             {% endif %}
                                         </div>
                                         <div class="form-group">
-                                            <label for="{{ form.attendance.id_for_label }}">Attendance Rating</label>
-                                            {{ form.attendance }}
+                                            <div class="row">
+                                                <div class="col-6 align-middle">
+                                                    <label for="{{ form.attendance.id_for_label }}">{{ form.attendance.label }}</label>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="stars" style="--s:25px">
+                                                        <input type="radio" name="attendance" value="1" />
+                                                        <input type="radio" name="attendance" value="2" />
+                                                        <input type="radio" name="attendance" value="3" />
+                                                        <input type="radio" name="attendance" value="4" />
+                                                        <input type="radio" name="attendance" value="5" />
+                                                        <i></i>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {% if form.attendance.errors %}
                                             <div class="text-danger">{{ form.attendance.errors }}</div>
                                             {% endif %}

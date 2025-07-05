@@ -19,7 +19,7 @@ link_to_standard.short_description = 'Standard'
 
 def link_to_teacher(obj):
     url = reverse('admin:core_userprofile_change', args=[obj.teacher_id])
-    return format_html('<a href="{}">{}</a>', url, obj.teacher.get_full_name())
+    return format_html('<a href="{}">{}</a>', url, obj.teacher)
 link_to_teacher.short_description = 'Teacher'
 
 
@@ -47,7 +47,7 @@ class SchoolYearAdmin(admin.ModelAdmin):
 
 @admin.register(Term)
 class TermAdmin(admin.ModelAdmin):
-    list_display = ('__str__', link_to_school_year, 'term_number', 'start_date', 'end_date', 'school_days', 'created_at', 'updated_at')
+    list_display = ('__str__', link_to_school_year, 'term_number', 'school', 'start_date', 'end_date', 'school_days', 'created_at', 'updated_at')
     list_filter = ('year', 'term_number', 'created_at')
     search_fields = ('year__start_year',)
     ordering = ('year', 'term_number')
@@ -56,9 +56,15 @@ class TermAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (None, {
-            'fields': ('year', 'term_number', 'start_date', 'end_date', 'school_days', 'created_at', 'updated_at')
+            'fields': ('year', 'term_number', 'school', 'start_date', 'end_date', 'school_days', 'created_at', 'updated_at')
         }),
     )
+
+    def school(self, obj):
+        return obj.year.school
+    
+    school.short_description = 'School'
+    school.admin_order_field = 'year__school'  # enables sorting by school
 
 
 @admin.register(StandardTeacher)

@@ -3,6 +3,27 @@
 
 {% block title %}Report Card - {{ report.student.get_full_name }} - {{ report.term }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/displaystars.css' %}">
+<style>
+@media print {
+    .btn, .breadcrumb, .card-header .btn {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-header {
+        background-color: #007bff !important;
+        -webkit-print-color-adjust: exact;
+    }
+}
+</style>
+
+{% endblock extra_css %}
 {% block content %}
 <div class="container-fluid">
     <!-- Page Heading -->
@@ -46,9 +67,10 @@
                                 Next <i class="bi bi-arrow-right"></i>
                             </a>
                             {% endif %}
-
+                            {% if user.is_teacher %}
                             <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}" class="btn btn-warning btn-sm mr-2">
                                 <i class="bi bi-pencil"></i> Edit Report
+                            {% endif %}
                             </a>
                             <button onclick="window.print()" class="btn btn-light btn-sm">
                                 <i class="bi bi-printer"></i> Print Report
@@ -186,19 +208,31 @@
                                     <table class="table table-borderless">
                                         <tr>
                                             <td><strong>Attitude:</strong></td>
-                                            <td>{{ report.get_attitude_display }}</td>
+                                            <td>
+                                                <div class="displaystars" style="--l:{{ report.attitude }};--s:20px;--n:5"></div>
+                                                {{ report.get_attitude_display }}
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Respect:</strong></td>
-                                            <td>{{ report.get_respect_display }}</td>
+                                            <td>
+                                                <div class="displaystars" style="--l:{{ report.respect }};--s:20px;--n:5"></div>
+                                                {{ report.get_respect_display }}
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Class Participation:</strong></td>
-                                            <td>{{ report.get_class_participation_display }}</td>
+                                            <td>
+                                                <div class="displaystars" style="--l:{{ report.class_participation }};--s:20px;--n:5"></div>
+                                                {{ report.get_class_participation_display }}
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Time Management:</strong></td>
-                                            <td>{{ report.get_time_management_display }}</td>
+                                            <td>
+                                                <div class="displaystars" style="--l:{{ report.time_management }};--s:20px;--n:5"></div>
+                                                {{ report.get_time_management_display }}
+                                            </td>
                                         </tr>
                                     </table>
                                 </div>
@@ -206,15 +240,24 @@
                                     <table class="table table-borderless">
                                         <tr>
                                             <td><strong>Assignment Completion:</strong></td>
-                                            <td>{{ report.get_assignment_completion_display }}</td>
+                                            <td>
+                                                <div class="displaystars" style="--l:{{ report.assignment_completion }};--s:20px;--n:5"></div>
+                                                {{ report.get_assignment_completion_display }}
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Parental Support:</strong></td>
-                                            <td>{{ report.get_parental_support_display }}</td>
+                                            <td>
+                                                <div class="displaystars" style="--l:{{ report.parental_support }};--s:20px;--n:5"></div>
+                                                {{ report.get_parental_support_display }}
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Attendance Rating:</strong></td>
-                                            <td>{{ report.get_attendance_display }}</td>
+                                            <td>
+                                                <div class="displaystars" style="--l:{{ report.attendance }};--s:20px;--n:5"></div>
+                                                {{ report.get_attendance_display }}
+                                            </td>
                                         </tr>
                                     </table>
                                 </div>
@@ -259,22 +302,3 @@
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<style>
-@media print {
-    .btn, .breadcrumb, .card-header .btn {
-        display: none !important;
-    }
-    
-    .card {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .card-header {
-        background-color: #007bff !important;
-        -webkit-print-color-adjust: exact;
-    }
-}
-</style>
-{% endblock %}
