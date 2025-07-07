@@ -272,3 +272,52 @@ class SchoolRedirectView(LoginRequiredMixin, RedirectView):
 
         # If user doesn't have a school, redirect to home
         return reverse('core:home')
+
+
+class SchoolUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating school information by principals and admin staff
+    """
+    model = School
+    template_name = 'core/school_update.html'
+    fields = ['name', 'address', 'contact_phone', 'contact_email', 'logo']
+    context_object_name = 'school'
+
+    def dispatch(self, request, *args, **kwargs):
+        # Get the school by slug
+        school_slug = kwargs.get('school_slug')
+        self.school = get_object_or_404(School, slug=school_slug)
+
+        # Check if user has access to this school and is principal or admin
+        user_profile = request.user.profile
+        if user_profile.user_type not in ['principal', 'administration']:
+            messages.warning(request, "Only principals and administration staff can update school information.")
+            return redirect('core:home')
+
+        # Check if user has access to this school via SchoolStaff
+        school_staff = SchoolStaff.objects.filter(
+            staff=user_profile,
+            school=self.school,
+            is_active=True
+        ).first()
+
+        if not school_staff:
+            messages.warning(request, "You do not have access to this school.")
+            return redirect('core:home')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        return self.school
+
+    def get_success_url(self):
+        return reverse_lazy('schools:dashboard', kwargs={'school_slug': self.school.slug})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school_slug'] = self.school.slug
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f"School information for '{self.school.name}' has been updated successfully!")
+        return super().form_valid(form)

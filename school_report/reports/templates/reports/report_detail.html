@@ -5,29 +5,12 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/displaystars.css' %}">
-<style>
-@media print {
-    .btn, .breadcrumb, .card-header .btn {
-        display: none !important;
-    }
-    
-    .card {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .card-header {
-        background-color: #007bff !important;
-        -webkit-print-color-adjust: exact;
-    }
-}
-</style>
-
+<link rel="stylesheet" href="{% static 'css/report_print.css' %}">
 {% endblock extra_css %}
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Heading -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <!-- Page Heading (Screen Only) -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4 d-print-none">
         <h1 class="h3 mb-0 text-gray-800">
             <i class="bi bi-file-earmark-text"></i> Report Card
         </h1>
@@ -43,16 +26,25 @@
         </nav>
     </div>
 
-    <!-- Report Card -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 bg-primary text-white">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h4 class="m-0 font-weight-bold">{{ school.name }}</h4>
-                            <p class="m-0">Term Report Card</p>
-                        </div>
+    <!-- Report Card Container -->
+    <div class="report-container">
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-primary text-white">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- School Header with Logo -->
+                                <div class="school-header">
+                                    {% if school.logo %}
+                                    <img src="{{ school.logo.url }}" alt="{{ school.name }} Logo" class="school-logo">
+                                    {% endif %}
+                                    <div class="school-info">
+                                        <h4 class="m-0 font-weight-bold">{{ school.name }}</h4>
+                                        <p class="m-0">Term Report Card</p>
+                                    </div>
+                                </div>
+                            </div>
                         <div class="col-md-4 text-right">
                             <!-- Student Navigation -->
                             {% if previous_report %}
@@ -79,6 +71,7 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <div class="report-content">
                     <!-- Student Information -->
                     <div class="row mb-4">
                         <div class="col-md-6">
@@ -147,7 +140,7 @@
                             <h5><strong>Academic Performance</strong></h5>
                             {% if subject_scores %}
                             <div class="table-responsive">
-                                <table class="table table-bordered">
+                                <table class="table table-bordered subjects-table">
                                     <thead class="thead-light">
                                         <tr>
                                             <th>Subject</th>
@@ -281,8 +274,31 @@
                         </div>
                     </div>
 
-                    <!-- Actions -->
-                    <div class="row">
+                    <!-- Signature Section (Print Only) -->
+                    <div class="signature-section d-none d-print-block">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="signature-line"></div>
+                                <small><strong>Class Teacher</strong></small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="signature-line"></div>
+                                <small><strong>Principal</strong></small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="signature-line"></div>
+                                <small><strong>Parent/Guardian</strong></small>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12 text-center">
+                                <small class="text-muted">Report Generated: {{ report.created_at|date:"F j, Y" }}</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions (Screen Only) -->
+                    <div class="row d-print-none">
                         <div class="col-12 text-center">
                             <a href="{% url 'reports:report_list' school_slug=school_slug %}" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left"></i> Back to Reports
@@ -295,10 +311,11 @@
                             </button>
                         </div>
                     </div>
+                    </div> <!-- End report-content -->
                 </div>
             </div>
         </div>
-    </div>
+    </div> <!-- End report-container -->
 </div>
 {% endblock %}
 

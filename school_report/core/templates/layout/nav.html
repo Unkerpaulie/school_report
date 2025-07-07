@@ -24,6 +24,9 @@
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                     {% if school %}
                     <li><a class="dropdown-item" href="{% url 'schools:profile' school_slug=school.slug %}"><i class="bi bi-person"></i> Profile</a></li>
+                    {% if user.profile.user_type == 'principal' or user.profile.user_type == 'administration' %}
+                    <li><a class="dropdown-item" href="{% url 'core:school_update' school_slug=school.slug %}"><i class="bi bi-building"></i> School Info</a></li>
+                    {% endif %}
                     {% endif %}
                     <li><a class="dropdown-item" href="{% url 'password_change' %}"><i class="bi bi-key"></i> Change Password</a></li>
                     <li><hr class="dropdown-divider"></li>

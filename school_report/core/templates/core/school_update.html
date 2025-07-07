@@ -1,0 +1,130 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Update School Information - School Report System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-building"></i> Update School Information
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'schools:dashboard' school_slug=school_slug %}">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">School Info</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-building"></i> School Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="id_name" class="form-label">School Name</label>
+                            <input type="text" name="name" id="id_name" class="form-control" 
+                                   value="{{ school.name }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="id_address" class="form-label">School Address</label>
+                            <textarea name="address" id="id_address" class="form-control" rows="3" required>{{ school.address }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_contact_phone" class="form-label">School Phone</label>
+                            <input type="text" name="contact_phone" id="id_contact_phone" class="form-control"
+                                   value="{{ school.contact_phone|default:'' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_contact_email" class="form-label">School Email</label>
+                            <input type="email" name="contact_email" id="id_contact_email" class="form-control"
+                                   value="{{ school.contact_email|default:'' }}">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="id_logo" class="form-label">School Logo</label>
+                            {% if school.logo %}
+                            <div class="mb-2">
+                                <img src="{{ school.logo.url }}" alt="Current Logo" class="img-thumbnail" style="max-height: 100px;">
+                                <p class="text-muted small mt-1">Current logo</p>
+                            </div>
+                            {% endif %}
+                            <input type="file" name="logo" id="id_logo" class="form-control">
+                            <div class="form-text">Optional. Upload a new school logo or monogram to replace the current one.</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Update School Information
+                        </button>
+                        <a href="{% url 'schools:dashboard' school_slug=school_slug %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- School Details Card -->
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="bi bi-info-circle"></i> School Details
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="font-weight-bold">School Slug</h6>
+                        <p class="text-muted">{{ school.slug }}</p>
+                        <small class="text-muted">This is used in URLs and cannot be changed.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="font-weight-bold">Created</h6>
+                        <p class="text-muted">{{ school.created_at|date:"F j, Y" }}</p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6 class="font-weight-bold">Principal</h6>
+                        <p class="text-muted">{{ school.principal_user.get_full_name|default:school.principal_user.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="font-weight-bold">Status</h6>
+                        <span class="badge bg-{% if school.is_active %}success{% else %}danger{% endif %}">
+                            {% if school.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}
