@@ -3,8 +3,7 @@
 /* Screen styles - normal display */
 @media screen {
     .report-container {
-        max-width: 8.5in;
-        margin: 0 auto;
+        /* No special styling needed for screen - will be handled by Bootstrap */
     }
 }
 
@@ -19,15 +18,33 @@
     }
     
     /* Hide screen-only elements */
-    .btn, 
-    .breadcrumb, 
+    .btn,
+    .breadcrumb,
     .card-header .btn,
     .no-print,
     nav,
     .navbar,
     .sidebar,
-    .d-print-none {
+    .d-print-none,
+    .card-footer {
         display: none !important;
+    }
+
+    /* Print only the report container */
+    body * {
+        visibility: hidden;
+    }
+
+    .report-container,
+    .report-container * {
+        visibility: visible;
+    }
+
+    .report-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
     }
     
     /* Container adjustments */
