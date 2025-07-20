@@ -1,7 +1,7 @@
 /* Report Card Print Styles */
 
 /* Screen styles - match print layout as closely as possible */
-@media screen {
+@media all {
     .report-container {
         max-width: 8.5in;
         margin: 0 auto;
@@ -126,7 +126,7 @@
 
     .report-container .card-header {
         background-color: #f8f9fa;
-        border-bottom: 2px solid #000;
+        border-bottom: 1px solid #333;
         padding: 10px 15px;
     }
 
@@ -137,7 +137,6 @@
     /* Signature section styling */
     .report-container .signature-section {
         margin-top: 15px;
-        border-top: 1px solid #000;
         padding-top: 10px;
     }
 
@@ -148,7 +147,7 @@
     }
 
     /* Fix signature columns to stay in same row for screen */
-    .report-container .signature-section .row .col-md-4 {
+    .report-container .signature-section .row .col-4 {
         float: left;
         width: 33.333%;
     }
@@ -162,7 +161,7 @@
 
     .report-container .remarks-text {
         min-height: 40px;
-        border: 1px solid #000;
+        border: 1px solid #333;
         padding: 5px;
         font-size: 10px;
     }
@@ -173,7 +172,7 @@
     /* Page setup for letter size (8.5" x 11") */
     @page {
         size: letter;
-        margin: 0.5in 0.75in;
+        margin: 0.25in 0.25in;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
@@ -199,16 +198,27 @@
     }
 
     .report-container {
-        position: absolute;
+        position: relative;
         left: 0;
         top: 0;
         width: 100%;
+        height: calc(11in - 0.5in); 
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        border: none;
     }
 
-    /* Minimal adjustments - preserve screen layout */
+    .signature-section {
+        position: absolute;
+        bottom: 0.25in; /* margin from bottom edge of the page */
+        transform: translateY(-0.5in); /* move up from the bottom margin */
+        width: 95%;
+    }
+    /* Minimal adjustments - preserve screen layout
     body {
         color: #000 !important;
-    }
+    } */
 
     /* Ensure colors print correctly */
     * {
@@ -216,19 +226,19 @@
         print-color-adjust: exact !important;
     }
 
-    /* Let Bootstrap columns work naturally */
+    /* Let Bootstrap columns work naturally
     .col-md-4,
     .col-md-6,
     .col-md-8 {
         float: left !important;
-    }
+    } */
 
-    /* Ensure page doesn't break inside important sections */
     .card,
     .signature-section,
     .subjects-table {
         page-break-inside: avoid;
     }
+    /* Ensure page doesn't break inside important sections */
 }
 
 /* Additional responsive adjustments */

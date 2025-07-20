@@ -5,7 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/displaystars.css' %}">
-<link rel="stylesheet" href="{% static 'css/report_print.css' %}">
+<link rel="stylesheet" href="{% static 'css/report_show.css' %}">
 {% endblock extra_css %}
 {% block content %}
 <div class="container-fluid">
@@ -68,7 +68,7 @@
                 <!-- Report Container (Print Area) -->
                 <div class="report-container">
                     <!-- School Header with Logo (Print Only) -->
-                    <div class="card-header py-3 bg-light" style="border-bottom: 2px solid #000;">
+                    <div class="card-header py-3 bg-light">
                         <div class="school-header">
                             {% if school.logo %}
                             <img src="{{ school.logo.url }}" alt="{{ school.name }} Logo" class="school-logo">
@@ -84,7 +84,7 @@
                         <div class="report-content">
                     <!-- Student Information -->
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-6">
                             <h5><strong>Student Information</strong></h5>
                             <table class="table table-borderless">
                                 <tr>
@@ -117,7 +117,7 @@
                                 </tr>
                             </table>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-6">
                             <h5><strong>Attendance Summary</strong></h5>
                             <table class="table table-borderless">
                                 <tr>
@@ -207,59 +207,52 @@
                         <div class="col-12">
                             <h5><strong>Behavioral Assessment</strong></h5>
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-6">
                                     <table class="table table-borderless">
                                         <tr>
                                             <td><strong>Attitude:</strong></td>
                                             <td>
                                                 <div class="displaystars" style="--l:{{ report.attitude }};--s:20px;--n:5"></div>
-                                                {{ report.get_attitude_display }}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Respect:</strong></td>
                                             <td>
                                                 <div class="displaystars" style="--l:{{ report.respect }};--s:20px;--n:5"></div>
-                                                {{ report.get_respect_display }}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Class Participation:</strong></td>
                                             <td>
                                                 <div class="displaystars" style="--l:{{ report.class_participation }};--s:20px;--n:5"></div>
-                                                {{ report.get_class_participation_display }}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Time Management:</strong></td>
                                             <td>
                                                 <div class="displaystars" style="--l:{{ report.time_management }};--s:20px;--n:5"></div>
-                                                {{ report.get_time_management_display }}
                                             </td>
                                         </tr>
                                     </table>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-6">
                                     <table class="table table-borderless">
                                         <tr>
                                             <td><strong>Assignment Completion:</strong></td>
                                             <td>
                                                 <div class="displaystars" style="--l:{{ report.assignment_completion }};--s:20px;--n:5"></div>
-                                                {{ report.get_assignment_completion_display }}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Parental Support:</strong></td>
                                             <td>
                                                 <div class="displaystars" style="--l:{{ report.parental_support }};--s:20px;--n:5"></div>
-                                                {{ report.get_parental_support_display }}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Attendance Rating:</strong></td>
                                             <td>
                                                 <div class="displaystars" style="--l:{{ report.attendance }};--s:20px;--n:5"></div>
-                                                {{ report.get_attendance_display }}
                                             </td>
                                         </tr>
                                     </table>
@@ -284,18 +277,18 @@
                         </div>
                     </div>
 
-                    <!-- Signature Section (Print Only) -->
-                    <div class="signature-section d-none d-print-block">
+                    <!-- Signature Section -->
+                    <div class="signature-section">
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-4">
                                 <div class="signature-line"></div>
                                 <small><strong>Class Teacher</strong></small>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-4">
                                 <div class="signature-line"></div>
                                 <small><strong>Principal</strong></small>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-4">
                                 <div class="signature-line"></div>
                                 <small><strong>Parent/Guardian</strong></small>
                             </div>
