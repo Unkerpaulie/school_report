@@ -198,9 +198,7 @@ def test_list(request, school_slug):
     # Get all tests created by this teacher
     tests = Test.objects.filter(created_by=teacher).order_by('-test_date')
 
-    # Get current academic year and term
-    current_year, current_term, is_on_vacation = get_current_year_and_term()
-
+    # Use the current_year we already got above (with school parameter)
     return render(request, 'reports/test_list.html', {
         'tests': tests,
         'school': school,

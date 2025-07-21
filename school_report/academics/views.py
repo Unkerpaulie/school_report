@@ -186,8 +186,8 @@ class YearListView(SchoolAdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Get the current year and term
-        current_year, current_term, is_on_vacation = get_current_year_and_term()
+        # Get the current year and term for this school
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
         context['current_year'] = current_year
 
         return context
@@ -337,12 +337,12 @@ def get_current_school_year_and_term(request):
             if 'is_on_vacation' in request.session:
                 del request.session['is_on_vacation']
 
-    # If not in session or session data is invalid, query the database
-    current_year, current_term, is_on_vacation = get_current_year_and_term()
+    # If not in session or session data is invalid, return None values
+    # This function should only be called when user has a school association
     return {
-        'current_year': current_year,
-        'current_term': current_term,
-        'is_on_vacation': is_on_vacation
+        'current_year': None,
+        'current_term': None,
+        'is_on_vacation': True
     }
     
     # Store in session for future requests

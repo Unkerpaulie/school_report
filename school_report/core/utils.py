@@ -6,28 +6,27 @@ def get_current_year_and_term(school=None):
     """
     Get the current academic year and term based on the current date.
 
-    The current year should NEVER be None. Logic:
-    - During terms: return current year and current term number
-    - During vacation (between terms): return current year and None for term
-    - After term 3 ends: automatically advance to next year (create if needed)
-    - If no years exist: create default year with terms
+    IMPORTANT: This function requires a valid school parameter to work properly.
+    If no school is provided, it will return (None, None, True) to indicate
+    that no academic year can be determined.
 
     Args:
-        school: School object to filter by (optional). If None, returns the first match across all schools.
+        school: School object to filter by (required for creating years)
 
     Returns:
         tuple: (current_year, current_term, is_on_vacation)
-            - current_year: SchoolYear object (never None)
-            - current_term: int (1, 2, or 3) or None (None during vacation)
-            - is_on_vacation: bool
+            - current_year: SchoolYear object or None if no school provided
+            - current_term: int (1, 2, or 3) or None (None during vacation or no school)
+            - is_on_vacation: bool (True if no school provided)
     """
+    # If no school is provided, we cannot determine or create academic years
+    if not school:
+        return None, None, True
+
     today = timezone.now().date()
 
     # Step 1: Check if we're currently in an active term
-    query = Q(start_date__lte=today, end_date__gte=today)
-    if school:
-        query &= Q(year__school=school)
-
+    query = Q(start_date__lte=today, end_date__gte=today, year__school=school)
     current_terms = Term.objects.filter(query).select_related('year')
 
     if current_terms.exists():
@@ -45,13 +44,14 @@ def get_current_year_and_term(school=None):
 def _determine_current_year(school, today):
     """
     Determine which academic year we should be in based on today's date.
-    This ensures current_year is never None.
+    Requires a valid school parameter.
     """
+    # School is required for creating/managing academic years
+    if not school:
+        return None
+
     # Get all school years for this school, ordered by start year
-    if school:
-        school_years = SchoolYear.objects.filter(school=school).order_by('start_year')
-    else:
-        school_years = SchoolYear.objects.all().order_by('start_year')
+    school_years = SchoolYear.objects.filter(school=school).order_by('start_year')
 
     if not school_years.exists():
         # No school years exist, create the first one
@@ -431,7 +431,7 @@ def setup_user_session(request, user):
                     request.session['teacher_class_id'] = teacher_assignment.standard.id
                     request.session['teacher_class_name'] = str(teacher_assignment.standard)
         else:
-            # School exists but no academic year set up
+            # School exists but no academic year set up yet
             request.session['current_year_id'] = None
             request.session['current_term'] = None
             request.session['is_on_vacation'] = None
