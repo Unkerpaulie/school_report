@@ -45,6 +45,16 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = True
 
+# Demo-specific: Allow serving JSON files from static/tmp directory
+# WARNING: This is for demo purposes only - contains user credentials!
+# In production, never serve sensitive data through static files
+WHITENOISE_MIMETYPES = {
+    '.json': 'application/json',
+}
+
+# Demo data access URL (for easy access to generated JSON files)
+DEMO_JSON_URL = '/static/tmp/'
+
 # Security settings for demo deployment
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
