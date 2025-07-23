@@ -9,5 +9,7 @@ environment = os.environ.get('DJANGO_ENVIRONMENT', 'development')
 
 if environment == 'production':
     from .production import *
+elif environment == 'demo':
+    from .demo import *
 else:
     from .development import *
