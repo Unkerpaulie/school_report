@@ -56,7 +56,7 @@ class TermAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (None, {
-            'fields': ('year', 'term_number', 'school', 'start_date', 'end_date', 'school_days', 'created_at', 'updated_at')
+            'fields': ('year', 'term_number', 'start_date', 'end_date', 'school_days', 'created_at', 'updated_at')
         }),
     )
 

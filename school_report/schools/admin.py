@@ -78,19 +78,19 @@ class StudentAdmin(admin.ModelAdmin):
 
 @admin.register(SchoolStaff)
 class SchoolStaffAdmin(admin.ModelAdmin):
-    list_display = ('staff', link_to_school, 'year', 'position', 'is_active', 'created_at', 'updated_at')
-    list_filter = ('school', 'year', 'is_active', 'staff__user_type', 'created_at')
+    list_display = ('staff', link_to_school, 'position', 'hire_date', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('school', 'is_active', 'staff__user_type', 'hire_date', 'created_at')
     search_fields = (
-        'staff__user__first_name', 'staff__user__last_name', 
+        'staff__user__first_name', 'staff__user__last_name',
         'position', 'school__name',
         'staff__user__username'
     )
     ordering = ('school', 'staff__user__last_name')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'created_at'
-    
+
     fieldsets = (
         (None, {
-            'fields': ('school', 'year', 'staff', 'position', 'is_active', 'created_at', 'updated_at')
+            'fields': ('school', 'staff', 'position', 'hire_date', 'transfer_notes', 'is_active', 'created_at', 'updated_at')
         }),
     )

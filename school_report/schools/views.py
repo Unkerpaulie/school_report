@@ -45,14 +45,10 @@ class StaffListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        # Get the current academic year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
-
-        # Current year is guaranteed to exist now
-        # Get all staff from this school via SchoolStaff
+        # Get all active staff from this school via SchoolStaff
+        # No longer tied to academic year - staff employment persists across years
         school_staff = SchoolStaff.objects.filter(
             school=self.school,
-            year=current_year,
             is_active=True
         ).select_related('staff__user')
 
@@ -62,16 +58,20 @@ class StaffListView(LoginRequiredMixin, ListView):
         # Get current teacher assignments for the current year using historical logic
         teacher_assignments = {}
 
+        # Get current academic year for teacher assignments
+        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+
         # Get all teachers in this school
         teacher_profiles = [staff.staff for staff in school_staff if staff.staff.user_type == 'teacher']
 
-        for teacher_profile in teacher_profiles:
-            current_assignment = get_current_teacher_assignment(teacher_profile, current_year)
-            if current_assignment:
-                teacher_assignments[teacher_profile.id] = {
-                    'standard': current_assignment.standard,
-                    'assignment_id': current_assignment.id
-                }
+        if current_year:  # Only get assignments if we have a current year
+            for teacher_profile in teacher_profiles:
+                current_assignment = get_current_teacher_assignment(teacher_profile, current_year)
+                if current_assignment:
+                    teacher_assignments[teacher_profile.id] = {
+                        'standard': current_assignment.standard,
+                        'assignment_id': current_assignment.id
+                    }
 
         # Process each staff member
         for staff_member in school_staff:
@@ -204,15 +204,9 @@ class TeacherCreateView(LoginRequiredMixin, FormView):
             messages.error(self.request, f"Error updating profile: {e}")
             return self.form_invalid(form)
 
-        # Get current school year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
-
-        # Current year is guaranteed to exist now (auto-created if needed)
-
         try:
-            # Create SchoolStaff entry for the teacher
+            # Create SchoolStaff entry for the teacher (no longer tied to academic year)
             school_staff = SchoolStaff.objects.create(
-                year=current_year,
                 school=self.school,
                 staff=profile,
                 position=form.cleaned_data.get('position', 'Teacher'),
@@ -1430,15 +1424,9 @@ class AdminStaffCreateView(LoginRequiredMixin, FormView):
             messages.error(self.request, f"Error updating profile: {e}")
             return self.form_invalid(form)
 
-        # Get current school year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
-
-        # Current year is guaranteed to exist now (auto-created if needed)
-
         try:
-            # Create SchoolStaff entry for the admin
+            # Create SchoolStaff entry for the admin (no longer tied to academic year)
             school_staff = SchoolStaff.objects.create(
-                year=current_year,
                 school=self.school,
                 staff=profile,
                 position=form.cleaned_data.get('position', 'Administration'),

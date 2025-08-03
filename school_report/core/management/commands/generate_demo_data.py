@@ -246,9 +246,8 @@ class Command(BaseCommand):
                 current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
                 self.stdout.write(f'📅 School year: {current_year} (Term: {current_term}, Vacation: {is_on_vacation})')
 
-                # 4. Create SchoolStaff entry for Principal
+                # 4. Create SchoolStaff entry for Principal (no longer tied to academic year)
                 SchoolStaff.objects.create(
-                    year=current_year,
                     school=school,
                     staff=principal_user.profile,
                     position='Principal',
@@ -297,9 +296,8 @@ class Command(BaseCommand):
                         title=title
                     )
 
-                    # Create SchoolStaff entry
+                    # Create SchoolStaff entry (no longer tied to academic year)
                     SchoolStaff.objects.create(
-                        year=current_year,
                         school=school,
                         staff=teacher_user.profile,
                         position='Teacher',

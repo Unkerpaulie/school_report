@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import User
-from datetime import datetime
 
 class UserProfile(models.Model):
     """
@@ -88,24 +87,16 @@ class UserProfile(models.Model):
 
         # For teachers and administration, get from SchoolStaff
         try:
-            from academics.models import SchoolYear
-            from schools.models import SchoolStaff
+            from academics.models import SchoolStaff
 
-            # Get current school year
-            current_year = SchoolYear.objects.filter(
-                start_year__lte=datetime.now().year
-            ).order_by('-start_year').first()
+            # Get active school assignment for this user (no longer tied to academic year)
+            school_assignment = SchoolStaff.objects.filter(
+                staff=self,
+                is_active=True
+            ).first()
 
-            if current_year:
-                # Get active school assignment for this user in the current year
-                school_assignment = SchoolStaff.objects.filter(
-                    staff=self,
-                    year=current_year,
-                    is_active=True
-                ).first()
-
-                if school_assignment:
-                    return school_assignment.school
+            if school_assignment:
+                return school_assignment.school
         except:
             pass
 

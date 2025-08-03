@@ -120,25 +120,27 @@ class StandardSubject(models.Model):
 
 class SchoolStaff(models.Model):
     """
-    Represents the assignment of a staff member to a school for a specific academic year
-    Similar to the Enrollment model for students
+    Represents the employment relationship between a staff member and a school.
+    This is persistent across academic years - staff don't need to be "reassigned"
+    to the school each year, only teachers get reassigned to different classes.
     """
-    year = models.ForeignKey('academics.SchoolYear', on_delete=models.CASCADE, related_name='school_staff')
-    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='staff_assignments')
-    staff = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='school_assignments')
+    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='staff_members')
+    staff = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='school_employment')
     position = models.CharField(max_length=100, blank=True, null=True,
-                               help_text="Position or role in the school")
-    transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about staff transfers")
-    is_active = models.BooleanField(default=True)
+                               help_text="Position or role in the school (e.g., Principal, Vice Principal, Secretary)")
+    hire_date = models.DateField(null=True, blank=True, help_text="Date when staff member was hired")
+    transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about staff transfers or role changes")
+    is_active = models.BooleanField(default=True, help_text="False if staff member has left the school")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['year', 'school', 'staff']
-        ordering = ['-year__start_year', 'staff__user__last_name', 'staff__user__first_name']
-        verbose_name = 'School Staff'
-        verbose_name_plural = 'School Staff'
+        unique_together = ['school', 'staff']  # One employment record per staff per school
+        ordering = ['staff__user__last_name', 'staff__user__first_name']
+        verbose_name = 'School Staff Member'
+        verbose_name_plural = 'School Staff Members'
 
     def __str__(self):
-        return f"{self.year} - {self.school} - {self.staff.get_full_name()}"
+        position_str = f" ({self.position})" if self.position else ""
+        return f"{self.staff.get_full_name()}{position_str} - {self.school.name}"
 

@@ -128,13 +128,8 @@ class SchoolRegistrationView(LoginRequiredMixin, CreateView):
 
         school.save()
 
-        # Create a SchoolStaff entry for the principal
-        # Get the current school year (will auto-create if needed)
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
-
-        # Create SchoolStaff entry for the principal
+        # Create a SchoolStaff entry for the principal (no longer tied to academic year)
         SchoolStaff.objects.create(
-            year=current_year,
             school=school,
             staff=self.request.user.profile,
             position='Principal',

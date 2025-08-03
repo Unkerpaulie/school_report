@@ -42,14 +42,12 @@ class SchoolDashboardView(LoginRequiredMixin, TemplateView):
         # Count teachers and admin staff through SchoolStaff
         teacher_count = SchoolStaff.objects.filter(
             school=self.school,
-            year=current_year,
             staff__user_type='teacher',
             is_active=True
         ).count()
 
         admin_staff_count = SchoolStaff.objects.filter(
             school=self.school,
-            year=current_year,
             staff__user_type__in=['principal', 'administration'],
             is_active=True
         ).count()
