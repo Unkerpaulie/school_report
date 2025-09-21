@@ -42,7 +42,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% with enrolled_students=standard.student_enrollments.all %}
+                                    {% with enrolled_students=standard.student_assignments.all %}
                                         {{ enrolled_students|length }}
                                     {% endwith %}
                                 </td>

@@ -237,17 +237,17 @@ def get_current_standard_teacher(standard, school_year):
 
 def get_current_student_enrollment(student, school_year):
     """
-    Get the current (latest) enrollment for a student in a given year.
-    Returns Enrollment object or None.
+    Get the current (latest) class assignment for a student in a given year.
+    Returns StandardEnrollment object or None.
     """
-    from academics.models import Enrollment
+    from academics.models import StandardEnrollment
 
-    latest_enrollment = Enrollment.objects.filter(
+    latest_enrollment = StandardEnrollment.objects.filter(
         student=student,
         year=school_year
     ).order_by('-created_at').first()
 
-    # Return enrollment only if it has a standard (not unenrolled)
+    # Return enrollment only if it has a standard (not unassigned)
     if latest_enrollment and latest_enrollment.standard:
         return latest_enrollment
     return None
@@ -288,15 +288,70 @@ def unassign_teacher(teacher, standard, school_year):
 
 def unenroll_student(student, school_year):
     """
-    Unenroll a student by creating a new record with null standard.
+    Unassign a student from their class by creating a new record with null standard.
     """
-    from academics.models import Enrollment
+    from academics.models import StandardEnrollment
 
-    Enrollment.objects.create(
+    StandardEnrollment.objects.create(
         student=student,
         year=school_year,
-        standard=None  # Null = unenrolled
+        standard=None  # Null = unassigned
     )
+
+
+def get_student_school_enrollment(student, school):
+    """
+    Get the school enrollment record for a student at a specific school.
+    Returns SchoolEnrollment object or None.
+    """
+    from academics.models import SchoolEnrollment
+
+    return SchoolEnrollment.objects.filter(
+        student=student,
+        school=school,
+        is_active=True
+    ).first()
+
+
+def enroll_student_in_school(student, school, enrollment_date=None):
+    """
+    Enroll a student in a school (create SchoolEnrollment record).
+    This is separate from class assignment.
+    """
+    from academics.models import SchoolEnrollment
+    from django.utils import timezone
+
+    if not enrollment_date:
+        enrollment_date = timezone.now().date()
+
+    school_enrollment, created = SchoolEnrollment.objects.get_or_create(
+        student=student,
+        school=school,
+        defaults={
+            'enrollment_date': enrollment_date,
+            'is_active': True
+        }
+    )
+
+    return school_enrollment, created
+
+
+def graduate_student(student, school, graduation_date=None):
+    """
+    Mark a student as graduated from a school.
+    """
+    from django.utils import timezone
+
+    if not graduation_date:
+        graduation_date = timezone.now().date()
+
+    school_enrollment = get_student_school_enrollment(student, school)
+    if school_enrollment:
+        school_enrollment.is_active = False
+        school_enrollment.graduation_date = graduation_date
+        school_enrollment.save()
+        return True
+    return False
 
 
 def user_has_school_access(user, school):

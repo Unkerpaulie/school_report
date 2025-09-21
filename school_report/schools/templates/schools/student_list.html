@@ -64,7 +64,7 @@
                                     {% if student.standard_enrollments.last.standard %}
                                         {{ student.standard_enrollments.last.standard.get_name_display }}
                                     {% else %}
-                                        <span class="text-muted">Not enrolled</span>
+                                        <span class="text-muted">Not assigned</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ student.date_of_birth|date:"Y, M d"|default:"-" }}</td>

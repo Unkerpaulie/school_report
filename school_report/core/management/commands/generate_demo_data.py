@@ -9,7 +9,7 @@ from django.db import transaction
 
 from core.models import UserProfile
 from schools.models import School, Standard, Student
-from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher, Enrollment, StandardSubject
+from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher, SchoolEnrollment, StandardEnrollment, StandardSubject
 from core.utils import get_current_year_and_term
 
 class Command(BaseCommand):
@@ -137,8 +137,18 @@ class Command(BaseCommand):
                 parent_name=f"{self.fake.first_name()} {last_name}" if random.random() < 0.8 else f"{self.fake.first_name()} {self.fake.last_name()}"
             )
 
-            # Enroll student in the standard using new historical system
-            Enrollment.objects.create(
+            # First, enroll student in the school (persistent relationship)
+            # Get the first term's start date or use a default date
+            enrollment_date = current_year.terms.first().start_date if current_year.terms.exists() else date(current_year.start_year, 9, 1)
+            SchoolEnrollment.objects.create(
+                school=school,
+                student=student,
+                enrollment_date=enrollment_date,
+                is_active=True
+            )
+
+            # Then, assign student to the class for this year
+            StandardEnrollment.objects.create(
                 year=current_year,
                 standard=standard,
                 student=student

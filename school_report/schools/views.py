@@ -11,10 +11,12 @@ from django.core.validators import FileExtensionValidator
 from core.models import UserProfile
 from core.utils import get_current_year_and_term, unassign_teacher, get_current_teacher_assignment, unenroll_student, get_current_student_enrollment
 from core.mixins import SchoolAccessRequiredMixin
-from academics.models import SchoolYear, Term, StandardTeacher, Enrollment, SchoolStaff
+from academics.models import SchoolYear, Term, StandardTeacher, SchoolEnrollment, StandardEnrollment, SchoolStaff
+# Backward compatibility alias
+Enrollment = StandardEnrollment
 from .models import School, Standard, Student
 import csv
-from datetime import datetime
+from datetime import datetime, date
 
 
 class StaffListView(LoginRequiredMixin, ListView):
@@ -254,11 +256,11 @@ class StudentListView(LoginRequiredMixin, ListView):
         # Current year is guaranteed to exist now
         # For principals and administration, show all students currently enrolled in this school
         if self.request.user.profile.user_type in ['principal', 'administration']:
-            # Get all students who have current enrollments (non-null standard) in this school
+            # Get all students who have current class assignments (non-null standard) in this school
             students = Student.objects.filter(
                 standard_enrollments__year=current_year,
                 standard_enrollments__standard__school=self.school,
-                standard_enrollments__standard__isnull=False  # Only current enrollments
+                standard_enrollments__standard__isnull=False  # Only current assignments
             ).distinct()
 
             # Filter to only students with current (latest) enrollment
@@ -276,7 +278,7 @@ class StudentListView(LoginRequiredMixin, ListView):
             teacher_assignment = get_current_teacher_assignment(user_profile, current_year)
 
             if teacher_assignment:
-                # Get students currently enrolled in teacher's assigned class
+                # Get students currently assigned to teacher's class
                 students = Student.objects.filter(
                     standard_enrollments__year=current_year,
                     standard_enrollments__standard=teacher_assignment.standard,
@@ -780,14 +782,24 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
             standard = form.cleaned_data['standard']
             academic_year = form.cleaned_data['academic_year']
 
-            # Create enrollment
-            enrollment = Enrollment.objects.create(
+            # First, enroll student in the school (persistent relationship)
+            # Get the first term's start date or use a default date
+            enrollment_date = academic_year.terms.first().start_date if academic_year.terms.exists() else date(academic_year.start_year, 9, 1)
+            school_enrollment, created = SchoolEnrollment.objects.get_or_create(
+                school=self.school,
+                student=student,
+                defaults={
+                    'enrollment_date': enrollment_date,
+                    'is_active': True
+                }
+            )
+
+            # Then, assign student to the class for this year
+            class_assignment = StandardEnrollment.objects.create(
                 year=academic_year,
                 standard=standard,
                 student=student
             )
-
-
 
             messages.success(self.request, f"Student {student} has been added and enrolled in {standard.get_name_display()} for the {academic_year} academic year.")
         else:
@@ -1002,14 +1014,26 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
                 unenroll_student(self.student, academic_year)
                 messages.info(self.request, f"Student {self.student} has been unenrolled from {current_enrollment.standard.get_name_display()}.")
 
-        # Create the new enrollment (even if it's the same class, for history)
-        enrollment = Enrollment.objects.create(
+        # Ensure student is enrolled in the school first
+        # Get the first term's start date or use a default date
+        enrollment_date = academic_year.terms.first().start_date if academic_year.terms.exists() else date(academic_year.start_year, 9, 1)
+        school_enrollment, created = SchoolEnrollment.objects.get_or_create(
+            school=self.school,
+            student=self.student,
+            defaults={
+                'enrollment_date': enrollment_date,
+                'is_active': True
+            }
+        )
+
+        # Create the new class assignment (even if it's the same class, for history)
+        class_assignment = StandardEnrollment.objects.create(
             year=academic_year,
             student=self.student,
             standard=new_standard
         )
 
-        messages.success(self.request, f"Student {self.student} has been enrolled in {enrollment.standard.get_name_display()} for the {academic_year} academic year.")
+        messages.success(self.request, f"Student {self.student} has been enrolled in {new_standard.get_name_display()} for the {academic_year} academic year.")
         return redirect(self.get_success_url())
 
 
@@ -1156,8 +1180,15 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                 ).first()
 
                 if existing_student:
-                    # Check if the student is already enrolled in this school for this academic year
-                    existing_enrollment = Enrollment.objects.filter(
+                    # Check if the student is already registered in this school
+                    school_registration = SchoolEnrollment.objects.filter(
+                        student=existing_student,
+                        school=self.school,
+                        is_active=True
+                    ).exists()
+
+                    # Check if the student is already assigned to a class in this school for this academic year
+                    existing_class_assignment = StandardEnrollment.objects.filter(
                         student=existing_student,
                         year=academic_year,
                         standard__school=self.school
@@ -1169,9 +1200,9 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                         'data': row,
                         'existing_student_id': existing_student.id,
                         'existing_student_name': f"{existing_student.first_name} {existing_student.last_name}",
-                        'already_enrolled': existing_enrollment,
-                        'same_school': existing_student.standard_enrollments.filter(year=academic_year, standard__school=self.school).exists(),
-                        'school_name': existing_student.standard_enrollments.filter(year=academic_year).first().standard.school.name if existing_student.standard_enrollments.filter(year=academic_year).exists() else 'Unknown'
+                        'already_enrolled': existing_class_assignment,
+                        'same_school': school_registration,
+                        'school_name': existing_student.school_registrations.filter(is_active=True).first().school.name if existing_student.school_registrations.filter(is_active=True).exists() else 'Unknown'
                     })
                     continue  # Skip to the next row
 
@@ -1187,8 +1218,20 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                         is_active=True
                     )
 
-                    # Enroll the student in the selected class for the selected academic year
-                    Enrollment.objects.create(
+                    # First, enroll student in the school (persistent relationship)
+                    # Get the first term's start date or use a default date
+                    enrollment_date = academic_year.terms.first().start_date if academic_year.terms.exists() else date(academic_year.start_year, 9, 1)
+                    SchoolEnrollment.objects.get_or_create(
+                        school=self.school,
+                        student=student,
+                        defaults={
+                            'enrollment_date': enrollment_date,
+                            'is_active': True
+                        }
+                    )
+
+                    # Then, assign student to the class for this year
+                    StandardEnrollment.objects.create(
                         year=academic_year,
                         standard=standard,
                         student=student

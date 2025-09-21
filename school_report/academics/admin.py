@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import SchoolYear, Term, StandardTeacher, Enrollment, StandardSubject
+from .models import SchoolYear, Term, StandardTeacher, SchoolEnrollment, StandardEnrollment, StandardSubject
 
 
 def link_to_school_year(obj):
@@ -83,15 +83,31 @@ class StandardTeacherAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(Enrollment)
-class EnrollmentAdmin(admin.ModelAdmin):
+@admin.register(SchoolEnrollment)
+class SchoolEnrollmentAdmin(admin.ModelAdmin):
+    list_display = ('student', 'school', 'enrollment_date', 'graduation_date', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('school', 'is_active', 'enrollment_date', 'graduation_date', 'created_at')
+    search_fields = ('student__first_name', 'student__last_name', 'school__name')
+    ordering = ('school', 'student__last_name', 'student__first_name')
+    readonly_fields = ('created_at', 'updated_at')
+    date_hierarchy = 'created_at'
+
+    fieldsets = (
+        (None, {
+            'fields': ('school', 'student', 'enrollment_date', 'graduation_date', 'transfer_notes', 'is_active', 'created_at', 'updated_at')
+        }),
+    )
+
+
+@admin.register(StandardEnrollment)
+class StandardEnrollmentAdmin(admin.ModelAdmin):
     list_display = ('year', link_to_standard, link_to_student, 'created_at', 'updated_at')
     list_filter = ('year', 'standard__school', 'created_at')
     search_fields = ('student__first_name', 'student__last_name', 'standard__name')
     ordering = ('year', 'standard__name')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'created_at'
-    
+
     fieldsets = (
         (None, {
             'fields': ('year', 'standard', 'student', 'created_at', 'updated_at')

@@ -5,7 +5,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.utils import timezone
 from django.db import transaction
 from django.forms import modelformset_factory
-from academics.models import StandardSubject, StandardTeacher, SchoolStaff, SchoolYear, Term, Enrollment
+from academics.models import StandardSubject, StandardTeacher, SchoolStaff, SchoolYear, Term, StandardEnrollment
 from schools.models import Student, School, Standard
 from core.models import UserProfile
 from core.utils import get_current_year_and_term, get_teacher_class_from_session, get_current_teacher_assignment
@@ -322,11 +322,11 @@ def test_detail(request, school_slug, test_id):
     # Get students currently enrolled in the test's standard for the test's year
     from core.utils import get_current_student_enrollment
 
-    # Get all students who have enrollments for this standard and year
-    from academics.models import Enrollment
+    # Get all students who have class assignments for this standard and year
+    from academics.models import StandardEnrollment
     enrolled_student_ids = []
 
-    # Get all students who have enrollment records for this standard and year
+    # Get all students who have class assignment records for this standard and year
     potential_students = Student.objects.filter(
         standard_enrollments__standard=test.standard,
         standard_enrollments__year=test.term.year
@@ -711,7 +711,7 @@ def test_scores_bulk(request, school_slug, test_id):
     # Get all students currently enrolled in this standard for the test's year
     from core.utils import get_current_student_enrollment
 
-    # Get all students who have enrollment records for this standard and year
+    # Get all students who have class assignment records for this standard and year
     potential_students = Student.objects.filter(
         standard_enrollments__standard=test.standard,
         standard_enrollments__year=test.term.year
@@ -1296,7 +1296,7 @@ def report_list(request, school_slug):
                 ).count()
 
                 # Count total students in this standard for this term
-                student_count = Enrollment.objects.filter(
+                student_count = StandardEnrollment.objects.filter(
                     year=term.year,
                     standard=standard,
                     student__isnull=False

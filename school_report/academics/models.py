@@ -74,29 +74,61 @@ class StandardTeacher(models.Model):
         else:
             return f"{self.year} - Invalid Assignment Record"
 
-class Enrollment(models.Model):
+class SchoolEnrollment(models.Model):
     """
-    Represents student enrollment history for a specific academic year.
-    Latest record with non-null standard = current enrollment.
-    Latest record with null standard = unenrolled.
+    Represents the registration relationship between a student and a school.
+    This is persistent across academic years - students don't need to be "re-enrolled"
+    in the school each year, only reassigned to different classes.
     """
-    year = models.ForeignKey(SchoolYear, on_delete=models.CASCADE, related_name='enrollments')
-    standard = models.ForeignKey('schools.Standard', on_delete=models.CASCADE,
-                               related_name='student_enrollments',
-                               null=True, blank=True)  # Null = unenrolled
-    student = models.ForeignKey('schools.Student', on_delete=models.CASCADE, related_name='standard_enrollments')
+    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='enrolled_students')
+    student = models.ForeignKey('schools.Student', on_delete=models.CASCADE, related_name='school_registrations')
+    enrollment_date = models.DateField(null=True, blank=True, help_text="Date when student was enrolled in the school")
+    graduation_date = models.DateField(null=True, blank=True, help_text="Date when student graduated or left")
+    transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about student transfers or status changes")
+    is_active = models.BooleanField(default=True, help_text="False if student has graduated or left the school")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # Remove unique constraint to allow enrollment history
+        unique_together = ['school', 'student']  # One registration record per student per school
+        ordering = ['student__last_name', 'student__first_name']
+        verbose_name = 'School Enrollment'
+        verbose_name_plural = 'School Enrollments'
+
+    def __str__(self):
+        status_str = " (Graduated)" if not self.is_active else ""
+        return f"{self.student} - {self.school.name}{status_str}"
+
+
+class StandardEnrollment(models.Model):
+    """
+    Represents student class assignment history for a specific academic year.
+    Latest record with non-null standard = current class assignment.
+    Latest record with null standard = unassigned (between classes).
+    """
+    year = models.ForeignKey(SchoolYear, on_delete=models.CASCADE, related_name='year_standard_enrollments')
+    standard = models.ForeignKey('schools.Standard', on_delete=models.CASCADE,
+                               related_name='student_assignments',
+                               null=True, blank=True)  # Null = unassigned
+    student = models.ForeignKey('schools.Student', on_delete=models.CASCADE, related_name='standard_enrollments') # renamed from class_assignments
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # Remove unique constraint to allow assignment history
         ordering = ['-created_at']  # Latest first
+        verbose_name = 'Standard Enrollment'
+        verbose_name_plural = 'Standard Enrollments'
 
     def __str__(self):
         if self.standard:
             return f"{self.year} - {self.standard} - {self.student}"
         else:
-            return f"{self.year} - Unenrolled - {self.student}"
+            return f"{self.year} - Unassigned - {self.student}"
+
+
+# Keep the old Enrollment model name as an alias for backward compatibility
+# Enrollment = StandardEnrollment
 
 class StandardSubject(models.Model):
     """

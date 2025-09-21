@@ -81,7 +81,7 @@ class Test(models.Model):
             year=self.term.year
         )
 
-        # Get all currently enrolled students for this standard and year
+        # Get all currently assigned students for this standard and year
         potential_students = Student.objects.filter(
             standard_enrollments__standard=self.standard,
             standard_enrollments__year=self.term.year
@@ -413,7 +413,7 @@ class StudentTermReview(models.Model):
         from core.utils import get_current_student_enrollment
         from academics.models import StandardSubject
 
-        # Get all students enrolled in this standard for the term's year
+        # Get all students assigned to this standard for the term's year
         potential_students = Student.objects.filter(
             standard_enrollments__standard=standard,
             standard_enrollments__year=term.year
