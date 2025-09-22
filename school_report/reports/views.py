@@ -1260,7 +1260,7 @@ def report_list(request, school_slug):
             ).count()
 
             # Count total students in teacher's class for this term
-            student_count = Enrollment.objects.filter(
+            student_count = StandardEnrollment.objects.filter(
                 year=term.year,
                 standard=teacher_standard,
                 student__isnull=False

@@ -530,7 +530,7 @@ class StudentSubjectScore(models.Model):
             student=self.term_review.student,
             test_subject__standard_subject=self.standard_subject,
             test_subject__test__term=self.term_review.term,
-            test_subject__test__test_type__in=['quiz', 'midterm', 'assignment', 'project'],
+            test_subject__test__test_type__in=['quiz', 'midterm', 'assignment', 'project', 'other'],
             test_subject__test__is_finalized=True
         )
 

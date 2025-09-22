@@ -355,7 +355,7 @@ class StandardListView(LoginRequiredMixin, ListView):
         if self.request.user.profile.user_type in ['principal', 'administration']:
             return Standard.objects.filter(school=self.school).prefetch_related(
                 'teacher_assignments__teacher',
-                'student_enrollments__student'
+                'student_assignments__student'
             )
 
         # For teachers, show only their assigned standard
@@ -370,7 +370,7 @@ class StandardListView(LoginRequiredMixin, ListView):
                     teacher_assignments__year=current_year
                 ).prefetch_related(
                     'teacher_assignments__teacher',
-                    'student_enrollments__student'
+                    'student_assignments__student'
                 ).distinct()
             else:
                 return Standard.objects.none()
@@ -452,7 +452,7 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
         # Get students currently enrolled in this standard using historical logic
         if current_year:
             # Get all students who might be enrolled in this standard
-            all_enrollments = Enrollment.objects.filter(
+            all_enrollments = StandardEnrollment.objects.filter(
                 standard=standard,
                 year=current_year
             ).values_list('student', flat=True).distinct()
@@ -738,8 +738,8 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
             return redirect('core:home')
 
         # Check permissions for adding students
-        if user_profile.user_type not in ['principal', 'administration', 'teacher']:
-            messages.warning(request, "You do not have permission to add students.")
+        if user_profile.user_type not in ['principal', 'administration']:
+            messages.warning(request, "Only principals and administration can add students.")
             return redirect('core:home')
 
         return super().dispatch(request, *args, **kwargs)
@@ -854,7 +854,7 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
         # Check if student is enrolled in this school through any enrollment
         current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
         if current_year:
-            enrollment_exists = Enrollment.objects.filter(
+            enrollment_exists = StandardEnrollment.objects.filter(
                 student=student,
                 year=current_year,
                 standard__school=self.school
@@ -876,7 +876,7 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
         current_year = SchoolYear.objects.filter(school=self.school).order_by('-start_year').first()
 
         if current_year:
-            current_enrollment = Enrollment.objects.filter(
+            current_enrollment = StandardEnrollment.objects.filter(
                 student=self.object,
                 year=current_year,
                 standard__school=self.school
@@ -907,7 +907,7 @@ class StudentDetailView(SchoolAccessRequiredMixin, DetailView):
         student = super().get_object(queryset)
 
         # Check if student has any enrollment in this school
-        enrollment_exists = Enrollment.objects.filter(
+        enrollment_exists = StandardEnrollment.objects.filter(
             student=student,
             standard__school=self.school
         ).exists()
@@ -924,7 +924,7 @@ class StudentDetailView(SchoolAccessRequiredMixin, DetailView):
         current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
 
         # Get enrollment history
-        enrollments = Enrollment.objects.filter(
+        enrollments = StandardEnrollment.objects.filter(
             student=self.object
         ).select_related('year', 'standard').order_by('-year__start_year')
 
@@ -942,7 +942,7 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
     """
     View for enrolling a student in a class
     """
-    model = Enrollment
+    model = StandardEnrollment
     template_name = 'schools/enrollment_form.html'
     fields = ['standard']
 
