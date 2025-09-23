@@ -251,7 +251,7 @@ class StudentListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         # Get current school year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
         # Current year is guaranteed to exist now
         # For principals and administration, show all students currently enrolled in this school
@@ -304,7 +304,7 @@ class StudentListView(LoginRequiredMixin, ListView):
         context['school_slug'] = self.school_slug
 
         # Get current school year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
         # Add standards for filtering
         if self.request.user.profile.user_type in ['principal', 'administration']:
@@ -427,7 +427,7 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
         context['school_slug'] = self.school_slug
 
         # Get current school year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
         # Get current teacher assignments for this standard using historical logic
         if current_year:
@@ -513,7 +513,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         teacher = get_object_or_404(UserProfile, pk=self.teacher_id, user_type='teacher')
 
         # Get the current academic year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
         # Current year is guaranteed to exist now
 
@@ -574,7 +574,7 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
             return self.form_invalid(form)
 
         # Get the current academic year using the centralized function
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
         # Current year is guaranteed to exist now
 
@@ -921,7 +921,7 @@ class StudentDetailView(SchoolAccessRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['school'] = self.school
         context['school_slug'] = self.school_slug
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
         # Get enrollment history
         enrollments = StandardEnrollment.objects.filter(

@@ -342,6 +342,12 @@ class StudentTermReview(models.Model):
     time_management = models.PositiveSmallIntegerField(choices=RATING_CHOICES, validators=[MinValueValidator(1), MaxValueValidator(5)])
     remarks = models.TextField()
 
+    # Academic advancement recommendation
+    recommend_for_advancement = models.BooleanField(
+        default=True,
+        help_text="Teacher's recommendation for student advancement to next standard"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

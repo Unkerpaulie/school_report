@@ -27,9 +27,29 @@ class TestScoreAdmin(admin.ModelAdmin):
 class StudentTermReviewAdmin(admin.ModelAdmin):
     list_display = ('term', 'student', 'days_present', 'days_late', 'attendance_percentage',
                    'attitude', 'respect', 'parental_support', 'attendance',
-                   'assignment_completion', 'class_participation', 'time_management')
-    list_filter = ('term__year', 'term__term_number')
+                   'assignment_completion', 'class_participation', 'time_management', 'recommend_for_advancement')
+    list_filter = ('term__year', 'term__term_number', 'recommend_for_advancement')
     search_fields = ('student__first_name', 'student__last_name', 'remarks')
+
+    fieldsets = (
+        ('Student Information', {
+            'fields': ('term', 'student')
+        }),
+        ('Attendance', {
+            'fields': ('days_present', 'days_late')
+        }),
+        ('Qualitative Ratings', {
+            'fields': ('attitude', 'respect', 'parental_support', 'attendance',
+                      'assignment_completion', 'class_participation', 'time_management')
+        }),
+        ('Academic Advancement', {
+            'fields': ('recommend_for_advancement',),
+            'description': 'Teacher recommendation for student advancement to next standard'
+        }),
+        ('Additional Notes', {
+            'fields': ('remarks',)
+        }),
+    )
 
 @admin.register(StudentSubjectScore)
 class StudentSubjectScoreAdmin(admin.ModelAdmin):

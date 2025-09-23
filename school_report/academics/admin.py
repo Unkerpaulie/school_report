@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import SchoolYear, Term, StandardTeacher, SchoolEnrollment, StandardEnrollment, StandardSubject
+from .models import SchoolYear, Term, StandardTeacher, SchoolEnrollment, StandardEnrollment, StandardSubject, AcademicTransition
 
 
 def link_to_school_year(obj):
@@ -129,3 +129,46 @@ class StandardSubjectAdmin(admin.ModelAdmin):
             'fields': ('year', 'standard', 'subject_name', 'description', 'created_by', 'created_at', 'updated_at')
         }),
     )
+
+
+@admin.register(AcademicTransition)
+class AcademicTransitionAdmin(admin.ModelAdmin):
+    list_display = ('school', 'from_year', 'to_year', 'progress_percentage', 'is_complete', 'started_at', 'completed_at')
+    list_filter = ('school', 'started_at', 'completed_at')
+    search_fields = ('school__name', 'from_year__start_year', 'to_year__start_year')
+    ordering = ('-started_at',)
+    readonly_fields = ('started_at', 'progress_percentage', 'is_complete')
+    date_hierarchy = 'started_at'
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('school', 'from_year', 'to_year', 'created_by', 'started_at', 'completed_at')
+        }),
+        ('Prerequisites', {
+            'fields': ('next_year_verified',)
+        }),
+        ('Teacher Management', {
+            'fields': ('teachers_unassigned', 'teachers_unassigned_at', 'teachers_reassigned', 'teachers_reassigned_at')
+        }),
+        ('Student Processing', {
+            'fields': (
+                ('std5_processed', 'std5_processed_at'),
+                ('std4_processed', 'std4_processed_at'),
+                ('std3_processed', 'std3_processed_at'),
+                ('std2_processed', 'std2_processed_at'),
+                ('std1_processed', 'std1_processed_at'),
+                ('inf2_processed', 'inf2_processed_at'),
+                ('inf1_processed', 'inf1_processed_at'),
+            )
+        }),
+        ('Final Steps', {
+            'fields': ('new_students_registered', 'new_students_registered_at')
+        }),
+        ('Status', {
+            'fields': ('progress_percentage', 'is_complete')
+        }),
+    )
+
+    def progress_percentage(self, obj):
+        return f"{obj.progress_percentage}%"
+    progress_percentage.short_description = 'Progress'

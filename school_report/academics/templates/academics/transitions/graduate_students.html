@@ -1,0 +1,278 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}{{ standard.name }} - Academic Transition - {{ school.name }}{% endblock %}
+
+{% block transition_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">
+                        {% if is_final_standard %}
+                            Graduate {{ standard.name }}
+                        {% else %}
+                            Advance {{ standard.name }}
+                        {% endif %}
+                    </h1>
+                    <p class="text-muted">{{ from_year }} → {{ to_year }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'academics:transition_dashboard' school_slug=school.slug %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            {% if students_data %}
+            <form method="post" id="graduationForm">
+                {% csrf_token %}
+                
+                <!-- Summary Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Students</h5>
+                                <h2 class="text-primary">{{ students_data|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Recommended to Advance</h5>
+                                <h2 class="text-success" id="recommendedCount">
+                                    {{ students_data|length|add:"-1" }}
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">To Repeat</h5>
+                                <h2 class="text-warning" id="repeatCount">1</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Selection Table -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-people"></i> Student Decisions
+                        </h5>
+                        <div>
+                            <button type="button" class="btn btn-outline-success btn-sm" id="selectAllAdvance">
+                                <i class="bi bi-check-all"></i> Select All to Advance
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Final Grade</th>
+                                        <th>Teacher Recommendation</th>
+                                        <th>Decision</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student_data in students_data %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div>
+                                                    <strong>{{ student_data.student.get_full_name }}</strong><br>
+                                                    <small class="text-muted">ID: {{ student_data.student.student_id }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if student_data.overall_percentage > 0 %}
+                                                <span class="badge {% if student_data.overall_percentage >= 70 %}bg-success{% elif student_data.overall_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {{ student_data.overall_percentage|floatformat:1 }}%
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">No Data</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if student_data.recommend_advancement %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Advance
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-arrow-clockwise"></i> Repeat
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <input type="radio" 
+                                                       class="btn-check student-decision" 
+                                                       name="student_{{ student_data.student.id }}" 
+                                                       id="advance_{{ student_data.student.id }}" 
+                                                       value="advance"
+                                                       {% if student_data.recommend_advancement %}checked{% endif %}>
+                                                <label class="btn btn-outline-success btn-sm" 
+                                                       for="advance_{{ student_data.student.id }}">
+                                                    {% if is_final_standard %}
+                                                        <i class="bi bi-mortarboard"></i> Graduate
+                                                    {% else %}
+                                                        <i class="bi bi-arrow-up"></i> Advance
+                                                    {% endif %}
+                                                </label>
+
+                                                <input type="radio" 
+                                                       class="btn-check student-decision" 
+                                                       name="student_{{ student_data.student.id }}" 
+                                                       id="repeat_{{ student_data.student.id }}" 
+                                                       value="repeat"
+                                                       {% if not student_data.recommend_advancement %}checked{% endif %}>
+                                                <label class="btn btn-outline-warning btn-sm" 
+                                                       for="repeat_{{ student_data.student.id }}">
+                                                    <i class="bi bi-arrow-clockwise"></i> Repeat
+                                                </label>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confirmation Section -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5>Confirm Your Decisions</h5>
+                                <p class="text-muted mb-0">
+                                    {% if is_final_standard %}
+                                        Students selected to graduate will be marked as inactive and removed from the school roster.
+                                    {% else %}
+                                        Students selected to advance will be moved to the next standard for {{ to_year }}.
+                                    {% endif %}
+                                    Students selected to repeat will remain in {{ standard.name }} for {{ to_year }}.
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button type="submit" class="btn btn-primary btn-lg" id="confirmButton">
+                                    <i class="bi bi-check-circle"></i> 
+                                    {% if is_final_standard %}
+                                        Confirm Graduation
+                                    {% else %}
+                                        Confirm Advancement
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                No students found in {{ standard.name }} for the {{ from_year }} academic year.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Student Processing</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Summary:</strong></p>
+                <ul>
+                    <li><span id="modalAdvanceCount">0</span> students will 
+                        {% if is_final_standard %}graduate{% else %}advance{% endif %}
+                    </li>
+                    <li><span id="modalRepeatCount">0</span> students will repeat</li>
+                </ul>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>This action cannot be easily undone.</strong> Please review your selections carefully.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="finalConfirm">
+                    {% if is_final_standard %}Process Graduation{% else %}Process Advancement{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('graduationForm');
+    const confirmButton = document.getElementById('confirmButton');
+    const selectAllButton = document.getElementById('selectAllAdvance');
+    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+    
+    // Update counts when decisions change
+    function updateCounts() {
+        const advanceCount = document.querySelectorAll('input[value="advance"]:checked').length;
+        const repeatCount = document.querySelectorAll('input[value="repeat"]:checked').length;
+        
+        document.getElementById('recommendedCount').textContent = advanceCount;
+        document.getElementById('repeatCount').textContent = repeatCount;
+    }
+    
+    // Select all to advance
+    selectAllButton.addEventListener('click', function() {
+        document.querySelectorAll('input[value="advance"]').forEach(radio => {
+            radio.checked = true;
+        });
+        updateCounts();
+    });
+    
+    // Update counts when any decision changes
+    document.querySelectorAll('.student-decision').forEach(radio => {
+        radio.addEventListener('change', updateCounts);
+    });
+    
+    // Show confirmation modal
+    confirmButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const advanceCount = document.querySelectorAll('input[value="advance"]:checked').length;
+        const repeatCount = document.querySelectorAll('input[value="repeat"]:checked').length;
+        
+        document.getElementById('modalAdvanceCount').textContent = advanceCount;
+        document.getElementById('modalRepeatCount').textContent = repeatCount;
+        
+        modal.show();
+    });
+    
+    // Final confirmation
+    document.getElementById('finalConfirm').addEventListener('click', function() {
+        form.submit();
+    });
+    
+    // Initial count update
+    updateCounts();
+});
+</script>
+{% endblock %}

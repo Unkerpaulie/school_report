@@ -176,10 +176,11 @@ class ProfileView(LoginRequiredMixin, UpdateView):
         context['school_slug'] = self.school.slug
 
         # Get current school year and term
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
         context['current_year'] = current_year
         context['current_term'] = current_term
-        context['is_on_vacation'] = is_on_vacation
+        context['vacation_status'] = vacation_status
+        context['is_on_vacation'] = vacation_status is not None
         context['title_choices'] = UserProfile.TITLE_CHOICES
 
         return context

@@ -16,6 +16,13 @@
                     <i class="bi bi-calendar3"></i> Academic Years
                 </a>
             </li>
+            {% if vacation_status == 'summer' %}
+            <li class="{% block transition_active %}{% endblock %}">
+                <a href="{% url 'academics:transition_dashboard' school_slug=school.slug %}" class="nav-link">
+                    <i class="bi bi-arrow-up-circle"></i> Academic Transition
+                </a>
+            </li>
+            {% endif %}
             <li class="{% block staff_active %}{% endblock %}">
                 <a href="{% url 'schools:staff_list' school_slug=school.slug %}"><i class="bi bi-people"></i> Staff</a>
             </li>

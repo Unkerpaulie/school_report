@@ -176,3 +176,121 @@ class SchoolStaff(models.Model):
         position_str = f" ({self.position})" if self.position else ""
         return f"{self.staff.get_full_name()}{position_str} - {self.school.name}"
 
+
+class AcademicTransition(models.Model):
+    """
+    Track academic year transition progress for a school.
+    Ensures sequential processing and prevents out-of-order operations.
+    """
+    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='academic_transitions')
+    from_year = models.ForeignKey(SchoolYear, on_delete=models.CASCADE, related_name='transitions_from')
+    to_year = models.ForeignKey(SchoolYear, on_delete=models.CASCADE, related_name='transitions_to')
+
+    # Step 1: Prerequisites
+    next_year_verified = models.BooleanField(default=False, help_text="Next academic year setup verified")
+
+    # Step 2: Teacher unassignment
+    teachers_unassigned = models.BooleanField(default=False, help_text="All teachers unassigned from classes")
+    teachers_unassigned_at = models.DateTimeField(null=True, blank=True)
+
+    # Step 3: Sequential student graduation/advancement (Standard 5 to Infant 1)
+    std5_processed = models.BooleanField(default=False, help_text="Standard 5 students graduated")
+    std5_processed_at = models.DateTimeField(null=True, blank=True)
+
+    std4_processed = models.BooleanField(default=False, help_text="Standard 4 students advanced")
+    std4_processed_at = models.DateTimeField(null=True, blank=True)
+
+    std3_processed = models.BooleanField(default=False, help_text="Standard 3 students advanced")
+    std3_processed_at = models.DateTimeField(null=True, blank=True)
+
+    std2_processed = models.BooleanField(default=False, help_text="Standard 2 students advanced")
+    std2_processed_at = models.DateTimeField(null=True, blank=True)
+
+    std1_processed = models.BooleanField(default=False, help_text="Standard 1 students advanced")
+    std1_processed_at = models.DateTimeField(null=True, blank=True)
+
+    inf2_processed = models.BooleanField(default=False, help_text="Infant 2 students advanced")
+    inf2_processed_at = models.DateTimeField(null=True, blank=True)
+
+    inf1_processed = models.BooleanField(default=False, help_text="Infant 1 students advanced")
+    inf1_processed_at = models.DateTimeField(null=True, blank=True)
+
+    # Step 4: New student registration
+    new_students_registered = models.BooleanField(default=False, help_text="New Infant 1 students registered")
+    new_students_registered_at = models.DateTimeField(null=True, blank=True)
+
+    # Step 5: Teacher reassignment (handled by existing system)
+    teachers_reassigned = models.BooleanField(default=False, help_text="Teachers assigned to new classes")
+    teachers_reassigned_at = models.DateTimeField(null=True, blank=True)
+
+    # Overall status
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        unique_together = ['school', 'from_year', 'to_year']
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f"{self.school.name} Transition: {self.from_year} → {self.to_year}"
+
+    @property
+    def is_complete(self):
+        """Check if all transition steps are complete"""
+        return all([
+            self.next_year_verified,
+            self.teachers_unassigned,
+            self.std5_processed,
+            self.std4_processed,
+            self.std3_processed,
+            self.std2_processed,
+            self.std1_processed,
+            self.inf2_processed,
+            self.inf1_processed,
+            self.new_students_registered,
+            self.teachers_reassigned,
+        ])
+
+    @property
+    def progress_percentage(self):
+        """Calculate completion percentage"""
+        total_steps = 11  # Total number of boolean fields
+        completed_steps = sum([
+            self.next_year_verified,
+            self.teachers_unassigned,
+            self.std5_processed,
+            self.std4_processed,
+            self.std3_processed,
+            self.std2_processed,
+            self.std1_processed,
+            self.inf2_processed,
+            self.inf1_processed,
+            self.new_students_registered,
+            self.teachers_reassigned,
+        ])
+        return int((completed_steps / total_steps) * 100)
+
+    def get_next_available_standard(self):
+        """
+        Get the next standard that can be processed based on sequential requirements.
+        Returns None if no standards are available for processing.
+        """
+        # Sequential processing: Std 5 → 4 → 3 → 2 → 1 → Inf 2 → Inf 1
+        if not self.std5_processed:
+            return 'std5'
+        elif not self.std4_processed:
+            return 'std4'
+        elif not self.std3_processed:
+            return 'std3'
+        elif not self.std2_processed:
+            return 'std2'
+        elif not self.std1_processed:
+            return 'std1'
+        elif not self.inf2_processed:
+            return 'inf2'
+        elif not self.inf1_processed:
+            return 'inf1'
+        else:
+            return None  # All standards processed
+

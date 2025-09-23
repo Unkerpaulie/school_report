@@ -1,0 +1,243 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Academic Transition - {{ school.name }}{% endblock %}
+
+{% block transition_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Academic Transition</h1>
+                    <p class="text-muted">{{ from_year }} → {{ to_year }}</p>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-warning fs-6">
+                        <i class="bi bi-sun"></i> Summer Vacation
+                    </span>
+                </div>
+            </div>
+
+            <!-- Progress Overview -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-list-check"></i> Transition Progress
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ transition.progress_percentage }}%"
+                                     aria-valuenow="{{ transition.progress_percentage }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    {{ transition.progress_percentage }}%
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Prerequisites</h6>
+                                    <ul class="list-unstyled">
+                                        <li>
+                                            {% if transition.next_year_verified %}
+                                                <i class="bi bi-check-circle-fill text-success"></i>
+                                            {% else %}
+                                                <i class="bi bi-circle text-muted"></i>
+                                            {% endif %}
+                                            Next year setup verified
+                                        </li>
+                                        <li>
+                                            {% if transition.teachers_unassigned %}
+                                                <i class="bi bi-check-circle-fill text-success"></i>
+                                            {% else %}
+                                                <i class="bi bi-circle text-muted"></i>
+                                            {% endif %}
+                                            Teachers unassigned
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Final Steps</h6>
+                                    <ul class="list-unstyled">
+                                        <li>
+                                            {% if transition.new_students_registered %}
+                                                <i class="bi bi-check-circle-fill text-success"></i>
+                                            {% else %}
+                                                <i class="bi bi-circle text-muted"></i>
+                                            {% endif %}
+                                            New students registered
+                                        </li>
+                                        <li>
+                                            {% if transition.teachers_reassigned %}
+                                                <i class="bi bi-check-circle-fill text-success"></i>
+                                            {% else %}
+                                                <i class="bi bi-circle text-muted"></i>
+                                            {% endif %}
+                                            Teachers reassigned
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-info-circle"></i> Important Notes
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <small>
+                                    <strong>Sequential Processing:</strong><br>
+                                    Students must be processed in order from Standard 5 down to Infant 1.
+                                </small>
+                            </div>
+                            <div class="alert alert-info">
+                                <small>
+                                    <strong>Teacher Recommendations:</strong><br>
+                                    Pre-filled based on Term 3 reports. You can override as needed.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Graduation/Advancement Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-mortarboard"></i> Student Graduation & Advancement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if standards_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Standard</th>
+                                    <th>Students</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for std_data in standards_data %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ std_data.standard.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ std_data.student_count }}</span>
+                                    </td>
+                                    <td>
+                                        {% if std_data.code == 'std5' and transition.std5_processed %}
+                                            <span class="badge bg-success">Graduated</span>
+                                        {% elif std_data.code == 'std4' and transition.std4_processed %}
+                                            <span class="badge bg-success">Advanced</span>
+                                        {% elif std_data.code == 'std3' and transition.std3_processed %}
+                                            <span class="badge bg-success">Advanced</span>
+                                        {% elif std_data.code == 'std2' and transition.std2_processed %}
+                                            <span class="badge bg-success">Advanced</span>
+                                        {% elif std_data.code == 'std1' and transition.std1_processed %}
+                                            <span class="badge bg-success">Advanced</span>
+                                        {% elif std_data.code == 'inf2' and transition.inf2_processed %}
+                                            <span class="badge bg-success">Advanced</span>
+                                        {% elif std_data.code == 'inf1' and transition.inf1_processed %}
+                                            <span class="badge bg-success">Advanced</span>
+                                        {% elif transition.get_next_available_standard == std_data.code %}
+                                            <span class="badge bg-warning">Ready</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Locked</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if transition.get_next_available_standard == std_data.code and std_data.student_count > 0 %}
+                                            <a href="{% url 'academics:graduate_students' school_slug=school.slug standard_code=std_data.code %}" 
+                                               class="btn btn-primary btn-sm">
+                                                {% if std_data.code == 'std5' %}
+                                                    <i class="bi bi-mortarboard"></i> Graduate
+                                                {% else %}
+                                                    <i class="bi bi-arrow-up"></i> Advance
+                                                {% endif %}
+                                            </a>
+                                        {% else %}
+                                            <button class="btn btn-secondary btn-sm" disabled>
+                                                {% if std_data.student_count == 0 %}
+                                                    No Students
+                                                {% else %}
+                                                    Locked
+                                                {% endif %}
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        No standards found for the previous academic year. Please ensure the academic year setup is complete.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-gear"></i> Administrative Actions
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-warning" disabled>
+                                    <i class="bi bi-person-x"></i> Unassign All Teachers
+                                </button>
+                                <button class="btn btn-outline-success" disabled>
+                                    <i class="bi bi-person-plus"></i> Register New Students
+                                </button>
+                                <button class="btn btn-outline-primary" disabled>
+                                    <i class="bi bi-person-check"></i> Reassign Teachers
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-clock-history"></i> Transition History
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Started: {{ transition.started_at|date:"M d, Y H:i" }}</p>
+                            {% if transition.completed_at %}
+                            <p class="text-success">Completed: {{ transition.completed_at|date:"M d, Y H:i" }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

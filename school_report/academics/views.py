@@ -2,13 +2,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import CreateView, UpdateView, DeleteView, ListView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Count
 from django import forms
 from django.core.exceptions import ValidationError
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils import timezone
-from .models import SchoolYear, Term
-from schools.models import School
+from django.http import Http404, JsonResponse
+from .models import SchoolYear, Term, AcademicTransition, StandardEnrollment
+from schools.models import School, Standard, Student
 from core.mixins import SchoolAdminRequiredMixin, SchoolAccessRequiredMixin
 from core.utils import get_current_year_and_term
 
@@ -187,7 +188,7 @@ class YearListView(SchoolAdminRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         # Get the current year and term for this school
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=self.school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
         context['current_year'] = current_year
 
         return context
@@ -321,11 +322,13 @@ def get_current_school_year_and_term(request):
         try:
             current_year = SchoolYear.objects.get(pk=request.session['current_year_id'])
             current_term = request.session['current_term']
+            vacation_status = request.session.get('vacation_status')
             is_on_vacation = request.session.get('is_on_vacation', False)
 
             return {
                 'current_year': current_year,
                 'current_term': current_term,
+                'vacation_status': vacation_status,
                 'is_on_vacation': is_on_vacation
             }
         except SchoolYear.DoesNotExist:
@@ -334,6 +337,8 @@ def get_current_school_year_and_term(request):
                 del request.session['current_year_id']
             if 'current_term' in request.session:
                 del request.session['current_term']
+            if 'vacation_status' in request.session:
+                del request.session['vacation_status']
             if 'is_on_vacation' in request.session:
                 del request.session['is_on_vacation']
 
@@ -342,6 +347,7 @@ def get_current_school_year_and_term(request):
     return {
         'current_year': None,
         'current_term': None,
+        'vacation_status': None,
         'is_on_vacation': True
     }
     
@@ -355,3 +361,345 @@ def get_current_school_year_and_term(request):
         'current_term': current_term,
         'is_on_vacation': is_on_vacation
     }
+
+
+# ============================================================================
+# ACADEMIC TRANSITION VIEWS
+# ============================================================================
+
+class TransitionDashboardView(SchoolAdminRequiredMixin, TemplateView):
+    """
+    Main dashboard for academic year transition process.
+    Only accessible to admin/principal users during summer vacation.
+    """
+    template_name = 'academics/transitions/dashboard.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        # Check if we're in summer vacation period
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
+
+        if vacation_status != 'summer':
+            messages.error(request,
+                "Academic transition is only available during summer vacation period.")
+            return redirect('academics:year_list')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get current and next academic years
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
+
+        # Find the previous year (the one we're transitioning from)
+        from_year = SchoolYear.objects.filter(
+            school=self.school,
+            start_year=current_year.start_year - 1
+        ).first()
+
+        # Get or create transition record
+        transition, created = AcademicTransition.objects.get_or_create(
+            school=self.school,
+            from_year=from_year,
+            to_year=current_year,
+            defaults={'created_by': self.request.user.profile}
+        )
+
+        if created:
+            messages.info(self.request, "Academic transition process initialized.")
+
+        # Get standards with student counts for the transition table
+        standards_data = self._get_standards_with_counts(from_year)
+
+        context.update({
+            'transition': transition,
+            'from_year': from_year,
+            'to_year': current_year,
+            'standards_data': standards_data,
+            'vacation_status': vacation_status,
+        })
+
+        return context
+
+    def _get_standards_with_counts(self, from_year):
+        """Get standards with student counts in reverse order (Std 5 to Inf 1)"""
+        if not from_year:
+            return []
+
+        # Define standard order (highest to lowest)
+        standard_order = ['std5', 'std4', 'std3', 'std2', 'std1', 'inf2', 'inf1']
+
+        standards_data = []
+        for std_code in standard_order:
+            try:
+                standard = Standard.objects.get(school=self.school, standard_code=std_code)
+
+                # Count current students in this standard
+                student_count = StandardEnrollment.objects.filter(
+                    year=from_year,
+                    standard=standard,
+                    student__school_registrations__school=self.school,
+                    student__school_registrations__is_active=True
+                ).count()
+
+                standards_data.append({
+                    'standard': standard,
+                    'student_count': student_count,
+                    'code': std_code,
+                })
+            except Standard.DoesNotExist:
+                # Standard doesn't exist in this school, skip it
+                continue
+
+        return standards_data
+
+
+class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
+    """
+    View for processing student graduation/advancement for a specific standard.
+    Handles the sequential processing requirement.
+    """
+    template_name = 'academics/transitions/graduate_students.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        # Check if we're in summer vacation period
+        current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
+
+        if vacation_status != 'summer':
+            messages.error(request,
+                "Academic transition is only available during summer vacation period.")
+            return redirect('academics:year_list')
+
+        # Get the standard code from URL
+        self.standard_code = kwargs.get('standard_code')
+
+        # Validate that this standard can be processed (sequential requirement)
+        if not self._can_process_standard():
+            messages.error(request,
+                f"Cannot process {self.standard_code.upper()} yet. Please complete previous standards first.")
+            return redirect('academics:transition_dashboard')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def _can_process_standard(self):
+        """Check if this standard can be processed based on sequential requirements"""
+        # Get current transition record
+        current_year, _, _ = get_current_year_and_term(school=self.school)
+        from_year = SchoolYear.objects.filter(
+            school=self.school,
+            start_year=current_year.start_year - 1
+        ).first()
+
+        if not from_year:
+            return False
+
+        try:
+            transition = AcademicTransition.objects.get(
+                school=self.school,
+                from_year=from_year,
+                to_year=current_year
+            )
+        except AcademicTransition.DoesNotExist:
+            return False
+
+        # Check sequential requirements
+        next_available = transition.get_next_available_standard()
+        return next_available == self.standard_code
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get current and previous years
+        current_year, _, _ = get_current_year_and_term(school=self.school)
+        from_year = SchoolYear.objects.filter(
+            school=self.school,
+            start_year=current_year.start_year - 1
+        ).first()
+
+        # Get the standard
+        try:
+            standard = Standard.objects.get(school=self.school, standard_code=self.standard_code)
+        except Standard.DoesNotExist:
+            raise Http404("Standard not found")
+
+        # Get students in this standard with their academic data
+        students_data = self._get_students_with_academic_data(from_year, standard)
+
+        context.update({
+            'standard': standard,
+            'standard_code': self.standard_code,
+            'from_year': from_year,
+            'to_year': current_year,
+            'students_data': students_data,
+            'is_final_standard': self.standard_code == 'std5',  # Standard 5 graduates, others advance
+        })
+
+        return context
+
+    def _get_students_with_academic_data(self, from_year, standard):
+        """Get students with their academic performance and recommendations"""
+        if not from_year:
+            return []
+
+        # Get students currently enrolled in this standard
+        enrollments = StandardEnrollment.objects.filter(
+            year=from_year,
+            standard=standard,
+            student__school_registrations__school=self.school,
+            student__school_registrations__is_active=True
+        ).select_related('student').order_by('student__last_name', 'student__first_name')
+
+        students_data = []
+        for enrollment in enrollments:
+            student = enrollment.student
+
+            # Get the student's final term review (Term 3) for academic data
+            final_review = None
+            try:
+                final_term = from_year.terms.get(term_number=3)
+                final_review = student.term_reviews.get(term=final_term)
+            except:
+                pass  # No final review available
+
+            students_data.append({
+                'student': student,
+                'enrollment': enrollment,
+                'final_review': final_review,
+                'overall_percentage': final_review.overall_average_percentage if final_review else 0,
+                'recommend_advancement': final_review.recommend_for_advancement if final_review else True,
+            })
+
+        return students_data
+
+    def post(self, request, *args, **kwargs):
+        """Process the graduation/advancement decisions"""
+        # Get current and previous years
+        current_year, _, _ = get_current_year_and_term(school=self.school)
+        from_year = SchoolYear.objects.filter(
+            school=self.school,
+            start_year=current_year.start_year - 1
+        ).first()
+
+        # Get the standard
+        try:
+            standard = Standard.objects.get(school=self.school, standard_code=self.standard_code)
+        except Standard.DoesNotExist:
+            messages.error(request, "Standard not found.")
+            return redirect('academics:transition_dashboard')
+
+        # Process student decisions
+        advancing_students = []
+        repeating_students = []
+
+        # Get all students in this standard
+        enrollments = StandardEnrollment.objects.filter(
+            year=from_year,
+            standard=standard,
+            student__school_registrations__school=self.school,
+            student__school_registrations__is_active=True
+        )
+
+        for enrollment in enrollments:
+            student_id = str(enrollment.student.id)
+            decision = request.POST.get(f'student_{student_id}')
+
+            if decision == 'advance':
+                advancing_students.append(enrollment.student)
+            else:  # 'repeat' or no decision defaults to repeat
+                repeating_students.append(enrollment.student)
+
+        # Process the decisions
+        if self.standard_code == 'std5':
+            # Standard 5 students graduate (set inactive)
+            self._graduate_students(advancing_students)
+        else:
+            # Other standards advance to next level
+            self._advance_students(advancing_students, current_year)
+
+        # Students who repeat stay in their current standard for the new year
+        self._repeat_students(repeating_students, current_year, standard)
+
+        # Update transition status
+        self._update_transition_status(from_year, current_year)
+
+        # Success message
+        messages.success(request,
+            f"Processed {len(advancing_students)} advancing and {len(repeating_students)} repeating students for {standard.name}.")
+
+        return redirect('academics:transition_dashboard')
+
+    def _graduate_students(self, students):
+        """Graduate Standard 5 students (set them as inactive)"""
+        for student in students:
+            # Set school enrollment as inactive (graduated)
+            school_enrollment = student.school_registrations.get(school=self.school)
+            school_enrollment.is_active = False
+            school_enrollment.graduation_date = timezone.now().date()
+            school_enrollment.save()
+
+    def _advance_students(self, students, to_year):
+        """Advance students to the next standard"""
+        # Define advancement mapping
+        advancement_map = {
+            'std4': 'std5',
+            'std3': 'std4',
+            'std2': 'std3',
+            'std1': 'std2',
+            'inf2': 'std1',
+            'inf1': 'inf2',
+        }
+
+        next_standard_code = advancement_map.get(self.standard_code)
+        if not next_standard_code:
+            return
+
+        try:
+            next_standard = Standard.objects.get(school=self.school, standard_code=next_standard_code)
+
+            for student in students:
+                # Create new enrollment in next standard for new year
+                StandardEnrollment.objects.create(
+                    year=to_year,
+                    standard=next_standard,
+                    student=student
+                )
+        except Standard.DoesNotExist:
+            messages.error(self.request, f"Next standard {next_standard_code} not found.")
+
+    def _repeat_students(self, students, to_year, current_standard):
+        """Keep students in the same standard for the new year"""
+        for student in students:
+            StandardEnrollment.objects.create(
+                year=to_year,
+                standard=current_standard,
+                student=student
+            )
+
+    def _update_transition_status(self, from_year, to_year):
+        """Update the transition status for this standard"""
+        try:
+            transition = AcademicTransition.objects.get(
+                school=self.school,
+                from_year=from_year,
+                to_year=to_year
+            )
+
+            # Update the appropriate field based on standard
+            field_map = {
+                'std5': 'std5_processed',
+                'std4': 'std4_processed',
+                'std3': 'std3_processed',
+                'std2': 'std2_processed',
+                'std1': 'std1_processed',
+                'inf2': 'inf2_processed',
+                'inf1': 'inf1_processed',
+            }
+
+            field_name = field_map.get(self.standard_code)
+            if field_name:
+                setattr(transition, field_name, True)
+                setattr(transition, f'{field_name}_at', timezone.now())
+                transition.save()
+
+        except AcademicTransition.DoesNotExist:
+            messages.error(self.request, "Transition record not found.")
