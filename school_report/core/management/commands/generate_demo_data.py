@@ -245,6 +245,7 @@ class Command(BaseCommand):
 
                 school = School.objects.create(
                     name=school_name,
+                    principal_user=principal_user,
                     address=f"{random.randint(1, 999)} {self.fake.street_name()}, {city}, Trinidad and Tobago",
                     contact_phone=self.generate_phone_number(),
                     contact_email=f"info@{school_name.lower().replace(' ', '').replace('&', 'and')}.edu.tt"
@@ -284,7 +285,6 @@ class Command(BaseCommand):
 
                     # Create SchoolStaff entry
                     SchoolStaff.objects.create(
-                        year=current_year,
                         school=school,
                         staff=admin_user.profile,
                         position=position,

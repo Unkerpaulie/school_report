@@ -1283,7 +1283,7 @@ def report_list(request, school_slug):
         # Get all standards that have enrollments in terms with reports
         standards_with_reports = Standard.objects.filter(
             school=school,
-            student_enrollments__year__terms__student_reviews__isnull=False
+            student_assignments__year__terms__student_reviews__isnull=False
         ).distinct()
 
         for term in available_terms:
