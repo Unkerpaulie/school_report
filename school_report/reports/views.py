@@ -182,7 +182,7 @@ def test_list(request, school_slug):
 
     # Get the teacher's assigned standard using the new historical system
     from core.utils import get_current_year_and_term, get_current_teacher_assignment
-    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+    current_year, current_term, vacation_status = get_current_year_and_term(school=school)
 
     teacher_assignment = None
     teacher_standard = None
@@ -234,7 +234,7 @@ def test_create(request, school_slug):
         return redirect('core:home')
 
     # Get the teacher's assigned standard using the new historical system
-    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+    current_year, current_term, vacation_status = get_current_year_and_term(school=school)
 
     teacher_assignment = None
     teacher_standard = None
@@ -984,7 +984,7 @@ def subject_list(request, school_slug):
         # Enhanced debugging: Check if teacher actually has an assignment
         teacher = request.user.profile
         from core.utils import get_current_year_and_term, get_current_teacher_assignment
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=school)
 
         if current_year:
             teacher_assignment = get_current_teacher_assignment(teacher, current_year)
@@ -1484,7 +1484,7 @@ def generate_blank_reports(request, school_slug):
 
     # Get current year and available terms
     from core.utils import get_current_year_and_term
-    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+    current_year, current_term, vacation_status = get_current_year_and_term(school=school)
 
     if not current_year:
         messages.error(request, "No academic year set up for this school.")

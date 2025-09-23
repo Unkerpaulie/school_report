@@ -7,21 +7,25 @@ def get_current_year_and_term(school=None):
     Get the current academic year and term based on the current date.
 
     IMPORTANT: This function requires a valid school parameter to work properly.
-    If no school is provided, it will return (None, None, True) to indicate
+    If no school is provided, it will return (None, None, None) to indicate
     that no academic year can be determined.
 
     Args:
         school: School object to filter by (required for creating years)
 
     Returns:
-        tuple: (current_year, current_term, is_on_vacation)
+        tuple: (current_year, current_term, vacation_status)
             - current_year: SchoolYear object or None if no school provided
             - current_term: int (1, 2, or 3) or None (None during vacation or no school)
-            - is_on_vacation: bool (True if no school provided)
+            - vacation_status: str or None
+                - None: In active term or no school provided
+                - 'christmas': Between term 1 and term 2 (Christmas vacation)
+                - 'easter': Between term 2 and term 3 (Easter vacation)
+                - 'summer': Between term 3 and next year's term 1 (Summer vacation)
     """
     # If no school is provided, we cannot determine or create academic years
     if not school:
-        return None, None, True
+        return None, None, None
 
     today = timezone.now().date()
 
@@ -32,18 +36,75 @@ def get_current_year_and_term(school=None):
     if current_terms.exists():
         # We're in an active term
         term = current_terms.first()
-        return term.year, term.term_number, False
+        return term.year, term.term_number, None
 
     # Step 2: We're not in an active term, determine which year we should be in
     current_year = _determine_current_year(school, today)
 
-    # Step 3: Return the year with no active term (vacation)
-    return current_year, None, True
+    # Step 3: Determine which vacation period we're in
+    vacation_status = _determine_vacation_period(school, current_year, today)
+
+    # Step 4: Return the year with vacation status
+    return current_year, None, vacation_status
+
+
+def _determine_vacation_period(school, current_year, today):
+    """
+    Determine which vacation period we're currently in.
+
+    Args:
+        school: School object
+        current_year: SchoolYear object (guaranteed to exist)
+        today: Current date
+
+    Returns:
+        str or None: 'christmas', 'easter', 'summer', or None if not in vacation
+    """
+    if not current_year:
+        return None
+
+    # Get all terms for the current year, ordered by term number
+    terms = Term.objects.filter(year=current_year).order_by('term_number')
+
+    if not terms.exists():
+        return None
+
+    term_list = list(terms)
+
+    # Check if we're between term 1 and term 2 (Christmas vacation)
+    if len(term_list) >= 2:
+        term1_end = term_list[0].end_date
+        term2_start = term_list[1].start_date
+        if term1_end < today < term2_start:
+            return 'christmas'
+
+    # Check if we're between term 2 and term 3 (Easter vacation)
+    if len(term_list) >= 3:
+        term2_end = term_list[1].end_date
+        term3_start = term_list[2].start_date
+        if term2_end < today < term3_start:
+            return 'easter'
+
+    # Check if we're in summer vacation (current year is next academic year, but before Term 1)
+    # This happens when we've transitioned to the next academic year after Term 3 ended
+    if len(term_list) >= 1:
+        term1_start = term_list[0].start_date
+        if today < term1_start:
+            # We're in the academic year but before Term 1 starts = Summer vacation
+            # This means we transitioned from previous year's Term 3 end
+            return 'summer'
+
+    return None
 
 
 def _determine_current_year(school, today):
     """
     Determine which academic year we should be in based on today's date.
+
+    Key Logic: Once Term 3 of an academic year ends, we immediately transition
+    to the next academic year (even during summer vacation). This allows proper
+    student advancement and administrative preparation for the new year.
+
     Requires a valid school parameter.
     """
     # School is required for creating/managing academic years
@@ -57,26 +118,38 @@ def _determine_current_year(school, today):
         # No school years exist, create the first one
         return _create_default_school_year(school, today)
 
-    # Check each year to see if today falls within its span
+    # Check each year to see if today falls within its active period
     for year in school_years:
         terms = Term.objects.filter(year=year).order_by('term_number')
         if terms.exists():
             first_term = terms.first()
             last_term = terms.last()
 
-            # If today is within this academic year span (including vacation periods)
+            # CRITICAL: Academic year is "current" from Term 1 start until Term 3 END
+            # After Term 3 ends, we transition to the next academic year
             if first_term.start_date <= today <= last_term.end_date:
                 return year
 
-    # Check if we're past the last academic year
+    # If we're past the last term of any year, determine next year
     latest_year = school_years.last()
     latest_terms = Term.objects.filter(year=latest_year).order_by('term_number')
 
     if latest_terms.exists():
         last_term = latest_terms.last()
         if today > last_term.end_date:
-            # We're past the last term, create next year
-            return _create_next_school_year(school, latest_year)
+            # We're past the last term - transition to next academic year
+            # Check if next year already exists
+            next_year = SchoolYear.objects.filter(
+                school=school,
+                start_year=latest_year.start_year + 1
+            ).first()
+
+            if next_year:
+                # Next year exists, return it as current
+                return next_year
+            else:
+                # Next year doesn't exist, create it
+                return _create_next_school_year(school, latest_year)
 
     # Fallback: return the latest year (shouldn't normally reach here)
     return latest_year
@@ -371,7 +444,7 @@ def user_has_school_access(user, school):
     user_type = user_profile.user_type
 
     # Get current year for the school
-    current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+    current_year, current_term, vacation_status = get_current_year_and_term(school=school)
 
     if user_type == 'principal':
         # Check if user is a principal of this school via SchoolStaff
@@ -472,12 +545,14 @@ def setup_user_session(request, user):
         request.session['user_position'] = school_staff.position or user_profile.user_type.title()
 
         # Get current academic year and term information
-        current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
+        current_year, current_term, vacation_status = get_current_year_and_term(school=school)
 
         if current_year:
             request.session['current_year_id'] = current_year.id
             request.session['current_term'] = current_term
-            request.session['is_on_vacation'] = is_on_vacation
+            request.session['vacation_status'] = vacation_status
+            # Keep backward compatibility for is_on_vacation
+            request.session['is_on_vacation'] = vacation_status is not None
 
             # For teachers, get their current class assignment
             if user_profile.user_type == 'teacher':
@@ -489,6 +564,7 @@ def setup_user_session(request, user):
             # School exists but no academic year set up yet
             request.session['current_year_id'] = None
             request.session['current_term'] = None
+            request.session['vacation_status'] = None
             request.session['is_on_vacation'] = None
     else:
         # User not associated with any school
@@ -497,6 +573,7 @@ def setup_user_session(request, user):
         request.session['user_role'] = user_profile.user_type
         request.session['current_year_id'] = None
         request.session['current_term'] = None
+        request.session['vacation_status'] = None
         request.session['is_on_vacation'] = None
 
     return True
@@ -509,7 +586,7 @@ def clear_user_session(request):
     session_keys = [
         'user_id', 'user_type', 'user_school_id', 'user_school_slug',
         'user_role', 'user_position', 'current_year_id', 'current_term',
-        'is_on_vacation', 'teacher_class_id', 'teacher_class_name'
+        'vacation_status', 'is_on_vacation', 'teacher_class_id', 'teacher_class_name'
     ]
     for key in session_keys:
         request.session.pop(key, None)
@@ -529,6 +606,7 @@ def get_user_session_info(request):
         'user_position': request.session.get('user_position'),
         'current_year_id': request.session.get('current_year_id'),
         'current_term': request.session.get('current_term'),
+        'vacation_status': request.session.get('vacation_status'),
         'is_on_vacation': request.session.get('is_on_vacation'),
         'teacher_class_id': request.session.get('teacher_class_id'),
         'teacher_class_name': request.session.get('teacher_class_name'),
