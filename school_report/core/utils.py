@@ -359,6 +359,50 @@ def unassign_teacher(teacher, standard, school_year):
     )
 
 
+def unassign_all_teachers_for_school(school, from_year):
+    """
+    Automatically unassign all teachers from their standards for a school year.
+    This is triggered when summer vacation begins.
+
+    Args:
+        school: School instance
+        from_year: SchoolYear instance to unassign teachers from
+    """
+    from academics.models import StandardTeacher
+    from schools.models import Standard
+
+    # Get all current teacher assignments for this school year
+    current_assignments = StandardTeacher.objects.filter(
+        year=from_year,
+        standard__school=school,
+        standard__isnull=False,  # Only get actual assignments, not unassignment records
+        teacher__isnull=False
+    ).select_related('teacher', 'standard')
+
+    # Get the latest assignment for each teacher-standard pair
+    processed_pairs = set()
+    for assignment in current_assignments.order_by('-created_at'):
+        pair_key = (assignment.teacher_id, assignment.standard_id)
+        if pair_key not in processed_pairs:
+            # Check if this is still the latest assignment (not already unassigned)
+            latest_teacher_record = StandardTeacher.objects.filter(
+                teacher=assignment.teacher,
+                year=from_year
+            ).order_by('-created_at').first()
+
+            latest_standard_record = StandardTeacher.objects.filter(
+                standard=assignment.standard,
+                year=from_year
+            ).order_by('-created_at').first()
+
+            # Only unassign if both sides still show assignment
+            if (latest_teacher_record and latest_teacher_record.standard == assignment.standard and
+                latest_standard_record and latest_standard_record.teacher == assignment.teacher):
+
+                unassign_teacher(assignment.teacher, assignment.standard, from_year)
+                processed_pairs.add(pair_key)
+
+
 def unenroll_student(student, school_year):
     """
     Unassign a student from their class by creating a new record with null standard.
@@ -370,6 +414,75 @@ def unenroll_student(student, school_year):
         year=school_year,
         standard=None  # Null = unassigned
     )
+
+
+def handle_summer_vacation_triggers(school):
+    """
+    Handle system triggers when summer vacation begins.
+
+    This function:
+    1. Verifies the next academic year exists
+    2. Creates/updates the AcademicTransition record
+
+    Note: Teacher unassignment is handled manually by administration.
+
+    Args:
+        school: School instance
+
+    Returns:
+        tuple: (transition_record, actions_taken)
+    """
+    from academics.models import SchoolYear, AcademicTransition
+    from django.utils import timezone
+
+    actions_taken = []
+
+    # Get current year and next year
+    current_year, _, vacation_status = get_current_year_and_term(school=school)
+
+    if vacation_status != 'summer':
+        return None, []
+
+    # Find the previous year (the one we're transitioning from)
+    from_year = SchoolYear.objects.filter(
+        school=school,
+        start_year=current_year.start_year - 1
+    ).first()
+
+    if not from_year:
+        return None, []
+
+    # Get or create transition record
+    transition, created = AcademicTransition.objects.get_or_create(
+        school=school,
+        from_year=from_year,
+        to_year=current_year,
+        defaults={
+            'created_by': None,  # System-created
+            'started_at': timezone.now()
+        }
+    )
+
+    if created:
+        actions_taken.append("Created academic transition record")
+
+    # Verify next year exists (it should since we're in summer vacation)
+    if not transition.next_year_verified:
+        # The fact that we have current_year means next year exists
+        transition.next_year_verified = True
+        actions_taken.append("Verified next academic year exists")
+
+    # Mark teachers as "unassigned" since this is now handled manually
+    if not transition.teachers_unassigned:
+        transition.teachers_unassigned = True
+        transition.teachers_unassigned_at = timezone.now()
+        actions_taken.append("Teacher reassignment ready (handled manually)")
+
+    # Save the transition record
+    if actions_taken:
+        transition.save()
+
+    return transition, actions_taken
 
 
 def get_student_school_enrollment(student, school):

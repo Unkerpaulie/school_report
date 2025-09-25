@@ -255,10 +255,10 @@ class AcademicTransition(models.Model):
     @property
     def progress_percentage(self):
         """Calculate completion percentage"""
-        total_steps = 11  # Total number of boolean fields
+        # Core steps: next year verification + 7 student processing steps + new students + teacher reassignment
+        total_steps = 10
         completed_steps = sum([
             self.next_year_verified,
-            self.teachers_unassigned,
             self.std5_processed,
             self.std4_processed,
             self.std3_processed,
@@ -278,19 +278,19 @@ class AcademicTransition(models.Model):
         """
         # Sequential processing: Std 5 → 4 → 3 → 2 → 1 → Inf 2 → Inf 1
         if not self.std5_processed:
-            return 'std5'
+            return 'STD5'
         elif not self.std4_processed:
-            return 'std4'
+            return 'STD4'
         elif not self.std3_processed:
-            return 'std3'
+            return 'STD3'
         elif not self.std2_processed:
-            return 'std2'
+            return 'STD2'
         elif not self.std1_processed:
-            return 'std1'
+            return 'STD1'
         elif not self.inf2_processed:
-            return 'inf2'
+            return 'INF2'
         elif not self.inf1_processed:
-            return 'inf1'
+            return 'INF1'
         else:
             return None  # All standards processed
 

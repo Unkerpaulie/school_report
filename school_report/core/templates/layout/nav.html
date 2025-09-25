@@ -14,11 +14,11 @@
                 <span class="ms-3 text-muted">{{ current_year.start_year }}-{{ current_year.start_year|add:1 }} Academic Year, Term {{ current_term }}</span>
                 {% elif vacation_status %}
                     {% if vacation_status == 'christmas' %}
-                    <span class="ms-3 text-success"><i class="bi bi-snow"></i> Christmas Vacation</span>
+                    <span class="ms-3 text-success"><i class="bi bi-snow"></i> Christmas Vacation ({{ current_year.start_year }}-{{ current_year.start_year|add:1 }})</span>
                     {% elif vacation_status == 'easter' %}
-                    <span class="ms-3 text-info"><i class="bi bi-egg-fried"></i> Easter Vacation</span>
+                    <span class="ms-3 text-info"><i class="bi bi-egg-fried"></i> Easter Vacation ({{ current_year.start_year }}-{{ current_year.start_year|add:1 }})</span>
                     {% elif vacation_status == 'summer' %}
-                    <span class="ms-3 text-warning"><i class="bi bi-sun"></i> Summer Vacation</span>
+                    <span class="ms-3 text-warning"><i class="bi bi-sun"></i> Summer Vacation ({{ current_year.start_year }}-{{ current_year.start_year|add:1 }})</span>
                     {% endif %}
                 {% endif %}
             {% endif %}

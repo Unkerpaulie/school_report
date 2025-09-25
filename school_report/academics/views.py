@@ -375,6 +375,11 @@ class TransitionDashboardView(SchoolAdminRequiredMixin, TemplateView):
     template_name = 'academics/transitions/dashboard.html'
 
     def dispatch(self, request, *args, **kwargs):
+        # Call parent dispatch first to set up self.school
+        response = super().dispatch(request, *args, **kwargs)
+        if response:  # If parent returned a redirect, return it
+            return response
+
         # Check if we're in summer vacation period
         current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
@@ -383,10 +388,18 @@ class TransitionDashboardView(SchoolAdminRequiredMixin, TemplateView):
                 "Academic transition is only available during summer vacation period.")
             return redirect('academics:year_list')
 
-        return super().dispatch(request, *args, **kwargs)
+        return None  # Continue with normal processing
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # Automatically handle summer vacation triggers
+        from core.utils import handle_summer_vacation_triggers
+        transition, actions_taken = handle_summer_vacation_triggers(self.school)
+
+        if actions_taken:
+            for action in actions_taken:
+                messages.success(self.request, f"System: {action}")
 
         # Get current and next academic years
         current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
@@ -397,19 +410,21 @@ class TransitionDashboardView(SchoolAdminRequiredMixin, TemplateView):
             start_year=current_year.start_year - 1
         ).first()
 
-        # Get or create transition record
-        transition, created = AcademicTransition.objects.get_or_create(
-            school=self.school,
-            from_year=from_year,
-            to_year=current_year,
-            defaults={'created_by': self.request.user.profile}
-        )
+        # Get transition record (should exist now due to automatic triggers)
+        if not transition:
+            # Fallback: create manually if automatic triggers didn't work
+            transition, created = AcademicTransition.objects.get_or_create(
+                school=self.school,
+                from_year=from_year,
+                to_year=current_year,
+                defaults={'created_by': self.request.user.profile}
+            )
 
-        if created:
-            messages.info(self.request, "Academic transition process initialized.")
+            if created:
+                messages.info(self.request, "Academic transition process initialized.")
 
         # Get standards with student counts for the transition table
-        standards_data = self._get_standards_with_counts(from_year)
+        standards_data = self._get_standards_with_counts(from_year, current_year)
 
         context.update({
             'transition': transition,
@@ -421,30 +436,55 @@ class TransitionDashboardView(SchoolAdminRequiredMixin, TemplateView):
 
         return context
 
-    def _get_standards_with_counts(self, from_year):
-        """Get standards with student counts in reverse order (Std 5 to Inf 1)"""
+    def _get_standards_with_counts(self, from_year, to_year):
+        """Get standards with student counts for both years in reverse order (Std 5 to Inf 1)"""
         if not from_year:
             return []
 
-        # Define standard order (highest to lowest)
-        standard_order = ['std5', 'std4', 'std3', 'std2', 'std1', 'inf2', 'inf1']
+        # Define standard order (highest to lowest) using model choices
+        standard_order = [code[0] for code in Standard.STANDARD_CHOICES[::-1]]
 
         standards_data = []
         for std_code in standard_order:
             try:
-                standard = Standard.objects.get(school=self.school, standard_code=std_code)
+                standard = Standard.objects.get(school=self.school, name=std_code)
 
-                # Count current students in this standard
-                student_count = StandardEnrollment.objects.filter(
-                    year=from_year,
-                    standard=standard,
-                    student__school_registrations__school=self.school,
-                    student__school_registrations__is_active=True
-                ).count()
+                # Count students from the previous year (from_year) in this standard
+                from django.db.models import Max, F
+                from schools.models import Student
+
+                # Get students who were enrolled in this standard in the previous year
+                last_year_students = Student.objects.filter(
+                    school_registrations__school=self.school,
+                    school_registrations__is_active=True,
+                    standard_enrollments__year=from_year
+                ).annotate(
+                    latest_enrollment_id=Max('standard_enrollments__id')
+                ).filter(
+                    standard_enrollments__id=F('latest_enrollment_id'),
+                    standard_enrollments__standard=standard
+                ).distinct()
+
+                last_year_count = last_year_students.count()
+
+                # Count students currently enrolled in this standard for the new year (to_year)
+                current_year_students = Student.objects.filter(
+                    school_registrations__school=self.school,
+                    school_registrations__is_active=True,
+                    standard_enrollments__year=to_year
+                ).annotate(
+                    latest_enrollment_id=Max('standard_enrollments__id')
+                ).filter(
+                    standard_enrollments__id=F('latest_enrollment_id'),
+                    standard_enrollments__standard=standard
+                ).distinct()
+
+                current_year_count = current_year_students.count()
 
                 standards_data.append({
                     'standard': standard,
-                    'student_count': student_count,
+                    'last_year_count': last_year_count,
+                    'current_year_count': current_year_count,
                     'code': std_code,
                 })
             except Standard.DoesNotExist:
@@ -462,6 +502,11 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
     template_name = 'academics/transitions/graduate_students.html'
 
     def dispatch(self, request, *args, **kwargs):
+        # Call parent dispatch first to set up self.school
+        response = super().dispatch(request, *args, **kwargs)
+        if response:  # If parent returned a redirect, return it
+            return response
+
         # Check if we're in summer vacation period
         current_year, current_term, vacation_status = get_current_year_and_term(school=self.school)
 
@@ -479,7 +524,7 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
                 f"Cannot process {self.standard_code.upper()} yet. Please complete previous standards first.")
             return redirect('academics:transition_dashboard')
 
-        return super().dispatch(request, *args, **kwargs)
+        return None  # Continue with normal processing
 
     def _can_process_standard(self):
         """Check if this standard can be processed based on sequential requirements"""
@@ -518,7 +563,7 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
 
         # Get the standard
         try:
-            standard = Standard.objects.get(school=self.school, standard_code=self.standard_code)
+            standard = Standard.objects.get(school=self.school, name=self.standard_code)
         except Standard.DoesNotExist:
             raise Http404("Standard not found")
 
@@ -531,7 +576,7 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
             'from_year': from_year,
             'to_year': current_year,
             'students_data': students_data,
-            'is_final_standard': self.standard_code == 'std5',  # Standard 5 graduates, others advance
+            'is_final_standard': self.standard_code == 'STD5',  # Standard 5 graduates, others advance
         })
 
         return context
@@ -582,7 +627,7 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
 
         # Get the standard
         try:
-            standard = Standard.objects.get(school=self.school, standard_code=self.standard_code)
+            standard = Standard.objects.get(school=self.school, name=self.standard_code)
         except Standard.DoesNotExist:
             messages.error(request, "Standard not found.")
             return redirect('academics:transition_dashboard')
@@ -609,7 +654,7 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
                 repeating_students.append(enrollment.student)
 
         # Process the decisions
-        if self.standard_code == 'std5':
+        if self.standard_code == 'STD5':
             # Standard 5 students graduate (set inactive)
             self._graduate_students(advancing_students)
         else:
@@ -637,16 +682,18 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
             school_enrollment.graduation_date = timezone.now().date()
             school_enrollment.save()
 
+            # Note: No new enrollment record needed for graduated students
+
     def _advance_students(self, students, to_year):
-        """Advance students to the next standard"""
+        """Advance students to the next standard for the new academic year"""
         # Define advancement mapping
         advancement_map = {
-            'std4': 'std5',
-            'std3': 'std4',
-            'std2': 'std3',
-            'std1': 'std2',
-            'inf2': 'std1',
-            'inf1': 'inf2',
+            'STD4': 'STD5',
+            'STD3': 'STD4',
+            'STD2': 'STD3',
+            'STD1': 'STD2',
+            'INF2': 'STD1',
+            'INF1': 'INF2',
         }
 
         next_standard_code = advancement_map.get(self.standard_code)
@@ -654,7 +701,7 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
             return
 
         try:
-            next_standard = Standard.objects.get(school=self.school, standard_code=next_standard_code)
+            next_standard = Standard.objects.get(school=self.school, name=next_standard_code)
 
             for student in students:
                 # Create new enrollment in next standard for new year
