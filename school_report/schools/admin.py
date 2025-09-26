@@ -31,7 +31,7 @@ class SchoolAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'principal_user', 'contact_phone', 'contact_email', 'is_active', 'created_at', 'updated_at')
+            'fields': ('name', 'principal_user', 'contact_phone', 'contact_email', 'is_active', 'logo', 'created_at', 'updated_at')
         }),
     )
 

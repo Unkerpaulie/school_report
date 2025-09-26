@@ -28,6 +28,7 @@ def get_current_year_and_term(school=None):
         return None, None, None
 
     today = timezone.now().date()
+    # today = timezone.datetime(2025, 1, 10).date() # to create data for previous year
 
     # Step 1: Check if we're currently in an active term
     query = Q(start_date__lte=today, end_date__gte=today, year__school=school)
@@ -116,7 +117,14 @@ def _determine_current_year(school, today):
 
     if not school_years.exists():
         # No school years exist, create the first one
-        return _create_default_school_year(school, today)
+        # Determine the appropriate start year based on current date
+        # Caribbean school year typically starts in September
+        # but our system current year includes preceding summer vacation which starts in July
+        if today.month >= 7:  # July-Dec: current calendar year
+            start_year = today.year
+        else:  # Jan-Jun: previous calendar year (still in same academic year)
+            start_year = today.year - 1
+        return _create_school_year(school, start_year)
 
     # Check each year to see if today falls within its active period
     for year in school_years:
@@ -149,42 +157,17 @@ def _determine_current_year(school, today):
                 return next_year
             else:
                 # Next year doesn't exist, create it
-                return _create_next_school_year(school, latest_year)
+                return _create_school_year(school, latest_year.start_year + 1)
 
     # Fallback: return the latest year (shouldn't normally reach here)
     return latest_year
 
 
-def _create_next_school_year(school, previous_year):
+def _create_school_year(school, start_year):
     """
-    Create the next school year with default terms.
-    """
-    next_start_year = previous_year.start_year + 1
-
-    # Create the next school year
-    next_year = SchoolYear.objects.create(
-        school=school,
-        start_year=next_start_year
-    )
-
-    # Create default terms for Caribbean school system (Sept-July)
-    _create_default_terms(next_year, next_start_year)
-
-    return next_year
-
-
-def _create_default_school_year(school, today):
-    """
-    Create a default school year for schools that don't have any years set up.
+    Create a school year.
     """
     import datetime
-
-    # Determine the appropriate start year based on current date
-    # Caribbean school year typically starts in September
-    if today.month >= 9:  # Sept-Dec: current calendar year
-        start_year = today.year
-    else:  # Jan-Aug: previous calendar year (still in same academic year)
-        start_year = today.year - 1
 
     # Create the school year
     school_year = SchoolYear.objects.create(
