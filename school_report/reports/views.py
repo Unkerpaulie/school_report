@@ -1719,13 +1719,15 @@ def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
         return redirect('reports:term_class_report_list',
                        school_slug=school_slug, term_id=term_id, class_id=class_id)
 
-    # Create directory structure: media/<school-slug>/<year>/<term>/<class-name>/
+    # Create directory structure: report_archives/<school-slug>/<year>/<term>/<class-name>/
     year_str = f"{term.year.start_year}-{term.year.end_year}"
     term_str = f"Term{term.term_number}"
     class_name = standard.get_name_display().replace(' ', '_')
 
+    # Use report archives directory instead of media
+    report_archives_root = getattr(settings, 'REPORT_ARCHIVES_ROOT', os.path.join(settings.MEDIA_ROOT, 'report_archives'))
     pdf_dir = os.path.join(
-        settings.MEDIA_ROOT,
+        report_archives_root,
         school_slug,
         year_str,
         term_str,

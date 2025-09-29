@@ -54,3 +54,6 @@ Transition list view
 add filter for staff view
 
 Overall average calculation detail?
+
+## Functionality for MVP demo
+

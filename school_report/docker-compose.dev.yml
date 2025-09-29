@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: school_report_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: school_report_dev
+      POSTGRES_USER: school_admin
+      POSTGRES_PASSWORD: school_dev_password_2024
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - school_dev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U school_admin -d school_report_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: school_report_web
+    restart: unless-stopped
+    environment:
+      - DEBUG=True
+      - DJANGO_ENVIRONMENT=development
+      - DATABASE_URL=postgresql://school_admin:school_dev_password_2024@db:5432/school_report_dev
+      - DJANGO_SECRET_KEY=dev-secret-key-change-in-production-2024
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+    volumes:
+      # Mount source code for live reloading
+      - .:/app
+      # Separate volumes for persistent data
+      - media_dev_data:/app/media
+      - static_dev_data:/app/staticfiles
+      # Mount for PDF report archives (separate from media)
+      - report_archives:/app/report_archives
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - school_dev_network
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        echo 'Starting development server...' &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+
+  # Redis (for future caching/sessions if needed)
+  redis:
+    image: redis:7-alpine
+    container_name: school_report_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - school_dev_network
+    volumes:
+      - redis_dev_data:/data
+
+  # pgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: school_report_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@school.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - school_dev_network
+
+networks:
+  school_dev_network:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  media_dev_data:
+    driver: local
+  static_dev_data:
+    driver: local
+  report_archives:
+    driver: local
+  redis_dev_data:
+    driver: local
+  pgadmin_dev_data:
+    driver: local
