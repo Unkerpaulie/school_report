@@ -52,3 +52,5 @@ Transition list view
 #### 4. Assign teachers to classes
 
 add filter for staff view
+
+Overall average calculation detail?

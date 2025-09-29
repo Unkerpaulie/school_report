@@ -54,6 +54,7 @@
                                 <th>Date</th>
                                 <th>Type</th>
                                 <th>Subjects</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -84,6 +85,18 @@
                                     {% endwith %}
                                 </td>
                                 <td>
+                                    {% if test.is_finalized %}
+                                    <span class="badge text-bg-success">
+                                        <i class="bi bi-check-circle"></i> Finalized
+                                    </span>
+                                    {% else %}
+                                    <span class="badge text-bg-warning">
+                                        <i class="bi bi-clock"></i> Draft
+                                    </span>
+                                    {% endif %}
+
+                                </td>
+                                <td>
                                     <div class="btn-group">
                                         <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-primary">
                                             <i class="bi bi-eye"></i> View
@@ -91,9 +104,15 @@
                                         <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-success">
                                             <i class="bi bi-list-check"></i> Subjects
                                         </a>
+                                        {% if not test.is_finalized %}
                                         <a href="{% url 'reports:test_scores_bulk' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-warning">
                                             <i class="bi bi-calculator"></i> Scores
                                         </a>
+                                        {% else %}
+                                        <a href="#" class="btn btn-sm btn-warning disabled">
+                                            <i class="bi bi-calculator"></i> Scores
+                                        </a>
+                                        {% endif %}
                                         <a href="{% url 'reports:test_edit' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-info">
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>

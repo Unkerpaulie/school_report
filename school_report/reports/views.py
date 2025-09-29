@@ -318,6 +318,9 @@ def test_detail(request, school_slug, test_id):
         test_subject__test=test
     ).select_related('student', 'test_subject__standard_subject')
 
+    # check if test has been finalized
+    finalized = test.is_finalized
+
     # Organize scores by student and subject
     # Get students currently enrolled in the test's standard for the test's year
     from core.utils import get_current_student_enrollment
@@ -367,6 +370,7 @@ def test_detail(request, school_slug, test_id):
     return render(request, 'reports/test_detail.html', {
         'test': test,
         'test_subjects': test_subjects,
+        'finalized': finalized,
         'student_scores': student_scores.values(),
         'scores_data_json': json.dumps(scores_data),
         'school': school,
@@ -696,6 +700,13 @@ def test_scores_bulk(request, school_slug, test_id):
         return redirect('core:home')
 
     test = get_object_or_404(Test, id=test_id)
+
+    # check if test was already finalized
+    if test.is_finalized:
+        # redirect to test detail page
+        messages.warning(request, "You cannot edit the scores for a test that has been finalized.")
+        return redirect('reports:test_detail', school_slug=school_slug, test_id=test_id)
+        
 
     # Check if the teacher created this test
     if test.created_by != teacher:

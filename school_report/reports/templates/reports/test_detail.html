@@ -131,9 +131,11 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold">Student Scores</h6>
+                {% if not finalized %}
                 <a href="{% url 'reports:test_scores_bulk' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-warning">
                     <i class="bi bi-calculator"></i> Manage Scores
                 </a>
+                {% endif %}
             </div>
             <div class="card-body">
                 {% if student_scores %}

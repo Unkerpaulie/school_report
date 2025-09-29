@@ -291,6 +291,26 @@
 
 {% block extra_js %}
 <script>
+    const star_inputs = [
+        {"name": "attitude", "value": {{ form.attitude.value }}}, 
+        {"name": "respect", "value": {{ form.respect.value }}}, 
+        {"name": "class_participation", "value": {{ form.class_participation.value }}}, 
+        {"name": "time_management", "value": {{ form.time_management.value }}}, 
+        {"name": "assignment_completion", "value": {{ form.assignment_completion.value }}}, 
+        {"name": "parental_support", "value": {{ form.parental_support.value }}}, 
+        {"name": "attendance", "value": {{ form.attendance.value }}}
+    ];
+    star_inputs.forEach(function(item) {
+        console.log(item.name);
+        const radios = document.querySelectorAll(`input[name="${item.name}"]`);
+        radios.forEach(function(rad) {
+            if (rad.value == item.value) {
+                rad.checked = true;
+            }
+        })
+        console.log(radios);
+    })
+    /*
 document.addEventListener('DOMContentLoaded', function() {
     // Calculate and display attendance percentage
     const daysPresent = document.getElementById('{{ form.days_present.id_for_label }}');
@@ -319,5 +339,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial calculation
     updateAttendanceDisplay();
 });
+*/
 </script>
 {% endblock %}
