@@ -8,6 +8,9 @@ pip install -r requirements-new.txt
 # install whitenoise for the css to work on render.com
 pip install whitenoise
 
+# Note: WeasyPrint system dependencies (libpango, etc.) are pre-installed on Render.com
+# If PDF generation fails, it will gracefully degrade with user-friendly error messages
+
 # Collect static files
 python manage.py collectstatic --no-input
 

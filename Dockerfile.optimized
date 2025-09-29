@@ -1,0 +1,58 @@
+# Multi-stage build for optimized production image
+FROM python:3.12-slim as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libffi-dev \
+    libjpeg-dev \
+    libopenjp2-7-dev \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements-new.txt .
+RUN pip install --user --no-cache-dir -r requirements-new.txt
+
+# Production stage
+FROM python:3.12-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_ENVIRONMENT=production
+ENV PATH=/root/.local/bin:$PATH
+
+# Install runtime dependencies for WeasyPrint
+RUN apt-get update && apt-get install -y \
+    libpango-1.0-0 \
+    libharfbuzz0b \
+    libpangoft2-1.0-0 \
+    libharfbuzz-subset0 \
+    libffi8 \
+    libjpeg62-turbo \
+    libopenjp2-7 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python packages from builder stage
+COPY --from=builder /root/.local /root/.local
+
+# Set work directory
+WORKDIR /app
+
+# Copy project
+COPY . .
+
+# Create media directory with proper permissions
+RUN mkdir -p /app/media && chmod 755 /app/media
+
+# Collect static files
+RUN python manage.py collectstatic --noinput
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+USER app
+
+# Run gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "school_report.wsgi:application"]

@@ -7,6 +7,9 @@ python-dotenv>=1.0.0
 django-debug-toolbar>=4.2.0
 faker>=19.0.0
 
+# PDF generation
+weasyprint>=62.0
+
 # for render.com
 whitenoise>=6.5.0
 

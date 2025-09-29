@@ -761,3 +761,58 @@ def user_can_access_view(request, required_role=None, required_school_slug=None)
             return False, 'core:home', 'You do not have access to this school.'
 
     return True, None, None
+
+
+def cleanup_old_pdf_files(school_slug, days_old=7):
+    """
+    Clean up old PDF files from the media directory for a specific school.
+
+    Args:
+        school_slug: The school slug to clean files for
+        days_old: Number of days old files should be before deletion (default: 7)
+
+    Returns:
+        tuple: (files_deleted, errors)
+    """
+    import os
+    import time
+    from django.conf import settings
+
+    files_deleted = 0
+    errors = []
+
+    try:
+        school_media_path = os.path.join(settings.MEDIA_ROOT, school_slug)
+
+        if not os.path.exists(school_media_path):
+            return files_deleted, errors
+
+        cutoff_time = time.time() - (days_old * 24 * 60 * 60)
+
+        # Walk through all subdirectories
+        for root, dirs, files in os.walk(school_media_path):
+            for file in files:
+                if file.endswith('.pdf') or file.endswith('.zip'):
+                    file_path = os.path.join(root, file)
+                    try:
+                        # Check if file is older than cutoff
+                        if os.path.getmtime(file_path) < cutoff_time:
+                            os.remove(file_path)
+                            files_deleted += 1
+                    except OSError as e:
+                        errors.append(f"Failed to delete {file_path}: {str(e)}")
+
+        # Remove empty directories
+        for root, dirs, files in os.walk(school_media_path, topdown=False):
+            for dir_name in dirs:
+                dir_path = os.path.join(root, dir_name)
+                try:
+                    if not os.listdir(dir_path):  # Directory is empty
+                        os.rmdir(dir_path)
+                except OSError:
+                    pass  # Ignore errors when removing directories
+
+    except Exception as e:
+        errors.append(f"General cleanup error: {str(e)}")
+
+    return files_deleted, errors

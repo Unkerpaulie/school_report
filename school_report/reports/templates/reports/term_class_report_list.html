@@ -10,13 +10,21 @@
         <h1 class="h3 mb-0 text-gray-800">
             <i class="bi bi-file-earmark-text"></i> {{ standard.get_name_display }} - {{ term }} Reports
         </h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ standard.get_name_display }} - {{ term }}</li>
-            </ol>
-        </nav>
+        <div class="d-flex align-items-center">
+            {% if reports %}
+            <a href="{% url 'reports:bulk_generate_class_reports_pdf' school_slug=school_slug term_id=term.id class_id=standard.id %}"
+               class="btn btn-success btn-sm mr-3" id="bulk-pdf-btn" title="Generate PDF reports for all students">
+                <i class="bi bi-file-earmark-pdf"></i> Print All Reports
+            </a>
+            {% endif %}
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ standard.get_name_display }} - {{ term }}</li>
+                </ol>
+            </nav>
+        </div>
     </div>
 
     <!-- Reports List -->
@@ -112,6 +120,55 @@ $(document).ready(function() {
             "lengthMenu": "Show _MENU_ students per page",
             "info": "Showing _START_ to _END_ of _TOTAL_ students"
         }
+    });
+
+    // Handle bulk PDF generation with progress feedback
+    $('#bulk-pdf-btn').click(function(e) {
+        e.preventDefault();
+
+        const $btn = $(this);
+        const originalText = $btn.html();
+        const url = $btn.attr('href');
+
+        // Show loading state
+        $btn.prop('disabled', true);
+        $btn.html('<i class="bi bi-hourglass-split"></i> Generating PDFs...');
+
+        // Show progress message
+        const alertHtml = `
+            <div class="alert alert-info alert-dismissible fade show" role="alert" id="pdf-progress-alert">
+                <i class="bi bi-info-circle"></i>
+                <strong>Generating Reports:</strong> Please wait while we create PDF files for all students. This may take a few moments...
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        $('.container-fluid').prepend(alertHtml);
+
+        // Create a hidden iframe to handle the download
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+
+        // Reset button after a delay (assuming PDF generation completes)
+        setTimeout(function() {
+            $btn.prop('disabled', false);
+            $btn.html(originalText);
+            $('#pdf-progress-alert').fadeOut();
+
+            // Show success message
+            const successHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i>
+                    <strong>Success:</strong> PDF reports have been generated and should download automatically.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            $('.container-fluid').prepend(successHtml);
+
+            // Remove iframe
+            document.body.removeChild(iframe);
+        }, 10000); // 10 second timeout
     });
 });
 </script>
