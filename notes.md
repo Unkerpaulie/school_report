@@ -57,3 +57,11 @@ Overall average calculation detail?
 
 ## Functionality for MVP demo
 
+bugs to fix
+
+logo upload
+test script not showing test scores on reports
+formating of reports in bulk download
+- stars not being generated
+- footer placed too high
+- 

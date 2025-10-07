@@ -251,12 +251,13 @@ class Command(BaseCommand):
                 test_score.score = score_value
                 test_score.save()
 
-        # Finalize the test to trigger report generation
-        test.is_finalized = True
-        test.finalized_at = timezone.now()
-        test.save()
-
-        self.stdout.write(f'    ✓ Created and finalized {test_type} with {len(selected_subjects)} subjects')
+        # Finalize the test to trigger report generation and score aggregation
+        success, message = test.finalize_test(teacher)
+        if success:
+            self.stdout.write(f'    ✓ Created and finalized {test_type} with {len(selected_subjects)} subjects')
+            self.stdout.write(f'      {message}')
+        else:
+            self.stdout.write(self.style.WARNING(f'    ⚠ Test created but finalization failed: {message}'))
 
     def populate_term_reviews(self, standard, term, dry_run=False):
         """Populate term reviews for all students in a standard"""
