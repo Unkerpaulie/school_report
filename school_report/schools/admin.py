@@ -24,14 +24,14 @@ link_to_school.short_description = 'School'
 class SchoolAdmin(admin.ModelAdmin):
     list_display = ('name', link_to_principal, 'contact_phone', 'contact_email', 'is_active', 'created_at', 'updated_at')
     list_filter = ('is_active', 'created_at')
-    search_fields = ('name', 'principal_user__user__username', 'principal_user__user__first_name', 'principal_user__user__last_name')
+    search_fields = ('name', 'slug', 'principal_user__user__username', 'principal_user__user__first_name', 'principal_user__user__last_name')
     ordering = ('name',)
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'created_at'
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'principal_user', 'contact_phone', 'contact_email', 'is_active', 'logo', 'created_at', 'updated_at')
+            'fields': ('name', 'slug', 'principal_user', 'contact_phone', 'contact_email', 'is_active', 'logo', 'created_at', 'updated_at')
         }),
     )
 

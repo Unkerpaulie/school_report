@@ -22,6 +22,65 @@ except ImportError:
     WEASYPRINT_AVAILABLE = False
 from .models import Test, TestSubject, TestScore, StudentTermReview, StudentSubjectScore
 
+
+def generate_report_pdf(report, school, school_slug, request, subject_scores=None, current_enrollment=None):
+    """
+    Generate a PDF for a single student report.
+
+    Args:
+        report: StudentTermReview instance
+        school: School instance
+        school_slug: School slug string
+        request: HTTP request object
+        subject_scores: Optional pre-fetched subject scores (for bulk operations)
+        current_enrollment: Optional pre-fetched enrollment (for bulk operations)
+
+    Returns:
+        tuple: (success: bool, pdf_content: bytes or None, error_message: str or None)
+    """
+    if not WEASYPRINT_AVAILABLE:
+        return False, None, "PDF generation is not available. WeasyPrint library is not installed."
+
+    try:
+        # Get subject scores if not provided
+        if subject_scores is None:
+            subject_scores = StudentSubjectScore.objects.filter(
+                term_review=report
+            ).select_related('standard_subject').order_by('standard_subject__subject_name')
+
+        # Get current enrollment if not provided
+        if current_enrollment is None:
+            current_enrollment = StandardEnrollment.objects.filter(
+                student=report.student,
+                year=report.term.year,
+                standard__isnull=False
+            ).select_related('standard').order_by('-created_at').first()
+
+        # Render the report HTML
+        html_content = render_to_string('reports/report_detail.html', {
+            'report': report,
+            'subject_scores': subject_scores,
+            'school': school,
+            'school_slug': school_slug,
+            'current_enrollment': current_enrollment,
+            'is_pdf_generation': True,  # Flag to modify template for PDF
+        })
+
+        # Generate PDF using WeasyPrint with optimized settings
+        pdf_content = weasyprint.HTML(
+            string=html_content,
+            base_url=request.build_absolute_uri()
+        ).write_pdf(
+            optimize_images=True,  # Optimize images for smaller file size
+            presentational_hints=True  # Use CSS presentational hints for faster rendering
+        )
+
+        return True, pdf_content, None
+
+    except Exception as e:
+        return False, None, str(e)
+
+
 # Create your forms here
 from django import forms
 
@@ -1671,6 +1730,69 @@ def report_edit(request, school_slug, report_id):
 
 
 @login_required
+def download_report_pdf(request, school_slug, report_id):
+    """
+    Generate and download a PDF for a single student report
+    """
+    # Check if WeasyPrint is available
+    if not WEASYPRINT_AVAILABLE:
+        messages.error(request, "PDF generation is not available. WeasyPrint library is not installed.")
+        return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
+
+    # Get the report and related objects
+    report = get_object_or_404(StudentTermReview, id=report_id)
+    school = get_object_or_404(School, slug=school_slug)
+
+    # Verify the report belongs to this school
+    if report.term.year.school != school:
+        messages.error(request, "Report not found for this school.")
+        return redirect('core:home')
+
+    # Check permissions - teachers can only access their own class reports
+    user_profile = request.user.profile
+    if user_profile.user_type == 'teacher':
+        # Get current enrollment to check if this student is in teacher's class
+        current_enrollment = StandardEnrollment.objects.filter(
+            student=report.student,
+            year=report.term.year,
+            standard__isnull=False
+        ).select_related('standard').order_by('-created_at').first()
+
+        if not current_enrollment:
+            messages.error(request, "Student enrollment not found.")
+            return redirect('core:home')
+
+        # Check if teacher is assigned to this standard
+        from core.utils import get_current_teacher_assignment
+        teacher_assignment = get_current_teacher_assignment(user_profile, report.term.year)
+        if not teacher_assignment or teacher_assignment.standard != current_enrollment.standard:
+            messages.error(request, "You don't have permission to access this report.")
+            return redirect('core:home')
+
+    # Generate the PDF
+    success, pdf_content, error_message = generate_report_pdf(
+        report=report,
+        school=school,
+        school_slug=school_slug,
+        request=request
+    )
+
+    if not success:
+        messages.error(request, f"Failed to generate PDF: {error_message}")
+        return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
+
+    # Create the response with PDF content
+    student_name = report.student.get_full_name().replace(' ', '_')
+    term_str = str(report.term).replace(' ', '_').replace('-', '_')
+    filename = f"{student_name}_{term_str}_Report.pdf"
+
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return response
+
+
+@login_required
 def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
     """
     Generate PDF files for all students in a class for a specific term
@@ -1714,6 +1836,11 @@ def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
         student__standard_enrollments__year=term.year
     ).select_related('student').order_by('student__last_name', 'student__first_name')
 
+    # Debug logging
+    import time
+    start_time = time.time()
+    print(f"DEBUG: Starting bulk PDF generation for {reports.count()} reports in {standard.get_name_display()}")
+
     if not reports.exists():
         messages.error(request, "No reports found for this class and term.")
         return redirect('reports:term_class_report_list',
@@ -1747,39 +1874,73 @@ def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
         # Don't fail the main operation if cleanup fails
         messages.warning(request, f"File cleanup failed: {str(e)}")
 
+    # Optimize database queries - prefetch all related data at once
+    reports = reports.select_related(
+        'student', 'term', 'term__year'
+    ).prefetch_related(
+        'subject_scores__standard_subject',
+        'student__standard_enrollments__standard'
+    )
+
+    # Pre-fetch all subject scores for all reports in one query
+    all_subject_scores = StudentSubjectScore.objects.filter(
+        term_review__in=reports
+    ).select_related('standard_subject').order_by('term_review_id', 'standard_subject__subject_name')
+
+    # Group subject scores by report ID for efficient lookup
+    scores_by_report = {}
+    for score in all_subject_scores:
+        if score.term_review_id not in scores_by_report:
+            scores_by_report[score.term_review_id] = []
+        scores_by_report[score.term_review_id].append(score)
+
+    # Pre-fetch all current enrollments in one query
+    all_enrollments = StandardEnrollment.objects.filter(
+        student__in=[r.student for r in reports],
+        year=term.year,
+        standard__isnull=False
+    ).select_related('standard').order_by('student_id', '-created_at')
+
+    # Group enrollments by student ID for efficient lookup
+    enrollments_by_student = {}
+    for enrollment in all_enrollments:
+        if enrollment.student_id not in enrollments_by_student:
+            enrollments_by_student[enrollment.student_id] = enrollment
+
     # Generate PDFs for each student
     pdf_files = []
-    for report in reports:
+    for i, report in enumerate(reports):
         try:
-            # Get subject scores for this report
-            subject_scores = StudentSubjectScore.objects.filter(
-                term_review=report
-            ).select_related('standard_subject').order_by('standard_subject__subject_name')
+            # Get pre-fetched data
+            subject_scores = scores_by_report.get(report.id, [])
+            current_enrollment = enrollments_by_student.get(report.student.id)
 
-            # Get current enrollment for navigation context
-            current_enrollment = StandardEnrollment.objects.filter(
-                student=report.student,
-                year=term.year,
-                standard__isnull=False
-            ).select_related('standard').order_by('-created_at').first()
+            # Generate PDF using shared function
+            success, pdf_content, error_message = generate_report_pdf(
+                report=report,
+                school=school,
+                school_slug=school_slug,
+                request=request,
+                subject_scores=subject_scores,
+                current_enrollment=current_enrollment
+            )
 
-            # Render the report HTML
-            html_content = render_to_string('reports/report_detail.html', {
-                'report': report,
-                'subject_scores': subject_scores,
-                'school': school,
-                'school_slug': school_slug,
-                'current_enrollment': current_enrollment,
-                'is_pdf_generation': True,  # Flag to modify template for PDF
-            })
+            if not success:
+                messages.warning(request, f"Failed to generate PDF for {report.student.get_full_name()}: {error_message}")
+                continue
 
-            # Generate PDF
+            # Save PDF to file
             pdf_filename = f"{report.student.get_full_name().replace(' ', '_')}_Report.pdf"
             pdf_path = os.path.join(pdf_dir, pdf_filename)
 
-            # Create PDF using WeasyPrint
-            weasyprint.HTML(string=html_content, base_url=request.build_absolute_uri()).write_pdf(pdf_path)
+            with open(pdf_path, 'wb') as pdf_file:
+                pdf_file.write(pdf_content)
+
             pdf_files.append((pdf_filename, pdf_path))
+
+            # Optional: Add progress logging for debugging
+            if (i + 1) % 5 == 0:  # Log every 5 reports
+                print(f"DEBUG: Generated {i + 1}/{len(reports)} PDFs")
 
         except Exception as e:
             messages.warning(request, f"Failed to generate PDF for {report.student.get_full_name()}: {str(e)}")
@@ -1811,7 +1972,12 @@ def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
             except OSError:
                 pass  # Ignore cleanup errors
 
-        messages.success(request, f"Successfully generated {len(pdf_files)} report PDFs.")
+        # Debug timing
+        end_time = time.time()
+        total_time = end_time - start_time
+        print(f"DEBUG: Bulk PDF generation completed in {total_time:.2f} seconds for {len(pdf_files)} reports")
+
+        messages.success(request, f"Successfully generated {len(pdf_files)} report PDFs in {total_time:.1f} seconds.")
         return response
 
     except Exception as e:

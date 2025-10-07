@@ -138,11 +138,22 @@ $(document).ready(function() {
         $btn.prop('disabled', true);
         $btn.html('<i class="bi bi-hourglass-split"></i> Generating PDFs...');
 
-        // Show progress message
+        // Count number of students for better progress feedback
+        const studentCount = $('#dataTable tbody tr').length;
+
+        // Show progress message with student count
         const alertHtml = `
             <div class="alert alert-info alert-dismissible fade show" role="alert" id="pdf-progress-alert">
                 <i class="bi bi-info-circle"></i>
-                <strong>Generating Reports:</strong> Please wait while we create PDF files for all students. This may take a few moments...
+                <strong>Generating Reports:</strong> Creating PDF reports for ${studentCount} students.
+                This may take 1-2 minutes depending on the number of students and their scores...
+                <div class="mt-2">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
@@ -154,25 +165,28 @@ $(document).ready(function() {
         iframe.src = url;
         document.body.appendChild(iframe);
 
-        // Reset button after a delay (assuming PDF generation completes)
+        // Reset button after a longer delay for PDF generation
         setTimeout(function() {
             $btn.prop('disabled', false);
             $btn.html(originalText);
             $('#pdf-progress-alert').fadeOut();
 
-            // Show success message
-            const successHtml = `
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="bi bi-check-circle"></i>
-                    <strong>Success:</strong> PDF reports have been generated and should download automatically.
+            // Show timeout warning if still processing
+            const timeoutHtml = `
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Still Processing:</strong> PDF generation is taking longer than expected.
+                    Please wait for the download to complete or check for any error messages.
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             `;
-            $('.container-fluid').prepend(successHtml);
+            $('.container-fluid').prepend(timeoutHtml);
 
             // Remove iframe
-            document.body.removeChild(iframe);
-        }, 10000); // 10 second timeout
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+        }, 60000); // 60 second timeout (increased from 10 seconds)
     });
 });
 </script>

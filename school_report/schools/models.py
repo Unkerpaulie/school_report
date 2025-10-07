@@ -1,12 +1,9 @@
 from django.db import models
-from django.core.files.storage import FileSystemStorage
 from django.contrib.auth.models import User
 from django.utils.text import slugify
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.apps import apps
-
-fs = FileSystemStorage(location='media/school_logos/')
 
 class School(models.Model):
     """
@@ -18,7 +15,7 @@ class School(models.Model):
     contact_phone = models.CharField(max_length=20, blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
     principal_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='administered_schools')
-    logo = models.ImageField(upload_to='school_logos/', blank=True, null=True, storage=fs)
+    logo = models.ImageField(upload_to='school_logos/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -6,6 +6,56 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/displaystars.css' %}">
 <link rel="stylesheet" href="{% static 'css/report_show.css' %}">
+{% if is_pdf_generation %}
+<style>
+/* PDF-specific styles */
+.pdf-stars {
+    font-size: 16px;
+    color: #ffc107;
+    letter-spacing: 2px;
+}
+
+/* PDF signature positioning */
+.report-container {
+    position: relative;
+    min-height: 9.5in; /* Reduced height to prevent page overflow */
+}
+
+.signature-section {
+    position: absolute;
+    bottom: 0.3in; /* Moved up slightly for better spacing */
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: 0 0.5in; /* Add horizontal padding */
+}
+
+/* Ensure signature lines are visible in PDF */
+.signature-line {
+    border-bottom: 2px solid #000 !important;
+    height: 40px !important;
+    margin-bottom: 8px !important;
+    width: 80% !important; /* Shorten lines to prevent touching */
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Fix column layout for PDF */
+.signature-section .col-4 {
+    width: 33.333% !important;
+    float: left !important;
+    text-align: center !important;
+    padding: 0 10px !important; /* Add padding between columns */
+}
+
+/* Clear floats */
+.signature-section .row::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+</style>
+{% endif %}
 {% endblock extra_css %}
 {% block content %}
 <div class="container-fluid">
@@ -50,6 +100,11 @@
                             <button onclick="window.print()" class="btn btn-light btn-sm mr-2">
                                 <i class="bi bi-printer"></i> Print Report
                             </button>
+                            <a href="{% url 'reports:download_report_pdf' school_slug=school_slug report_id=report.id %}"
+                               class="btn btn-success btn-sm mr-2" id="download-pdf-btn"
+                               title="Download this report as PDF">
+                                <i class="bi bi-file-earmark-pdf"></i> Download Report
+                            </a>
                             {% if user.is_teacher %}
                             <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}" class="btn btn-warning btn-sm">
                                 <i class="bi bi-pencil"></i> Edit Report
@@ -216,25 +271,41 @@
                                         <tr>
                                             <td><strong>Attitude:</strong></td>
                                             <td>
-                                                <div class="displaystars" style="--l:{{ report.attitude }};--s:20px;--n:5"></div>
+                                                {% if is_pdf_generation %}
+                                                    <span class="pdf-stars">{% for i in "12345" %}{% if forloop.counter <= report.attitude %}★{% else %}☆{% endif %}{% endfor %}</span>
+                                                {% else %}
+                                                    <div class="displaystars" style="--l:{{ report.attitude }};--s:20px;--n:5"></div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Respect:</strong></td>
                                             <td>
-                                                <div class="displaystars" style="--l:{{ report.respect }};--s:20px;--n:5"></div>
+                                                {% if is_pdf_generation %}
+                                                    <span class="pdf-stars">{% for i in "12345" %}{% if forloop.counter <= report.respect %}★{% else %}☆{% endif %}{% endfor %}</span>
+                                                {% else %}
+                                                    <div class="displaystars" style="--l:{{ report.respect }};--s:20px;--n:5"></div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Class Participation:</strong></td>
                                             <td>
-                                                <div class="displaystars" style="--l:{{ report.class_participation }};--s:20px;--n:5"></div>
+                                                {% if is_pdf_generation %}
+                                                    <span class="pdf-stars">{% for i in "12345" %}{% if forloop.counter <= report.class_participation %}★{% else %}☆{% endif %}{% endfor %}</span>
+                                                {% else %}
+                                                    <div class="displaystars" style="--l:{{ report.class_participation }};--s:20px;--n:5"></div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Time Management:</strong></td>
                                             <td>
-                                                <div class="displaystars" style="--l:{{ report.time_management }};--s:20px;--n:5"></div>
+                                                {% if is_pdf_generation %}
+                                                    <span class="pdf-stars">{% for i in "12345" %}{% if forloop.counter <= report.time_management %}★{% else %}☆{% endif %}{% endfor %}</span>
+                                                {% else %}
+                                                    <div class="displaystars" style="--l:{{ report.time_management }};--s:20px;--n:5"></div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                     </table>
@@ -244,19 +315,31 @@
                                         <tr>
                                             <td><strong>Assignment Completion:</strong></td>
                                             <td>
-                                                <div class="displaystars" style="--l:{{ report.assignment_completion }};--s:20px;--n:5"></div>
+                                                {% if is_pdf_generation %}
+                                                    <span class="pdf-stars">{% for i in "12345" %}{% if forloop.counter <= report.assignment_completion %}★{% else %}☆{% endif %}{% endfor %}</span>
+                                                {% else %}
+                                                    <div class="displaystars" style="--l:{{ report.assignment_completion }};--s:20px;--n:5"></div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Parental Support:</strong></td>
                                             <td>
-                                                <div class="displaystars" style="--l:{{ report.parental_support }};--s:20px;--n:5"></div>
+                                                {% if is_pdf_generation %}
+                                                    <span class="pdf-stars">{% for i in "12345" %}{% if forloop.counter <= report.parental_support %}★{% else %}☆{% endif %}{% endfor %}</span>
+                                                {% else %}
+                                                    <div class="displaystars" style="--l:{{ report.parental_support }};--s:20px;--n:5"></div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td><strong>Attendance Rating:</strong></td>
                                             <td>
-                                                <div class="displaystars" style="--l:{{ report.attendance }};--s:20px;--n:5"></div>
+                                                {% if is_pdf_generation %}
+                                                    <span class="pdf-stars">{% for i in "12345" %}{% if forloop.counter <= report.attendance %}★{% else %}☆{% endif %}{% endfor %}</span>
+                                                {% else %}
+                                                    <div class="displaystars" style="--l:{{ report.attendance }};--s:20px;--n:5"></div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                     </table>
@@ -326,6 +409,11 @@
                             <button onclick="window.print()" class="btn btn-primary btn-sm mr-2">
                                 <i class="bi bi-printer"></i> Print Report
                             </button>
+                            <a href="{% url 'reports:download_report_pdf' school_slug=school_slug report_id=report.id %}"
+                               class="btn btn-success btn-sm mr-2"
+                               title="Download this report as PDF">
+                                <i class="bi bi-file-earmark-pdf"></i> Download Report
+                            </a>
                             {% if user.is_teacher %}
                             <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}" class="btn btn-warning btn-sm">
                                 <i class="bi bi-pencil"></i> Edit Report

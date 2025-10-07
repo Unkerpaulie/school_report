@@ -35,5 +35,6 @@ urlpatterns = [
     path('reports/term/<int:term_id>/class/<int:class_id>/', views.term_class_report_list, name='term_class_report_list'),
     path('reports/term/<int:term_id>/class/<int:class_id>/bulk-pdf/', views.bulk_generate_class_reports_pdf, name='bulk_generate_class_reports_pdf'),
     path('reports/<int:report_id>/', views.report_detail, name='report_detail'),
+    path('reports/<int:report_id>/download-pdf/', views.download_report_pdf, name='download_report_pdf'),
     path('reports/<int:report_id>/edit/', views.report_edit, name='report_edit'),
 ]
