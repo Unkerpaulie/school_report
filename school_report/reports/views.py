@@ -1720,7 +1720,7 @@ def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
                        school_slug=school_slug, term_id=term_id, class_id=class_id)
 
     # Create directory structure: report_archives/<school-slug>/<year>/<term>/<class-name>/
-    year_str = f"{term.year.start_year}-{term.year.end_year}"
+    year_str = f"{term.year.start_year}-{term.year.start_year + 1}"
     term_str = f"Term{term.term_number}"
     class_name = standard.get_name_display().replace(' ', '_')
 
