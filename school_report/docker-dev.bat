@@ -54,7 +54,7 @@ echo ================================
 echo Development Environment Ready!
 echo ================================
 echo Django App: http://localhost:8000
-echo pgAdmin: http://localhost:5050 (admin@school.local / admin123)
+echo pgAdmin: http://localhost:5050 (admin@example.com / admin123)
 echo Database: localhost:5432 (school_admin / school_dev_password_2024)
 echo Admin Panel: http://localhost:8000/admin (admin / admin123)
 goto end
