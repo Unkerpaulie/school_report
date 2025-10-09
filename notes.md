@@ -57,36 +57,63 @@ Overall average calculation detail?
 
 ## Functionality for MVP demo
 
-bugs to fix
+### To do list
 
-[ ] logo upload
+[x] logo upload
 [ ] favicon upload
-[ ] test script not showing test scores on reports
-[ ] formating of reports in bulk download
-    [ ] stars not being generated
-    [ ] footer placed too high
-[ ] review columns listed on finalize page
+[x] test script not showing test scores on reports
+[x] formating of reports in bulk download
+    [x] stars not being generated
+    [x] footer placed too high
+    [x] add school address and contact info
+    [ ] possibly a "sticker" for outstanding students
+[x] review columns listed on finalize page
+[x] disable edit and delete actions for tests that have been finalized
 [ ] fix password change logic
-[ ] incorporate recommend to next level in term review
+[ ] incorporate `recommend_for_advancement` in term review
 [ ] work on transition sequence
 [ ] clean up code that is no longer in use
+[x] come up with a name and domain
+[ ] Set up a skool.com forum for teachers to discuss and request features and bug fixes
+[ ] Create demo video
+[ ] create an activity model and activity history table view
+[ ] Populate recent activity box on dashboard
+[ ] allow the creation of multiple standard groups
+[x] princiapls/admin cannot edit term reports
+[ ] "Preferences" link for users to customize their experience (fixed header, dark mode, etc.)
+[x] Teachers should not edit or enroll students from student detail view
+[x] Populate Student detail Acaedmic Performance card with reports
+[ ] order tests by date ascending
+[ ] work on optimizing queries that are duplicated
+[ ] Write unit tests for the functionality as it is now
 
-Set up a skool.com forum for teachers to discuss and request features and bug fixes
-Come up with a name and domain
-Create demno video
+### Documentation list
 
-Documentation:
 - Create a principal user account
-- Principal sets up school info
+- Principal sets up school info. this generates standards
 - Principal sets year and term limits and number of school days
 - Principal adds teachers and admin staff
-- Principal/admin adds students, assignes to classes
+- Principal/admin adds students, assigns to classes
 - Principal/admin assigns teachers to classes
-- Teacher adds subjects
+- Teacher adds subjects *
 - Teacher creates tests
 - Teacher adds scores
-- Teacher finalizes reports
+- Teacher completes and finalizes reports
 - Teacher/principal/admin downloads reports
 
 
-Teacher requests features and bug fixes
+### Transition sequence
+
+- Ensure new year and terms set up
+- All students unenrolled at end of year
+- students with `recommend_for_advancement` = True are advanced to next class
+- students with `recommend_for_advancement` = False are repeated in same class
+- STD 5 students graduate out of the system and set as inactive
+- New students enrolled in Inf 1
+- Teachers re-assigned to classes
+
+### Things to understand
+- dev vs prod workflow
+- pdf generation 
+- finalize flag for entire class
+- possible refactor of long views.py files

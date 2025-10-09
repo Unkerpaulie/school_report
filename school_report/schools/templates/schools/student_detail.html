@@ -9,6 +9,7 @@
 <div class="row mb-4">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="h3 mb-0 text-gray-800">Student Details</h1>
+        {% if user.profile.user_type != 'teacher' %}
         <div>
             <a href="{% url 'schools:student_edit' school_slug=school_slug pk=student.id %}" class="btn btn-info">
                 <i class="bi bi-pencil"></i> Edit Student
@@ -17,6 +18,7 @@
                 <i class="bi bi-mortarboard"></i> Enroll in Class
             </a>
         </div>
+        {% endif %}
     </div>
 </div>
 
@@ -97,17 +99,21 @@
                     <div class="col-7">{{ current_enrollment.created_at|date:"d M Y" }}</div>
                 </div>
                 
+                {% if user.profile.user_type != 'teacher' %}
                 <div class="mt-3">
                     <a href="{% url 'schools:student_enroll' school_slug=school_slug student_id=student.id %}" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-arrow-repeat"></i> Change Class
                     </a>
                 </div>
+                {% endif %}
                 {% else %}
                 <div class="text-center py-4">
                     <p class="text-muted">Student is not currently enrolled in any class.</p>
+                    {% if user.profile.user_type != 'teacher' %}
                     <a href="{% url 'schools:student_enroll' school_slug=school_slug student_id=student.id %}" class="btn btn-primary">
                         <i class="bi bi-mortarboard"></i> Enroll in Class
                     </a>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -121,16 +127,39 @@
                 <h6 class="m-0 font-weight-bold">Academic Performance</h6>
             </div>
             <div class="card-body">
-                <div class="text-center py-4">
-                    <p class="text-muted">No academic records available yet.</p>
-                    {% if current_enrollment %}
-                    <a href="#" class="btn btn-primary">
-                        <i class="bi bi-file-earmark-text"></i> View Reports
-                    </a>
-                    {% else %}
-                    <p class="small text-muted">Student must be enrolled in a class to view academic records.</p>
-                    {% endif %}
-                </div>
+                {% if finalized_reports %}
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Finalized Reports</h6>
+                        {% for report in finalized_reports %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                            <div>
+                                <strong>{{ report.term }}</strong>
+                                <br>
+                                <small class="text-muted">{{ report.term.year }}</small>
+                                {% if report.overall_average_percentage > 0 %}
+                                <br>
+                                <span class="badge bg-{% if report.overall_average_percentage >= 90 %}success{% elif report.overall_average_percentage >= 80 %}primary{% elif report.overall_average_percentage >= 70 %}info{% elif report.overall_average_percentage >= 60 %}warning{% else %}danger{% endif %}">
+                                    {{ report.overall_average_percentage|floatformat:1 }}% ({{ report.overall_grade }})
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}"
+                                   class="btn btn-sm btn-primary" title="View Report">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No finalized reports available yet.</p>
+                        {% if not current_enrollment %}
+                        <p class="small text-muted">Student must be enrolled in a class to generate academic records.</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

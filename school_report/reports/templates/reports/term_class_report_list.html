@@ -123,15 +123,17 @@
                                                    class="btn btn-primary btn-sm" title="View Report">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                {% if not report.is_finalized %}
-                                                <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}"
-                                                   class="btn btn-warning btn-sm" title="Edit Report">
-                                                    <i class="bi bi-pencil"></i>
-                                                </a>
-                                                {% else %}
-                                                <button class="btn btn-secondary btn-sm" disabled title="Report is finalized and cannot be edited">
-                                                    <i class="bi bi-lock"></i>
-                                                </button>
+                                                {% if user.profile.user_type == 'teacher' %}
+                                                    {% if not report.is_finalized %}
+                                                    <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}"
+                                                       class="btn btn-warning btn-sm" title="Edit Report">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                    {% else %}
+                                                    <button class="btn btn-secondary btn-sm" disabled title="Report is finalized and cannot be edited">
+                                                        <i class="bi bi-lock"></i>
+                                                    </button>
+                                                    {% endif %}
                                                 {% endif %}
                                             </div>
                                         </td>

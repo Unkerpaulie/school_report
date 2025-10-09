@@ -61,8 +61,8 @@
                         <tbody>
                             {% for test in tests %}
                             <tr>
-                                <td>{{ test.test_date|date:"d M Y" }}</td>
-                                <td>
+                                <td data-order="{{ test.test_date|date:'Y-m-d' }}">{{ test.test_date|date:"d M Y" }}</td>
+                                <td data-order="{{ test.test_type }}"
                                     {% if test.test_type == 'assignment' %}
                                         <span class="badge bg-primary">Assignment</span>
                                     {% elif test.test_type == 'quiz' %}
@@ -101,24 +101,42 @@
                                         <a href="{% url 'reports:test_detail' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-primary">
                                             <i class="bi bi-eye"></i> View
                                         </a>
+                                        {% if not test.is_finalized %}
                                         <a href="{% url 'reports:test_subject_add' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-success">
                                             <i class="bi bi-list-check"></i> Subjects
                                         </a>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-success" disabled title="Test is finalized and cannot be modified">
+                                            <i class="bi bi-list-check"></i> Subjects
+                                        </button>
+                                        {% endif %}
                                         {% if not test.is_finalized %}
                                         <a href="{% url 'reports:test_scores_bulk' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-warning">
                                             <i class="bi bi-calculator"></i> Scores
                                         </a>
                                         {% else %}
-                                        <a href="#" class="btn btn-sm btn-warning disabled">
+                                        <button class="btn btn-sm btn-warning" disabled title="Test is finalized and cannot be modified">
                                             <i class="bi bi-calculator"></i> Scores
-                                        </a>
+                                        </button>
                                         {% endif %}
+                                        {% if not test.is_finalized %}
                                         <a href="{% url 'reports:test_edit' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-info">
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-info" disabled title="Test is finalized and cannot be modified">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </button>
+                                        {% endif %}
+                                        {% if not test.is_finalized %}
                                         <a href="{% url 'reports:test_delete' school_slug=school_slug test_id=test.id %}" class="btn btn-sm btn-danger">
                                             <i class="bi bi-trash"></i> Delete
                                         </a>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-danger" disabled title="Test is finalized and cannot be deleted">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -146,7 +164,35 @@
         // Initialize DataTable if it exists
         if (document.getElementById('testsTable')) {
             $('#testsTable').DataTable({
-                "order": [[2, "desc"]]  // Sort by date (column 2) in descending order
+                "order": [[0, "desc"]],  // Sort by date (column 0) in descending order
+                "pageLength": 25,
+                "responsive": true,
+                "columnDefs": [
+                    {
+                        "orderable": false,
+                        "targets": [4]  // Disable sorting on Actions column
+                    },
+                    {
+                        "type": "date",
+                        "targets": [0]  // Date column
+                    }
+                ],
+                "language": {
+                    "search": "Search tests:",
+                    "lengthMenu": "Show _MENU_ tests per page",
+                    "info": "Showing _START_ to _END_ of _TOTAL_ tests",
+                    "infoEmpty": "No tests available",
+                    "infoFiltered": "(filtered from _MAX_ total tests)",
+                    "emptyTable": "No tests found",
+                    "zeroRecords": "No matching tests found"
+                },
+                "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                       '<"row"<"col-sm-12"tr>>' +
+                       '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                "drawCallback": function(settings) {
+                    // Re-initialize tooltips after table redraw
+                    $('[title]').tooltip();
+                }
             });
         }
     });

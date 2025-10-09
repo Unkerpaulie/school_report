@@ -130,10 +130,10 @@
                         <table class="table table-bordered">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Student</th>
-                                    <th class="text-center">Days Present</th>
-                                    <th class="text-center">Subject Scores</th>
-                                    <th class="text-center">Status</th>
+                                    <th>Student Name</th>
+                                    <th>Attendance</th>
+                                    <th>Academic Performance</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -145,19 +145,23 @@
                                         <br><small class="text-muted">Has remarks</small>
                                         {% endif %}
                                     </td>
-                                    <td class="text-center">
-                                        {% if report.days_present > 0 %}
-                                        <span class="badge bg-success">{{ report.days_present }}</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Not Set</span>
-                                        {% endif %}
+                                    <td>
+                                        <span class="badge bg-{% if report.attendance_percentage >= 90 %}success{% elif report.attendance_percentage >= 80 %}warning{% else %}danger{% endif %}">
+                                            {{ report.attendance_percentage|floatformat:1 }}%
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">{{ report.days_present }}/{{ report.get_term_days }} days</small>
                                     </td>
-                                    <td class="text-center">
-                                        {% with subject_count=report.subjects_count %}
+                                    <td>
+                                        {% with subject_count=report.subjects_count overall_avg=report.overall_average_percentage %}
                                         {% if subject_count > 0 %}
-                                        <span class="badge bg-info">{{ subject_count }} Subject{{ subject_count|pluralize }}</span>
+                                            <span class="badge bg-{% if overall_avg >= 90 %}success{% elif overall_avg >= 80 %}primary{% elif overall_avg >= 70 %}info{% elif overall_avg >= 60 %}warning{% else %}danger{% endif %}">
+                                                {{ overall_avg|floatformat:1 }}% ({{ report.overall_grade }})
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">{{ subject_count }} Subject{{ subject_count|pluralize }}</small>
                                         {% else %}
-                                        <span class="badge bg-warning">No Scores</span>
+                                            <span class="badge bg-secondary">No Scores</span>
                                         {% endif %}
                                         {% endwith %}
                                     </td>

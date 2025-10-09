@@ -63,6 +63,12 @@
                                                 <span class="badge bg-success">
                                                     {{ data.report_count }}
                                                 </span>
+                                                <!-- Finalization Status Icon -->
+                                                {% if data.all_finalized %}
+                                                    <i class="bi bi-lock text-success ml-1" title="All reports finalized"></i>
+                                                {% else %}
+                                                    <i class="bi bi-clock text-warning ml-1" title="Reports not finalized ({{ data.finalized_reports }}/{{ data.report_count }} finalized)"></i>
+                                                {% endif %}
                                             {% else %}
                                                 <span class="badge bg-warning">
                                                     0

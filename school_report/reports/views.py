@@ -479,6 +479,11 @@ def test_edit(request, school_slug, test_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to edit this test.")
 
+    # Check if test is finalized
+    if test.is_finalized:
+        messages.warning(request, "You cannot edit a test that has been finalized.")
+        return redirect('reports:test_detail', school_slug=school_slug, test_id=test_id)
+
     # Get the teacher's assigned standard using the new historical system
     current_year, current_term, is_on_vacation = get_current_year_and_term(school=school)
     teacher_assignment = None
@@ -539,6 +544,11 @@ def test_delete(request, school_slug, test_id):
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to delete this test.")
 
+    # Check if test is finalized
+    if test.is_finalized:
+        messages.warning(request, "You cannot delete a test that has been finalized.")
+        return redirect('reports:test_detail', school_slug=school_slug, test_id=test_id)
+
     if request.method == 'POST':
         test.delete()
         messages.success(request, f"Test has been deleted successfully.")
@@ -581,6 +591,11 @@ def test_subject_add(request, school_slug, test_id):
     # Check if the teacher created this test
     if test.created_by != teacher:
         return HttpResponseForbidden("You don't have permission to edit this test.")
+
+    # Check if test is finalized
+    if test.is_finalized:
+        messages.warning(request, "You cannot modify subjects for a test that has been finalized.")
+        return redirect('reports:test_detail', school_slug=school_slug, test_id=test_id)
 
     # Get all test subjects for this test (should already exist from auto-creation)
     test_subjects = TestSubject.objects.filter(test=test).select_related('standard_subject').order_by('standard_subject__subject_name')
@@ -1348,12 +1363,23 @@ def report_list(request, school_slug):
             ).count()
 
             if report_count > 0 or student_count > 0:  # Show terms with students even if no reports yet
+                # Check finalization status
+                finalized_reports = StudentTermReview.objects.filter(
+                    term=term,
+                    student__standard_enrollments__standard=teacher_standard,
+                    student__standard_enrollments__year=term.year,
+                    is_finalized=True
+                ).count()
+                all_finalized = finalized_reports == report_count and report_count > 0
+
                 terms_with_data.append({
                     'term': term,
                     'class_name': teacher_standard.get_name_display(),
                     'class_id': teacher_standard.id,
                     'student_count': student_count,
                     'report_count': report_count,
+                    'finalized_reports': finalized_reports,
+                    'all_finalized': all_finalized,
                     'has_reports': report_count > 0
                 })
 
@@ -1384,12 +1410,23 @@ def report_list(request, school_slug):
                 ).count()
 
                 if report_count > 0 or student_count > 0:  # Show classes with students even if no reports yet
+                    # Check finalization status
+                    finalized_reports = StudentTermReview.objects.filter(
+                        term=term,
+                        student__standard_enrollments__standard=standard,
+                        student__standard_enrollments__year=term.year,
+                        is_finalized=True
+                    ).count()
+                    all_finalized = finalized_reports == report_count and report_count > 0
+
                     terms_with_data.append({
                         'term': term,
                         'class_name': standard.get_name_display(),
                         'class_id': standard.id,
                         'student_count': student_count,
                         'report_count': report_count,
+                        'finalized_reports': finalized_reports,
+                        'all_finalized': all_finalized,
                         'has_reports': report_count > 0
                     })
 
@@ -1542,6 +1579,21 @@ def report_detail(request, school_slug, report_id):
         if current_index < len(report_list) - 1:
             next_report = report_list[current_index + 1]
 
+    # Get teacher and principal information for signatures
+    class_teacher = None
+    school_principal = None
+
+    if current_enrollment:
+        # Get the teacher assigned to this student's class for this term
+        from core.utils import get_current_standard_teacher
+        teacher_assignment = get_current_standard_teacher(current_enrollment.standard, report.term.year)
+        if teacher_assignment and teacher_assignment.teacher:
+            class_teacher = teacher_assignment.teacher
+
+    # Get the school principal
+    if school.principal_user and hasattr(school.principal_user, 'profile'):
+        school_principal = school.principal_user.profile
+
     return render(request, 'reports/report_detail.html', {
         'report': report,
         'subject_scores': subject_scores,
@@ -1551,6 +1603,8 @@ def report_detail(request, school_slug, report_id):
         'school_slug': school_slug,
         'current_enrollment': current_enrollment,
         'user_profile': user_profile,
+        'class_teacher': class_teacher,
+        'school_principal': school_principal,
     })
 
 @login_required
@@ -1685,9 +1739,10 @@ def report_edit(request, school_slug, report_id):
             messages.error(request, "You can only edit reports for students in your assigned class.")
             return redirect('reports:report_list', school_slug=school_slug)
 
-    elif user_profile.user_type not in ['principal', 'administration']:
-        messages.error(request, "Access denied.")
-        return redirect('core:home')
+    else:
+        # Only teachers can edit reports
+        messages.error(request, "Only teachers can edit reports.")
+        return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
 
     # Get next report for "Save and Next" functionality
     # Get all reports for the same term, ordered by student last name, first name

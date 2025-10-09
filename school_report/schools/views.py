@@ -935,6 +935,15 @@ class StudentDetailView(SchoolAccessRequiredMixin, DetailView):
         if current_enrollment:
             context['current_enrollment'] = current_enrollment
 
+        # Get finalized reports for this student
+        from reports.models import StudentTermReview
+        finalized_reports = StudentTermReview.objects.filter(
+            student=self.object,
+            is_finalized=True
+        ).select_related('term', 'term__year').order_by('-term__year__start_year', '-term__term_number')
+
+        context['finalized_reports'] = finalized_reports
+
         return context
 
 
