@@ -18,8 +18,9 @@ from io import BytesIO
 try:
     import weasyprint
     WEASYPRINT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError) as e:
     WEASYPRINT_AVAILABLE = False
+    print(f"WeasyPrint not available: {e}")
 from .models import Test, TestSubject, TestScore, StudentTermReview, StudentSubjectScore
 
 
@@ -1445,12 +1446,21 @@ def term_class_report_list(request, school_slug, term_id, class_id):
         student__standard_enrollments__year=term.year
     ).select_related('student').order_by('student__last_name', 'student__first_name')
 
+    # Check finalization status
+    total_reports = reports.count()
+    finalized_reports = reports.filter(is_finalized=True).count()
+    all_finalized = finalized_reports == total_reports and total_reports > 0
+
     return render(request, 'reports/term_class_report_list.html', {
         'reports': reports,
         'term': term,
         'standard': standard,
         'school': school,
-        'school_slug': school_slug
+        'school_slug': school_slug,
+        'total_reports': total_reports,
+        'finalized_reports': finalized_reports,
+        'all_finalized': all_finalized,
+        'user_profile': user_profile,
     })
 
 @login_required
@@ -1539,7 +1549,8 @@ def report_detail(request, school_slug, report_id):
         'next_report': next_report,
         'school': school,
         'school_slug': school_slug,
-        'current_enrollment': current_enrollment
+        'current_enrollment': current_enrollment,
+        'user_profile': user_profile,
     })
 
 @login_required
@@ -1732,13 +1743,8 @@ def report_edit(request, school_slug, report_id):
 @login_required
 def download_report_pdf(request, school_slug, report_id):
     """
-    Generate and download a PDF for a single student report
+    Download a pre-generated PDF for a single student report
     """
-    # Check if WeasyPrint is available
-    if not WEASYPRINT_AVAILABLE:
-        messages.error(request, "PDF generation is not available. WeasyPrint library is not installed.")
-        return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
-
     # Get the report and related objects
     report = get_object_or_404(StudentTermReview, id=report_id)
     school = get_object_or_404(School, slug=school_slug)
@@ -1769,41 +1775,41 @@ def download_report_pdf(request, school_slug, report_id):
             messages.error(request, "You don't have permission to access this report.")
             return redirect('core:home')
 
-    # Generate the PDF
-    success, pdf_content, error_message = generate_report_pdf(
-        report=report,
-        school=school,
-        school_slug=school_slug,
-        request=request
-    )
-
-    if not success:
-        messages.error(request, f"Failed to generate PDF: {error_message}")
+    # Check if report is finalized and PDF exists
+    if not report.is_finalized:
+        messages.error(request, "Report must be finalized before downloading. Please finalize the report first.")
         return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
 
-    # Create the response with PDF content
-    student_name = report.student.get_full_name().replace(' ', '_')
-    term_str = str(report.term).replace(' ', '_').replace('-', '_')
-    filename = f"{student_name}_{term_str}_Report.pdf"
+    if not report.pdf_generated or not report.pdf_path:
+        messages.error(request, "PDF not available. Please contact your administrator.")
+        return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
 
-    response = HttpResponse(pdf_content, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    # Check if PDF file exists
+    import os
+    if not os.path.exists(report.pdf_path):
+        messages.error(request, "PDF file not found. Please contact your administrator.")
+        return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
 
-    return response
+    # Serve the pre-generated PDF file
+    try:
+        with open(report.pdf_path, 'rb') as pdf_file:
+            pdf_content = pdf_file.read()
+
+        filename = report.get_pdf_filename()
+        response = HttpResponse(pdf_content, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+    except Exception as e:
+        messages.error(request, f"Failed to download PDF: {str(e)}")
+        return redirect('reports:report_detail', school_slug=school_slug, report_id=report_id)
 
 
 @login_required
 def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
     """
-    Generate PDF files for all students in a class for a specific term
-    and create a ZIP file for download
+    Download pre-generated ZIP file containing all class reports
     """
-    # Check if WeasyPrint is available
-    if not WEASYPRINT_AVAILABLE:
-        messages.error(request, "PDF generation is not available. WeasyPrint library is not installed.")
-        return redirect('reports:term_class_report_list',
-                       school_slug=school_slug, term_id=term_id, class_id=class_id)
-
     # Get the school, term, and class
     school = get_object_or_404(School, slug=school_slug)
     term = get_object_or_404(Term, id=term_id, year__school=school)
@@ -1836,151 +1842,256 @@ def bulk_generate_class_reports_pdf(request, school_slug, term_id, class_id):
         student__standard_enrollments__year=term.year
     ).select_related('student').order_by('student__last_name', 'student__first_name')
 
-    # Debug logging
-    import time
-    start_time = time.time()
-    print(f"DEBUG: Starting bulk PDF generation for {reports.count()} reports in {standard.get_name_display()}")
+    if not reports.exists():
+        messages.error(request, "No reports found for this class and term.")
+        return redirect('reports:term_class_report_list',
+                       school_slug=school_slug, term_id=term_id, class_id=class_id)
+
+    # Check if reports are finalized
+    finalized_reports = reports.filter(is_finalized=True)
+    if not finalized_reports.exists():
+        messages.error(request, "No finalized reports found. Please finalize reports before downloading.")
+        return redirect('reports:term_class_report_list',
+                       school_slug=school_slug, term_id=term_id, class_id=class_id)
+
+    # Get the ZIP file path
+    year_str = f"{term.year.start_year}-{term.year.start_year + 1}"
+    term_str = f"Term{term.term_number}"
+    class_name = standard.get_name_display().replace(' ', '_')
+    zip_filename = f"{class_name}_{term_str}_{year_str}_Reports.zip"
+
+    # Get the first report to determine directory structure
+    first_report = finalized_reports.first()
+    pdf_dir = first_report.get_pdf_directory(school_slug)
+
+    if not pdf_dir:
+        messages.error(request, "Unable to determine report directory.")
+        return redirect('reports:term_class_report_list',
+                       school_slug=school_slug, term_id=term_id, class_id=class_id)
+
+
+    # Check if ZIP file exists
+    import os
+    zip_path = os.path.join(pdf_dir, zip_filename)
+    if not os.path.exists(zip_path):
+        messages.error(request, "Bulk download file not found. Please finalize reports first to generate the download file.")
+        return redirect('reports:term_class_report_list',
+                       school_slug=school_slug, term_id=term_id, class_id=class_id)
+
+    # Serve the pre-generated ZIP file
+    try:
+        with open(zip_path, 'rb') as zip_file:
+            response = HttpResponse(zip_file.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
+
+        messages.success(request, f"Downloaded {finalized_reports.count()} report PDFs.")
+        return response
+
+    except Exception as e:
+        messages.error(request, f"Failed to download ZIP file: {str(e)}")
+        return redirect('reports:term_class_report_list',
+                       school_slug=school_slug, term_id=term_id, class_id=class_id)
+
+
+
+
+@login_required
+def finalize_class_reports(request, school_slug, term_id, class_id):
+    """
+    View to finalize all reports for a class/term and generate PDFs
+    """
+    # Get the school
+    school = get_object_or_404(School, slug=school_slug)
+
+    # Check if user is a teacher
+    if not hasattr(request.user, 'profile') or request.user.profile.user_type != 'teacher':
+        messages.error(request, "Only teachers can finalize reports.")
+        return redirect('core:home')
+
+    teacher = request.user.profile
+
+    # Verify teacher belongs to this school using SchoolStaff
+    school_staff = SchoolStaff.objects.filter(
+        staff=teacher,
+        school=school,
+        is_active=True
+    ).first()
+
+    if not school_staff:
+        messages.error(request, "You don't have permission to finalize reports for this school.")
+        return redirect('core:home')
+
+    # Get the term and standard
+    term = get_object_or_404(Term, id=term_id, year__school=school)
+    standard = get_object_or_404(Standard, id=class_id)
+
+    # Verify teacher is assigned to this standard
+    from core.utils import get_current_teacher_assignment
+    teacher_assignment = get_current_teacher_assignment(teacher, term.year)
+    if not teacher_assignment or teacher_assignment.standard != standard:
+        messages.error(request, "You don't have permission to finalize reports for this class.")
+        return redirect('core:home')
+
+    # Get all reports for this term and class
+    reports = StudentTermReview.objects.filter(
+        term=term,
+        student__standard_enrollments__standard=standard,
+        student__standard_enrollments__year=term.year
+    ).select_related('student').distinct().order_by('student__last_name', 'student__first_name')
 
     if not reports.exists():
         messages.error(request, "No reports found for this class and term.")
         return redirect('reports:term_class_report_list',
                        school_slug=school_slug, term_id=term_id, class_id=class_id)
 
-    # Create directory structure: report_archives/<school-slug>/<year>/<term>/<class-name>/
-    year_str = f"{term.year.start_year}-{term.year.start_year + 1}"
-    term_str = f"Term{term.term_number}"
-    class_name = standard.get_name_display().replace(' ', '_')
+    # Check if any reports are already finalized
+    finalized_count = reports.filter(is_finalized=True).count()
+    total_count = reports.count()
 
-    # Use report archives directory instead of media
-    report_archives_root = getattr(settings, 'REPORT_ARCHIVES_ROOT', os.path.join(settings.MEDIA_ROOT, 'report_archives'))
-    pdf_dir = os.path.join(
-        report_archives_root,
-        school_slug,
-        year_str,
-        term_str,
-        class_name
-    )
+    # Check readiness for finalization
+    unready_reports = []
+    for report in reports:
+        if not report.is_finalized:
+            can_finalize, message = report.can_be_finalized()
+            if not can_finalize:
+                unready_reports.append(f"{report.student.get_full_name()}: {message}")
 
-    # Create directory if it doesn't exist
-    os.makedirs(pdf_dir, exist_ok=True)
+    if request.method == 'POST':
+        if unready_reports:
+            messages.error(request, f"Cannot finalize reports. Please fix the following issues: {'; '.join(unready_reports[:5])}")
+            return redirect('reports:finalize_class_reports',
+                           school_slug=school_slug, term_id=term_id, class_id=class_id)
 
-    # Clean up old PDF files (older than 7 days) to save space
-    try:
-        _, cleanup_errors = cleanup_old_pdf_files(school_slug, days_old=7)
-        if cleanup_errors:
-            for error in cleanup_errors[:3]:  # Log first 3 errors only
-                messages.warning(request, f"Cleanup warning: {error}")
-    except Exception as e:
-        # Don't fail the main operation if cleanup fails
-        messages.warning(request, f"File cleanup failed: {str(e)}")
+        # Finalize all reports
+        success_count, error_count, error_messages = StudentTermReview.finalize_class_reports(
+            term, standard, teacher
+        )
 
-    # Optimize database queries - prefetch all related data at once
-    reports = reports.select_related(
-        'student', 'term', 'term__year'
-    ).prefetch_related(
-        'subject_scores__standard_subject',
-        'student__standard_enrollments__standard'
-    )
+        if success_count > 0:
+            messages.success(request, f"Successfully finalized {success_count} reports.")
 
-    # Pre-fetch all subject scores for all reports in one query
-    all_subject_scores = StudentSubjectScore.objects.filter(
-        term_review__in=reports
-    ).select_related('standard_subject').order_by('term_review_id', 'standard_subject__subject_name')
+            # Generate PDFs for finalized reports
+            try:
+                finalized_reports = reports.filter(is_finalized=True)
+                pdf_success_count = generate_class_report_pdfs(finalized_reports, school, school_slug, request)
+                if pdf_success_count > 0:
+                    messages.success(request, f"Generated {pdf_success_count} PDF reports.")
 
-    # Group subject scores by report ID for efficient lookup
-    scores_by_report = {}
-    for score in all_subject_scores:
-        if score.term_review_id not in scores_by_report:
-            scores_by_report[score.term_review_id] = []
-        scores_by_report[score.term_review_id].append(score)
+                    # Generate ZIP file for bulk download
+                    zip_path = generate_class_reports_zip(finalized_reports, school_slug, term, standard)
+                    if zip_path:
+                        messages.success(request, "Bulk download ZIP file created successfully.")
+                    else:
+                        messages.warning(request, "Individual PDFs generated but ZIP file creation failed.")
+            except Exception as e:
+                messages.warning(request, f"Reports finalized but PDF generation failed: {str(e)}")
 
-    # Pre-fetch all current enrollments in one query
-    all_enrollments = StandardEnrollment.objects.filter(
-        student__in=[r.student for r in reports],
-        year=term.year,
-        standard__isnull=False
-    ).select_related('standard').order_by('student_id', '-created_at')
+        if error_count > 0:
+            for error_msg in error_messages[:5]:  # Show first 5 errors
+                messages.error(request, error_msg)
 
-    # Group enrollments by student ID for efficient lookup
-    enrollments_by_student = {}
-    for enrollment in all_enrollments:
-        if enrollment.student_id not in enrollments_by_student:
-            enrollments_by_student[enrollment.student_id] = enrollment
+        return redirect('reports:term_class_report_list',
+                       school_slug=school_slug, term_id=term_id, class_id=class_id)
 
-    # Generate PDFs for each student
-    pdf_files = []
-    for i, report in enumerate(reports):
+    return render(request, 'reports/finalize_class_reports.html', {
+        'school': school,
+        'school_slug': school_slug,
+        'term': term,
+        'standard': standard,
+        'reports': reports,
+        'total_count': total_count,
+        'finalized_count': finalized_count,
+        'unready_reports': unready_reports,
+        'can_finalize': len(unready_reports) == 0 and finalized_count < total_count,
+    })
+
+
+def generate_class_report_pdfs(reports, school, school_slug, request):
+    """
+    Generate PDF files for a queryset of finalized reports
+    Returns the number of successfully generated PDFs
+    """
+    if not WEASYPRINT_AVAILABLE:
+        raise Exception("PDF generation is not available. WeasyPrint library is not installed.")
+
+    success_count = 0
+
+    for report in reports:
         try:
-            # Get pre-fetched data
-            subject_scores = scores_by_report.get(report.id, [])
-            current_enrollment = enrollments_by_student.get(report.student.id)
-
-            # Generate PDF using shared function
+            # Generate PDF
             success, pdf_content, error_message = generate_report_pdf(
                 report=report,
                 school=school,
                 school_slug=school_slug,
-                request=request,
-                subject_scores=subject_scores,
-                current_enrollment=current_enrollment
+                request=request
             )
 
-            if not success:
-                messages.warning(request, f"Failed to generate PDF for {report.student.get_full_name()}: {error_message}")
-                continue
+            if success and pdf_content:
+                # Get the directory and filename
+                pdf_dir = report.get_pdf_directory(school_slug)
+                if not pdf_dir:
+                    continue
 
-            # Save PDF to file
-            pdf_filename = f"{report.student.get_full_name().replace(' ', '_')}_Report.pdf"
-            pdf_path = os.path.join(pdf_dir, pdf_filename)
+                # Create directory if it doesn't exist
+                os.makedirs(pdf_dir, exist_ok=True)
 
-            with open(pdf_path, 'wb') as pdf_file:
-                pdf_file.write(pdf_content)
+                # Save PDF to file
+                pdf_filename = report.get_pdf_filename()
+                pdf_path = os.path.join(pdf_dir, pdf_filename)
 
-            pdf_files.append((pdf_filename, pdf_path))
+                with open(pdf_path, 'wb') as pdf_file:
+                    pdf_file.write(pdf_content)
 
-            # Optional: Add progress logging for debugging
-            if (i + 1) % 5 == 0:  # Log every 5 reports
-                print(f"DEBUG: Generated {i + 1}/{len(reports)} PDFs")
+                # Update report with PDF info
+                report.pdf_generated = True
+                report.pdf_path = pdf_path
+                report.pdf_generated_at = timezone.now()
+                report.save()
+
+                success_count += 1
 
         except Exception as e:
-            messages.warning(request, f"Failed to generate PDF for {report.student.get_full_name()}: {str(e)}")
+            # Log error but continue with other reports
+            print(f"Failed to generate PDF for {report.student.get_full_name()}: {str(e)}")
             continue
 
-    if not pdf_files:
-        messages.error(request, "Failed to generate any PDF files.")
-        return redirect('reports:term_class_report_list',
-                       school_slug=school_slug, term_id=term_id, class_id=class_id)
+    return success_count
 
-    # Create ZIP file
+
+def generate_class_reports_zip(reports, school_slug, term, standard):
+    """
+    Generate a ZIP file containing all finalized report PDFs for a class
+    Returns the path to the ZIP file or None if failed
+    """
+    import os
+    from django.conf import settings
+
+    # Get the first report to determine directory structure
+    first_report = reports.first()
+    if not first_report:
+        return None
+
+    pdf_dir = first_report.get_pdf_directory(school_slug)
+    if not pdf_dir:
+        return None
+
+    # Create ZIP filename
+    year_str = f"{term.year.start_year}-{term.year.start_year + 1}"
+    term_str = f"Term{term.term_number}"
+    class_name = standard.get_name_display().replace(' ', '_')
     zip_filename = f"{class_name}_{term_str}_{year_str}_Reports.zip"
     zip_path = os.path.join(pdf_dir, zip_filename)
 
     try:
+        import zipfile
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for pdf_filename, pdf_path in pdf_files:
-                zipf.write(pdf_path, pdf_filename)
+            for report in reports:
+                if report.pdf_generated and report.pdf_path and os.path.exists(report.pdf_path):
+                    # Add PDF to ZIP with just the filename (not full path)
+                    pdf_filename = report.get_pdf_filename()
+                    zipf.write(report.pdf_path, pdf_filename)
 
-        # Serve the ZIP file for download
-        with open(zip_path, 'rb') as zip_file:
-            response = HttpResponse(zip_file.read(), content_type='application/zip')
-            response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
-
-        # Clean up individual PDF files (keep only the ZIP)
-        for pdf_filename, pdf_path in pdf_files:
-            try:
-                os.remove(pdf_path)
-            except OSError:
-                pass  # Ignore cleanup errors
-
-        # Debug timing
-        end_time = time.time()
-        total_time = end_time - start_time
-        print(f"DEBUG: Bulk PDF generation completed in {total_time:.2f} seconds for {len(pdf_files)} reports")
-
-        messages.success(request, f"Successfully generated {len(pdf_files)} report PDFs in {total_time:.1f} seconds.")
-        return response
-
+        return zip_path
     except Exception as e:
-        messages.error(request, f"Failed to create ZIP file: {str(e)}")
-        return redirect('reports:term_class_report_list',
-                       school_slug=school_slug, term_id=term_id, class_id=class_id)
+        print(f"Failed to create ZIP file: {str(e)}")
+        return None

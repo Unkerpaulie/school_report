@@ -33,10 +33,34 @@
                     </div>
                     <div>
                         {% if reports %}
-                        <a href="{% url 'reports:bulk_generate_class_reports_pdf' school_slug=school_slug term_id=term.id class_id=standard.id %}"
-                        class="btn btn-success btn-sm mr-3" id="bulk-pdf-btn" title="Generate PDF reports for all students">
-                            <i class="bi bi-file-earmark-pdf"></i> Download All Reports
-                        </a>
+                        {% if all_finalized %}
+                            <!-- Show download button if all reports are finalized -->
+                            <a href="{% url 'reports:bulk_generate_class_reports_pdf' school_slug=school_slug term_id=term.id class_id=standard.id %}"
+                            class="btn btn-success btn-sm mr-2" id="bulk-pdf-btn" title="Download pre-generated PDF reports"
+                            onclick="return window.downloadHandler.handleBulkDownload(this.href);">
+                                <i class="bi bi-file-earmark-pdf"></i> Download All Reports
+                            </a>
+                        {% else %}
+                            <!-- Role-based finalization buttons -->
+                            {% if user.profile.user_type == 'teacher' %}
+                                <!-- Teachers can finalize their own class reports -->
+                                <a href="{% url 'reports:finalize_class_reports' school_slug=school_slug term_id=term.id class_id=standard.id %}"
+                                class="btn btn-warning btn-sm mr-2" title="Finalize all reports and generate PDFs">
+                                    <i class="bi bi-lock"></i> Finalize Reports
+                                    {% if finalized_reports > 0 %}
+                                    <span class="badge bg-light text-dark ml-1">{{ finalized_reports }}/{{ total_reports }}</span>
+                                    {% endif %}
+                                </a>
+                            {% else %}
+                                <!-- Principals/Admin see disabled button indicating reports are not finalized -->
+                                <button class="btn btn-secondary btn-sm mr-2" disabled title="Reports not finalized by teacher yet">
+                                    <i class="bi bi-clock"></i> Not Finalized
+                                    {% if finalized_reports > 0 %}
+                                    <span class="badge bg-light text-dark ml-1">{{ finalized_reports }}/{{ total_reports }}</span>
+                                    {% endif %}
+                                </button>
+                            {% endif %}
+                        {% endif %}
                         {% endif %}
                     </div>
                 </div>
@@ -49,6 +73,7 @@
                                         <th>Student Name</th>
                                         <th>Attendance</th>
                                         <th>Academic Performance</th>
+                                        <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -78,16 +103,36 @@
                                             {% endif %}
                                             {% endwith %}
                                         </td>
+                                        <td class="text-center">
+                                            {% if report.is_finalized %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-lock"></i> Finalized
+                                                </span>
+                                                {% if report.pdf_generated %}
+                                                <br><small class="text-muted">PDF Ready</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-clock"></i> Draft
+                                                </span>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             <div class="btn-group" role="group">
-                                                <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}" 
+                                                <a href="{% url 'reports:report_detail' school_slug=school_slug report_id=report.id %}"
                                                    class="btn btn-primary btn-sm" title="View Report">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}" 
+                                                {% if not report.is_finalized %}
+                                                <a href="{% url 'reports:report_edit' school_slug=school_slug report_id=report.id %}"
                                                    class="btn btn-warning btn-sm" title="Edit Report">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
+                                                {% else %}
+                                                <button class="btn btn-secondary btn-sm" disabled title="Report is finalized and cannot be edited">
+                                                    <i class="bi bi-lock"></i>
+                                                </button>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>
@@ -126,68 +171,8 @@ $(document).ready(function() {
         }
     });
 
-    // Handle bulk PDF generation with progress feedback
-    $('#bulk-pdf-btn').click(function(e) {
-        e.preventDefault();
-
-        const $btn = $(this);
-        const originalText = $btn.html();
-        const url = $btn.attr('href');
-
-        // Show loading state
-        $btn.prop('disabled', true);
-        $btn.html('<i class="bi bi-hourglass-split"></i> Generating PDFs...');
-
-        // Count number of students for better progress feedback
-        const studentCount = $('#dataTable tbody tr').length;
-
-        // Show progress message with student count
-        const alertHtml = `
-            <div class="alert alert-info alert-dismissible fade show" role="alert" id="pdf-progress-alert">
-                <i class="bi bi-info-circle"></i>
-                <strong>Generating Reports:</strong> Creating PDF reports for ${studentCount} students.
-                This may take 1-2 minutes depending on the number of students and their scores...
-                <div class="mt-2">
-                    <div class="progress">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated"
-                             role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
-                        </div>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-        $('.container-fluid').prepend(alertHtml);
-
-        // Create a hidden iframe to handle the download
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = url;
-        document.body.appendChild(iframe);
-
-        // Reset button after a longer delay for PDF generation
-        setTimeout(function() {
-            $btn.prop('disabled', false);
-            $btn.html(originalText);
-            $('#pdf-progress-alert').fadeOut();
-
-            // Show timeout warning if still processing
-            const timeoutHtml = `
-                <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong>Still Processing:</strong> PDF generation is taking longer than expected.
-                    Please wait for the download to complete or check for any error messages.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            $('.container-fluid').prepend(timeoutHtml);
-
-            // Remove iframe
-            if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe);
-            }
-        }, 60000); // 60 second timeout (increased from 10 seconds)
-    });
+    // Note: Bulk PDF download handling is now managed by the global download handler
+    // The onclick handler in the HTML will trigger the loading overlay automatically
 });
 </script>
 {% endblock %}

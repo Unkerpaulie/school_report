@@ -348,6 +348,17 @@ class StudentTermReview(models.Model):
         help_text="Teacher's recommendation for student advancement to next standard"
     )
 
+    # Report completion and archiving
+    is_finalized = models.BooleanField(default=False, help_text="Whether this report has been finalized by the teacher")
+    finalized_at = models.DateTimeField(null=True, blank=True, help_text="When this report was finalized")
+    finalized_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='finalized_reports', help_text="Teacher who finalized this report")
+
+    # PDF generation and storage
+    pdf_generated = models.BooleanField(default=False, help_text="Whether PDF has been generated for this report")
+    pdf_path = models.CharField(max_length=500, blank=True, help_text="Path to the generated PDF file")
+    pdf_generated_at = models.DateTimeField(null=True, blank=True, help_text="When the PDF was generated")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -411,6 +422,77 @@ class StudentTermReview(models.Model):
         """Return the count of subjects for this term review"""
         return self.subject_scores.count()
 
+    def can_be_finalized(self):
+        """Check if this report can be finalized"""
+        if self.is_finalized:
+            return False, "Report is already finalized"
+
+        # Check if all required fields are filled
+        if self.days_present == 0:
+            return False, "Please enter days present"
+
+        # Check if all subject scores have been entered
+        subject_scores = self.subject_scores.all()
+        if not subject_scores.exists():
+            return False, "No subject scores found for this report"
+
+        # Check if at least some scores are entered
+        has_scores = any(
+            score.term_assessment_percentage > 0 or score.final_exam_score > 0
+            for score in subject_scores
+        )
+        if not has_scores:
+            return False, "Please enter at least some subject scores"
+
+        return True, "Report can be finalized"
+
+    def finalize_report(self, user):
+        """Finalize this report"""
+        from django.utils import timezone
+
+        can_finalize, message = self.can_be_finalized()
+        if not can_finalize:
+            return False, message
+
+        self.is_finalized = True
+        self.finalized_at = timezone.now()
+        self.finalized_by = user
+        self.save()
+
+        return True, "Report finalized successfully"
+
+    def get_pdf_filename(self):
+        """Generate the PDF filename for this report"""
+        student_name = self.student.get_full_name().replace(' ', '_')
+        term_str = f"Term{self.term.term_number}"
+        year_str = f"{self.term.year.start_year}-{self.term.year.start_year + 1}"
+        return f"{student_name}_{term_str}_{year_str}_Report.pdf"
+
+    def get_pdf_directory(self, school_slug):
+        """Get the directory path where this report's PDF should be stored"""
+        import os
+        from django.conf import settings
+
+        # Get current enrollment to determine class
+        current_enrollment = self.student.standard_enrollments.filter(year=self.term.year).first()
+        if not current_enrollment:
+            return None
+
+        year_str = f"{self.term.year.start_year}-{self.term.year.start_year + 1}"
+        term_str = f"Term{self.term.term_number}"
+        class_name = current_enrollment.standard.get_name_display().replace(' ', '_')
+
+        report_archives_root = getattr(settings, 'REPORT_ARCHIVES_ROOT',
+                                     os.path.join(settings.MEDIA_ROOT, 'report_archives'))
+
+        return os.path.join(
+            report_archives_root,
+            school_slug,
+            year_str,
+            term_str,
+            class_name
+        )
+
     @classmethod
     def generate_blank_reports(cls, term, standard):
         """
@@ -473,6 +555,32 @@ class StudentTermReview(models.Model):
                 )
 
         return reports_created
+
+    @classmethod
+    def finalize_class_reports(cls, term, standard, user):
+        """
+        Finalize all reports for a class/standard in a given term
+        Returns: (success_count, error_count, messages)
+        """
+        reports = cls.objects.filter(
+            term=term,
+            student__standard_enrollments__standard=standard,
+            student__standard_enrollments__year=term.year
+        ).distinct()
+
+        success_count = 0
+        error_count = 0
+        messages = []
+
+        for report in reports:
+            success, message = report.finalize_report(user)
+            if success:
+                success_count += 1
+            else:
+                error_count += 1
+                messages.append(f"{report.student.get_full_name()}: {message}")
+
+        return success_count, error_count, messages
 
 
 class StudentSubjectScore(models.Model):

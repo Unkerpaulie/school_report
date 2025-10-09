@@ -59,9 +59,34 @@ Overall average calculation detail?
 
 bugs to fix
 
-logo upload
-test script not showing test scores on reports
-formating of reports in bulk download
-- stars not being generated
-- footer placed too high
-- 
+[ ] logo upload
+[ ] favicon upload
+[ ] test script not showing test scores on reports
+[ ] formating of reports in bulk download
+    [ ] stars not being generated
+    [ ] footer placed too high
+[ ] review columns listed on finalize page
+[ ] fix password change logic
+[ ] incorporate recommend to next level in term review
+[ ] work on transition sequence
+[ ] clean up code that is no longer in use
+
+Set up a skool.com forum for teachers to discuss and request features and bug fixes
+Come up with a name and domain
+Create demno video
+
+Documentation:
+- Create a principal user account
+- Principal sets up school info
+- Principal sets year and term limits and number of school days
+- Principal adds teachers and admin staff
+- Principal/admin adds students, assignes to classes
+- Principal/admin assigns teachers to classes
+- Teacher adds subjects
+- Teacher creates tests
+- Teacher adds scores
+- Teacher finalizes reports
+- Teacher/principal/admin downloads reports
+
+
+Teacher requests features and bug fixes

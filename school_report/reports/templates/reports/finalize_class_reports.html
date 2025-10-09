@@ -1,0 +1,238 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Finalize Class Reports - {{ standard.get_name_display }} - {{ term }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-lock"></i> Finalize Class Reports
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:report_list' school_slug=school_slug %}">Reports</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=term.id class_id=standard.id %}">{{ standard.get_name_display }} - {{ term }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Finalize Reports</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Finalization Card -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-clipboard-check"></i> Finalize Reports for {{ standard.get_name_display }} - {{ term }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Status Summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <div class="text-xs font-weight-bold text-uppercase mb-1">Total Reports</div>
+                                            <div class="h5 mb-0 font-weight-bold">{{ total_count }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <div class="text-xs font-weight-bold text-uppercase mb-1">Finalized</div>
+                                            <div class="h5 mb-0 font-weight-bold">{{ finalized_count }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <div class="text-xs font-weight-bold text-uppercase mb-1">Remaining</div>
+                                            <div class="h5 mb-0 font-weight-bold">{{ total_count|add:"-"|add:finalized_count }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="bi bi-clock fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warning about finalization -->
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Important:</strong> Once reports are finalized, they cannot be edited. This action will:
+                        <ul class="mb-0 mt-2">
+                            <li>Lock all report data (scores, attendance, remarks)</li>
+                            <li>Generate PDF files for all reports</li>
+                            <li>Make reports available for download</li>
+                            <li>Prevent further modifications</li>
+                        </ul>
+                    </div>
+
+                    {% if unready_reports %}
+                    <!-- Issues that need to be resolved -->
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-x-circle"></i>
+                        <strong>Cannot Finalize:</strong> The following reports have issues that must be resolved first:
+                        <ul class="mt-2 mb-0">
+                            {% for issue in unready_reports %}
+                            <li>{{ issue }}</li>
+                            {% endfor %}
+                        </ul>
+                        <div class="mt-3">
+                            <a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=term.id class_id=standard.id %}" 
+                               class="btn btn-primary">
+                                <i class="bi bi-pencil"></i> Fix Issues
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if finalized_count == total_count %}
+                    <!-- All reports already finalized -->
+                    <div class="alert alert-success" role="alert">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>All Reports Finalized:</strong> All reports for this class and term have been finalized.
+                        PDFs are ready for download.
+                        <div class="mt-3">
+                            <a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=term.id class_id=standard.id %}" 
+                               class="btn btn-success">
+                                <i class="bi bi-download"></i> Download Reports
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Reports List -->
+                    <div class="table-responsive mt-4">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Student</th>
+                                    <th class="text-center">Days Present</th>
+                                    <th class="text-center">Subject Scores</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in reports %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ report.student.get_full_name }}</strong>
+                                        {% if report.remarks %}
+                                        <br><small class="text-muted">Has remarks</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if report.days_present > 0 %}
+                                        <span class="badge bg-success">{{ report.days_present }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Not Set</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% with subject_count=report.subjects_count %}
+                                        {% if subject_count > 0 %}
+                                        <span class="badge bg-info">{{ subject_count }} Subject{{ subject_count|pluralize }}</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">No Scores</span>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if report.is_finalized %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Finalized
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-clock"></i> Pending
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Finalization Form -->
+                    {% if can_finalize %}
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="confirmFinalize" required>
+                            <label class="form-check-label" for="confirmFinalize">
+                                <strong>I confirm that all reports are complete and accurate, and I want to finalize them.</strong>
+                                This action cannot be undone.
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-warning btn-lg" id="finalizeBtn" disabled>
+                                <i class="bi bi-lock"></i> Finalize All Reports & Generate PDFs
+                            </button>
+                            <a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=term.id class_id=standard.id %}" 
+                               class="btn btn-secondary btn-lg ml-2">
+                                <i class="bi bi-arrow-left"></i> Back to Reports
+                            </a>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="mt-4">
+                        <a href="{% url 'reports:term_class_report_list' school_slug=school_slug term_id=term.id class_id=standard.id %}" 
+                           class="btn btn-secondary btn-lg">
+                            <i class="bi bi-arrow-left"></i> Back to Reports
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Enable/disable finalize button based on checkbox
+    $('#confirmFinalize').change(function() {
+        $('#finalizeBtn').prop('disabled', !this.checked);
+    });
+    
+    // Show loading overlay when finalizing
+    $('form').submit(function() {
+        if ($('#confirmFinalize').is(':checked')) {
+            window.downloadHandler.showLoadingOverlay(
+                'Finalizing Reports',
+                'Please wait while reports are being finalized and PDFs are generated. This may take several minutes...'
+            );
+        }
+    });
+});
+</script>
+{% endblock %}
