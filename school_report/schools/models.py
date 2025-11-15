@@ -16,6 +16,10 @@ class School(models.Model):
     contact_email = models.EmailField(blank=True, null=True)
     principal_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='administered_schools')
     logo = models.ImageField(upload_to='school_logos/', blank=True, null=True)
+    groups_per_standard = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of groups/classes per standard level (applies to all standards)"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -40,6 +44,7 @@ class School(models.Model):
 class Standard(models.Model):
     """
     Represents a grade level (Infant 1-2, Standard 1-5) in a school
+    Each standard can have multiple groups/classes
     """
     STANDARD_CHOICES = [
         ('INF1', 'Infant 1'),
@@ -53,14 +58,40 @@ class Standard(models.Model):
 
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='standards')
     name = models.CharField(max_length=50, choices=STANDARD_CHOICES)
+    group_number = models.PositiveIntegerField(default=1, help_text="Group number within this standard level")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['school', 'name']
+        unique_together = ['school', 'name', 'group_number']
+        ordering = ['name', 'group_number']
+
+    def get_display_name(self):
+        """
+        Get display name: 'Infant 1 - 2' or 'Infant 1 - Mrs Charles'
+        Shows teacher name if assigned, otherwise shows group number
+        """
+        base_name = self.get_name_display()
+
+        # Check if teacher is assigned
+        try:
+            from core.utils import get_current_standard_teacher, get_current_year_and_term
+
+            current_year, _, _ = get_current_year_and_term(school=self.school)
+            if current_year:
+                teacher_assignment = get_current_standard_teacher(self, current_year)
+                if teacher_assignment and teacher_assignment.teacher:
+                    teacher = teacher_assignment.teacher
+                    return f"{base_name} - {teacher.title} {teacher.last_name}"
+        except:
+            # Fallback if utils not available or error occurs
+            pass
+
+        # No teacher assigned, show group number
+        return f"{base_name} - {self.group_number}"
 
     def __str__(self):
-        return f"{self.school.name} - {self.get_name_display()}"
+        return f"{self.school.name} - {self.get_display_name()}"
 
 class Student(models.Model):
     """
@@ -93,11 +124,15 @@ class Student(models.Model):
 def create_standard_classes(sender, instance, created, **kwargs):
     """
     Create standard classes for a newly created school
+    Creates multiple groups per standard based on school's groups_per_standard setting
     """
     if created:
-        # Create all standard classes for the school
+        # Create all standard classes for the school with groups
         for standard_code, standard_name in Standard.STANDARD_CHOICES:
-            Standard.objects.create(
-                school=instance,
-                name=standard_code
-            )
+            # Create multiple groups for each standard
+            for group_number in range(1, instance.groups_per_standard + 1):
+                Standard.objects.create(
+                    school=instance,
+                    name=standard_code,
+                    group_number=group_number
+                )

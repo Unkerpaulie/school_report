@@ -87,7 +87,7 @@
                         <tbody>
                             {% for standard in school.standards.all %}
                             <tr>
-                                <td>{{ standard.get_name_display }}</td>
+                                <td>{{ standard.get_display_name }}</td>
                                 <td>
                                     {% for assignment in standard.standardteacher_set.all %}
                                         {% if assignment.is_active %}

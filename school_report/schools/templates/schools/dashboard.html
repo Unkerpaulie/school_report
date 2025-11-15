@@ -92,7 +92,7 @@
                         <tbody>
                             {% for standard in school.standards.all %}
                             <tr>
-                                <td>{{ standard.get_name_display }}</td>
+                                <td>{{ standard.get_display_name }}</td>
                                 <td>
                                     {% if standard.teacher_assignments.first %}
                                         {{ standard.teacher_assignments.first.teacher.get_full_name }}

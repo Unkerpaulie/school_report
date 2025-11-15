@@ -60,7 +60,18 @@
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-md-12">
+                        <div class="col-md-6">
+                            <label for="id_groups_per_standard" class="form-label">Groups per Standard</label>
+                            <select name="groups_per_standard" id="id_groups_per_standard" class="form-control" required>
+                                <option value="1" {% if school.groups_per_standard == 1 %}selected{% endif %}>1 Group (Default)</option>
+                                <option value="2" {% if school.groups_per_standard == 2 %}selected{% endif %}>2 Groups</option>
+                                <option value="3" {% if school.groups_per_standard == 3 %}selected{% endif %}>3 Groups</option>
+                                <option value="4" {% if school.groups_per_standard == 4 %}selected{% endif %}>4 Groups</option>
+                                <option value="5" {% if school.groups_per_standard == 5 %}selected{% endif %}>5 Groups</option>
+                            </select>
+                            <div class="form-text">Number of classes per standard level. <strong>Warning:</strong> Changing this will affect class structure.</div>
+                        </div>
+                        <div class="col-md-6">
                             <label for="id_logo" class="form-label">School Logo</label>
                             {% if school.logo %}
                             <div class="mb-2">

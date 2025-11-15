@@ -67,15 +67,19 @@ Overall average calculation detail?
     [x] footer placed too high
     [x] add school address and contact info
     [ ] possibly a "sticker" for outstanding students
+    [ ] increase font of data on report sheets
 [x] review columns listed on finalize page
 [x] disable edit and delete actions for tests that have been finalized
 [ ] fix password change logic
+[ ] log out user when browser tab is closed
 [ ] incorporate `recommend_for_advancement` in term review
-[ ] work on transition sequence
-[ ] clean up code that is no longer in use
+[ ] add 'School reopens' in term review
+[ ] all students ordered by last name ascending
+[ ] once a term review has been finalized, disable the ability to create new tests in that term
 [x] come up with a name and domain
 [ ] Set up a skool.com forum for teachers to discuss and request features and bug fixes
 [ ] Create demo video
+[ ] decide on what activities I want to capture and log
 [ ] create an activity model and activity history table view
 [ ] Populate recent activity box on dashboard
 [ ] allow the creation of multiple standard groups
@@ -84,6 +88,8 @@ Overall average calculation detail?
 [x] Teachers should not edit or enroll students from student detail view
 [x] Populate Student detail Acaedmic Performance card with reports
 [ ] order tests by date ascending
+[ ] clean up code that is no longer in use
+[ ] work on transition sequence
 [ ] work on optimizing queries that are duplicated
 [ ] Write unit tests for the functionality as it is now
 

@@ -98,7 +98,7 @@ class SchoolRegistrationView(LoginRequiredMixin, CreateView):
     """
     model = School
     template_name = 'core/school_registration.html'
-    fields = ['name', 'address', 'contact_phone', 'contact_email', 'logo']
+    fields = ['name', 'address', 'contact_phone', 'contact_email', 'groups_per_standard', 'logo']
     success_url = reverse_lazy('core:home')
 
     def dispatch(self, request, *args, **kwargs):
@@ -276,7 +276,7 @@ class SchoolUpdateView(LoginRequiredMixin, UpdateView):
     """
     model = School
     template_name = 'core/school_update.html'
-    fields = ['name', 'address', 'contact_phone', 'contact_email', 'logo']
+    fields = ['name', 'address', 'contact_phone', 'contact_email', 'groups_per_standard', 'logo']
     context_object_name = 'school'
 
     def dispatch(self, request, *args, **kwargs):

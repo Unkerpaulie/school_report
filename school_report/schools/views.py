@@ -438,9 +438,8 @@ class StandardDetailView(LoginRequiredMixin, DetailView):
             ).values_list('teacher', flat=True).distinct()
 
             current_assignments = []
-            for teacher_id in all_assignments:
-                from core.models import UserProfile
-                teacher = UserProfile.objects.get(id=teacher_id)
+            for teacher in all_assignments:
+                # teacher = UserProfile.objects.get(id=teacher.id)
                 current_assignment = get_current_teacher_assignment(teacher, current_year)
                 if current_assignment and current_assignment.standard == standard:
                     current_assignments.append(current_assignment)

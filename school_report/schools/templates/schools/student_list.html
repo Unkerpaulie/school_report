@@ -62,7 +62,7 @@
                                 <td>{{ student.first_name }} {{ student.last_name }}</td>
                                 <td>
                                     {% if student.standard_enrollments.last.standard %}
-                                        {{ student.standard_enrollments.last.standard.get_name_display }}
+                                        {{ student.standard_enrollments.last.standard.get_display_name }}
                                     {% else %}
                                         <span class="text-muted">Not assigned</span>
                                     {% endif %}

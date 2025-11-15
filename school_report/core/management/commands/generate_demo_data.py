@@ -23,6 +23,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--schools', type=int, default=1, help='Number of schools to create')
+        # parser.add_argument('--groups', type=int, default=1, help='Number of groups per standard')
         parser.add_argument('--students-per-class', type=int, default=None, help='Number of students per class (random 13-18 if not specified)')
         parser.add_argument('--output-dir', type=str, default='try', help='Directory to save user info JSON files')
 
@@ -102,7 +103,7 @@ class Command(BaseCommand):
         standards = Standard.objects.filter(school=school).order_by('name')
         self.stdout.write(f'📚 Using {standards.count()} automatically created standards:')
         for standard in standards:
-            self.stdout.write(f'   - {standard.get_name_display()}')
+            self.stdout.write(f'   - {standard.get_display_name()}')
         return standards
 
     def create_students_for_standard(self, school, standard, current_year, num_students):
@@ -212,6 +213,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         num_schools = options['schools']
+        # groups_per_standard = options['groups']
         students_per_class = options['students_per_class']
         output_dir = options['output_dir']
 
@@ -243,12 +245,16 @@ class Command(BaseCommand):
                 school_type = random.choice(school_types)
                 school_name = f"{city} {school_type} Primary School"
 
+                # Randomly choose number of groups (1-3 for demo variety)
+                groups_per_standard = random.choice([1, 1, 1, 2, 2, 3])  # Weighted towards 1 group
+
                 school = School.objects.create(
                     name=school_name,
                     principal_user=principal_user,
                     address=f"{random.randint(1, 999)} {self.fake.street_name()}, {city}, Trinidad and Tobago",
                     contact_phone=self.generate_phone_number(),
-                    contact_email=f"info@{school_name.lower().replace(' ', '').replace('&', 'and')}.edu.tt"
+                    contact_email=f"info@{school_name.lower().replace(' ', '').replace('&', 'and')}.edu.tt",
+                    groups_per_standard=groups_per_standard
                 )
 
                 self.stdout.write(f'🏫 Created school: {school.name}')
@@ -294,7 +300,7 @@ class Command(BaseCommand):
                     admin_staff.append(admin_user.profile)
                     self.stdout.write(f'👩‍💼 Created admin staff: {admin_user.profile.get_full_name()} ({position})')
 
-                # 7. Create 7 Teachers and Assign to Classes
+                # 7. Create Teachers and Assign to Classes (one teacher per standard/group)
                 teachers = []
                 for i, standard in enumerate(standards):
                     first_name, last_name, title = self.create_person_name()

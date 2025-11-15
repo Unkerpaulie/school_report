@@ -1,14 +1,14 @@
 {% extends 'layout/base.html' %}
 {% load static %}
 
-{% block title %}{{ standard.get_name_display }} - School Report System{% endblock %}
+{% block title %}{{ standard.get_display_name }} - School Report System{% endblock %}
 
 {% block classes_active %}active{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="h3 mb-0 text-gray-800">{{ standard.get_name_display }}</h1>
+        <h1 class="h3 mb-0 text-gray-800">{{ standard.get_display_name }}</h1>
     </div>
 </div>
 
@@ -21,7 +21,7 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <strong>Class Name:</strong> {{ standard.get_name_display }}
+                    <strong>Class Name:</strong> {{ standard.get_display_name }}
                 </div>
                 <div class="mb-3">
                     <strong>School:</strong> {{ standard.school.name }}

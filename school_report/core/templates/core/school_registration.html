@@ -49,7 +49,18 @@
 
 
                     <div class="row mb-3">
-                        <div class="col-md-12">
+                        <div class="col-md-6">
+                            <label for="id_groups_per_standard" class="form-label">Groups per Standard</label>
+                            <select name="groups_per_standard" id="id_groups_per_standard" class="form-control" required>
+                                <option value="1">1 Group (Default)</option>
+                                <option value="2">2 Groups</option>
+                                <option value="3">3 Groups</option>
+                                <option value="4">4 Groups</option>
+                                <option value="5">5 Groups</option>
+                            </select>
+                            <div class="form-text">Number of classes per standard level. For example, if you select 3 groups, you will have 3 Infant 1 classes, 3 Infant 2 classes, etc.</div>
+                        </div>
+                        <div class="col-md-6">
                             <label for="id_logo" class="form-label">School Logo</label>
                             <input type="file" name="logo" id="id_logo" class="form-control">
                             <div class="form-text">Optional. Upload your school logo or monogram.</div>

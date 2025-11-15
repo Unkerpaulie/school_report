@@ -201,7 +201,7 @@
                                     <td>
                                         {% with enrollment=report.student.standard_enrollments.last %}
                                         {% if enrollment.standard %}
-                                        {{ enrollment.standard.get_name_display }}
+                                        {{ enrollment.standard.get_display_name }}
                                         {% else %}
                                         Not enrolled
                                         {% endif %}

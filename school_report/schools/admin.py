@@ -22,36 +22,36 @@ link_to_school.short_description = 'School'
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ('name', link_to_principal, 'contact_phone', 'contact_email', 'is_active', 'created_at', 'updated_at')
-    list_filter = ('is_active', 'created_at')
+    list_display = ('name', link_to_principal, 'groups_per_standard', 'contact_phone', 'contact_email', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('is_active', 'groups_per_standard', 'created_at')
     search_fields = ('name', 'slug', 'principal_user__user__username', 'principal_user__user__first_name', 'principal_user__user__last_name')
     ordering = ('name',)
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'created_at'
-    
+
     fieldsets = (
         (None, {
-            'fields': ('name', 'slug', 'principal_user', 'contact_phone', 'contact_email', 'is_active', 'logo', 'created_at', 'updated_at')
+            'fields': ('name', 'slug', 'principal_user', 'contact_phone', 'contact_email', 'groups_per_standard', 'is_active', 'logo', 'created_at', 'updated_at')
         }),
     )
 
 
 @admin.register(Standard)
 class StandardAdmin(admin.ModelAdmin):
-    list_display = ('display_name', link_to_school, 'created_at', 'updated_at')
-    list_filter = ('school', 'created_at')
+    list_display = ('display_name', 'group_number', link_to_school, 'created_at', 'updated_at')
+    list_filter = ('school', 'name', 'group_number', 'created_at')
     search_fields = ('name', 'school__name')
-    ordering = ('school', 'name')
+    ordering = ('school', 'name', 'group_number')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'created_at'
-    
+
     def display_name(self, obj):
         return obj.get_name_display()
     display_name.short_description = 'Standard'
-    
+
     fieldsets = (
         (None, {
-            'fields': ('school', 'name', 'created_at', 'updated_at')
+            'fields': ('school', 'name', 'group_number', 'created_at', 'updated_at')
         }),
     )
 
