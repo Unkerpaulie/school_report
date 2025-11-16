@@ -416,34 +416,43 @@
                             <div class="col-4">
                                 <div class="signature-line"></div>
                                 {% if class_teacher %}
-                                <small><strong>{{ class_teacher.get_full_name }}</strong></small>
+                                <small>{{ class_teacher.get_full_name }}</small>
                                 {% else %}
-                                <small><strong>_____________________</strong></small>
+                                <small>_____________________</small>
                                 {% endif %}
-                                <br><small><strong>Class Teacher</strong></small>
+                                <br><small>Class Teacher</small>
                             </div>
                             <div class="col-4">
                                 <div class="signature-line"></div>
                                 {% if school_principal %}
-                                <small><strong>{{ school_principal.get_full_name }}</strong></small>
+                                <small>{{ school_principal.get_full_name }}</small>
                                 {% else %}
-                                <small><strong>_____________________</strong></small>
+                                <small>_____________________</small>
                                 {% endif %}
-                                <br><small><strong>Principal</strong></small>
+                                <br><small>Principal</small>
                             </div>
                             <div class="col-4">
                                 <div class="signature-line"></div>
                                 {% if report.student.parent_name %}
-                                <small><strong>{{ report.student.parent_name }}</strong></small>
+                                <small>{{ report.student.parent_name }}</small>
                                 {% else %}
-                                <small><strong>_____________________</strong></small>
+                                <small>_____________________</small>
                                 {% endif %}
-                                <br><small><strong>Parent/Guardian</strong></small>
+                                <br><small>Parent/Guardian</small>
                             </div>
                         </div>
                         <div class="row mt-3">
-                            <div class="col-12 text-center">
-                                <small class="text-muted">Report Generated: {{ report.created_at|date:"F j, Y" }}</small>
+                            <div class="col-6">
+                                {% if next_term_start_date %}
+                                <strong>School Reopens: {{ next_term_start_date|date:"F j, Y" }}</strong>
+                                {% endif %}
+                            </div>
+                            <div class="col-6 text-right">
+                                {% if report.recommend_for_advancement %}
+                                <small class="text-right">This student is on track for advancement.</small>
+                                {% else %}
+                                <small class="text-right">This student requires additional support for advancement.</small>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

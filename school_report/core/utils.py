@@ -309,6 +309,46 @@ def get_current_student_enrollment(student, school_year):
     return None
 
 
+def get_next_term_start_date(current_term):
+    """
+    Get the start date of the next term after the given term.
+
+    Args:
+        current_term: Term object
+
+    Returns:
+        date: Start date of the next term, or None if no next term exists
+    """
+    if not current_term:
+        return None
+
+    # Try to get the next term in the same year
+    next_term_in_year = Term.objects.filter(
+        year=current_term.year,
+        term_number=current_term.term_number + 1
+    ).first()
+
+    if next_term_in_year:
+        return next_term_in_year.start_date
+
+    # If no next term in current year, get Term 1 of next year
+    next_year = SchoolYear.objects.filter(
+        school=current_term.year.school,
+        start_year=current_term.year.start_year + 1
+    ).first()
+
+    if next_year:
+        next_year_term1 = Term.objects.filter(
+            year=next_year,
+            term_number=1
+        ).first()
+
+        if next_year_term1:
+            return next_year_term1.start_date
+
+    return None
+
+
 def unassign_teacher(teacher, standard, school_year):
     """
     Unassign a teacher by creating bidirectional unassignment records.

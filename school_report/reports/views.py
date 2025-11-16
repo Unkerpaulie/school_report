@@ -194,8 +194,14 @@ class StudentTermReviewForm(forms.ModelForm):
         fields = [
             'days_present', 'days_late', 'attitude', 'respect', 'parental_support',
             'attendance', 'assignment_completion', 'class_participation',
-            'time_management', 'remarks'
+            'time_management', 'remarks', 'recommend_for_advancement'
         ]
+        widgets = {
+            'days_present': forms.NumberInput(attrs={'class': 'form-control'}),
+            'days_late': forms.NumberInput(attrs={'class': 'form-control'}),
+            'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'recommend_for_advancement': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
         widgets = {
             'days_present': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'days_late': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
@@ -1594,6 +1600,10 @@ def report_detail(request, school_slug, report_id):
     if school.principal_user and hasattr(school.principal_user, 'profile'):
         school_principal = school.principal_user.profile
 
+    # Get next term start date for "School Reopens" information
+    from core.utils import get_next_term_start_date
+    next_term_start_date = get_next_term_start_date(report.term)
+
     return render(request, 'reports/report_detail.html', {
         'report': report,
         'subject_scores': subject_scores,
@@ -1605,6 +1615,7 @@ def report_detail(request, school_slug, report_id):
         'user_profile': user_profile,
         'class_teacher': class_teacher,
         'school_principal': school_principal,
+        'next_term_start_date': next_term_start_date,
     })
 
 @login_required

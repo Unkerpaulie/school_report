@@ -264,6 +264,27 @@
                             </div>
                         </div>
 
+                        <!-- Academic Advancement Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="mb-3"><i class="bi bi-arrow-up-circle"></i> Academic Advancement</h5>
+                                <div class="form-group">
+                                    <div class="form-check">
+                                        {{ form.recommend_for_advancement }}
+                                        <label class="form-check-label" for="{{ form.recommend_for_advancement.id_for_label }}">
+                                            {{ form.recommend_for_advancement.label }}
+                                        </label>
+                                        {% if form.recommend_for_advancement.help_text %}
+                                        <small class="form-text text-muted">{{ form.recommend_for_advancement.help_text }}</small>
+                                        {% endif %}
+                                        {% if form.recommend_for_advancement.errors %}
+                                        <div class="text-danger">{{ form.recommend_for_advancement.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Form Actions -->
                         <div class="row">
                             <div class="col-12 text-center">
