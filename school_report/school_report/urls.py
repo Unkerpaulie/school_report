@@ -19,13 +19,13 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
-from core.views import CustomPasswordChangeView
+from core.views import CustomPasswordChangeView, CustomLoginView
 
 urlpatterns = [
     # School-specific URLs are now included in core.urls under the school slug
 
     # Authentication URLs
-    path('accounts/login/', auth_views.LoginView.as_view(), name='login'),
+    path('accounts/login/', CustomLoginView.as_view(), name='login'),
     # Using custom logout view in core.urls.py instead for better security (POST method)
     # path('accounts/logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
     path('accounts/password_change/', CustomPasswordChangeView.as_view(), name='password_change'),

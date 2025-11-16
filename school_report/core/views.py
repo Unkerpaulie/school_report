@@ -5,8 +5,8 @@ from django.urls import reverse_lazy, reverse
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import login, logout
-from django.contrib.auth.views import PasswordChangeView
-from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth.views import PasswordChangeView, LoginView
+from django.contrib.auth.forms import PasswordChangeForm, AuthenticationForm
 from django.http import HttpResponseRedirect, Http404
 from .models import UserProfile
 from schools.models import School
@@ -317,3 +317,68 @@ class SchoolUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f"School information for '{self.school.name}' has been updated successfully!")
         return super().form_valid(form)
+
+
+class CustomLoginView(LoginView):
+    """
+    Custom login view that handles the "Remember me" checkbox
+    and sets appropriate session expiry behavior
+    """
+    template_name = 'registration/login.html'
+    form_class = AuthenticationForm
+
+    def form_valid(self, form):
+        """Handle successful login with remember me functionality"""
+        # Get the remember me checkbox value
+        remember_me = self.request.POST.get('remember', False)
+
+        # Call the parent form_valid method to handle authentication and login
+        response = super().form_valid(form)
+
+        # Now configure session expiry based on "Remember me" checkbox
+        # This must be done AFTER login is complete
+        if remember_me:
+            # Remember me is checked: Keep session alive for 30 days
+            self.request.session.set_expiry(30 * 24 * 60 * 60)  # 30 days in seconds
+        else:
+            # Remember me is NOT checked: Session expires when browser closes
+            self.request.session.set_expiry(0)  # Expire when browser closes
+
+        # Initialize session activity timestamp for idle timeout
+        import time
+        self.request.session['last_activity'] = time.time()
+
+        # Force session to be saved with new expiry settings
+        self.request.session.modified = True
+
+        return response
+
+
+class SessionDebugView(View):
+    """
+    Debug view to check session information
+    """
+    def get(self, request):
+        from django.http import JsonResponse
+
+        session_info = {
+            'is_authenticated': request.user.is_authenticated,
+            'username': request.user.username if request.user.is_authenticated else None,
+            'session_key': request.session.session_key,
+            'session_expiry_age': request.session.get_expiry_age(),
+            'session_expiry_date': str(request.session.get_expiry_date()),
+            'session_data': dict(request.session),
+        }
+
+        return JsonResponse(session_info)
+
+
+def idle_timeout_context(request):
+    """
+    Context processor to add idle timeout settings to templates
+    """
+    from django.conf import settings
+    return {
+        'IDLE_TIMEOUT_MINUTES': getattr(settings, 'IDLE_TIMEOUT_MINUTES', 30),
+        'IDLE_TIMEOUT_SECONDS': getattr(settings, 'IDLE_TIMEOUT_SECONDS', 1800),
+    }

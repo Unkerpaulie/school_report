@@ -91,7 +91,7 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body data-user-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}" data-idle-timeout-minutes="{{ IDLE_TIMEOUT_MINUTES|default:30 }}"
     <div class="wrapper">
         <!-- Sidebar -->
         {% if not school_registration_required %}
@@ -149,7 +149,9 @@
     <!-- Custom JS -->
     <script src="{% static 'js/sidebar.js' %}"></script>
     <script src="{% static 'js/download-handler.js' %}"></script>
-
+    {% if user.is_authenticated %}
+    <script src="{% static 'js/idle-timeout.js' %}"></script>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>

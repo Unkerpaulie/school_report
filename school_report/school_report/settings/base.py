@@ -34,6 +34,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.PasswordChangeMiddleware',
+    'core.middleware.IdleTimeoutMiddleware',
 ]
 
 ROOT_URLCONF = 'school_report.urls'
@@ -50,6 +51,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media',
                 'academics.context_processors.current_school_year_and_term',
+                'core.views.idle_timeout_context',
             ],
         },
     },
@@ -94,3 +96,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'  # This will be handled by HomeView which redirects to school dashboard
 LOGOUT_REDIRECT_URL = '/'
+
+# Session settings
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 days (only applies when "Remember me" is checked)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Default behavior when "Remember me" is NOT checked
+
+# Idle timeout settings (in seconds)
+IDLE_TIMEOUT_MINUTES = 30  # 30 minutes of inactivity
+IDLE_TIMEOUT_SECONDS = IDLE_TIMEOUT_MINUTES * 60

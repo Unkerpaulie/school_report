@@ -71,7 +71,7 @@ Overall average calculation detail?
 [x] review columns listed on finalize page
 [x] disable edit and delete actions for tests that have been finalized
 [ ] fix password change logic
-[ ] log out user when browser tab is closed
+[x] log out user when browser tab is closed
 [x] incorporate `recommend_for_advancement` in term review
 [x] add 'School reopens' in term review
 [ ] all students ordered by last name ascending
