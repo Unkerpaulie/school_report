@@ -1,0 +1,149 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+{% load core_extras %}
+
+{% block title %}Group Management - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-diagram-3"></i> Class Group Management
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'core:school_update' school_slug=school_slug %}">School Info</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Group Management</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Current Configuration -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Current Configuration</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4 class="text-primary">{{ current_groups }} Group{{ current_groups|pluralize }} per Standard</h4>
+                            <p class="text-muted">Each grade level currently has {{ current_groups }} class{{ current_groups|pluralize }}:</p>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-check-circle text-success"></i> Infant 1: {{ current_groups }} class{{ current_groups|pluralize }}</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Infant 2: {{ current_groups }} class{{ current_groups|pluralize }}</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Standard 1: {{ current_groups }} class{{ current_groups|pluralize }}</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Standard 2: {{ current_groups }} class{{ current_groups|pluralize }}</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Standard 3: {{ current_groups }} class{{ current_groups|pluralize }}</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Standard 4: {{ current_groups }} class{{ current_groups|pluralize }}</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Standard 5: {{ current_groups }} class{{ current_groups|pluralize }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-info-circle"></i> Important Notes</h6>
+                                <ul class="mb-0">
+                                    <li><strong>Increasing groups:</strong> Creates new empty classes ready for teacher assignment</li>
+                                    <li><strong>Decreasing groups:</strong> Removes classes, unassigns teachers, and unenrolls students</li>
+                                    <li><strong>Impact:</strong> Changes affect all grade levels simultaneously</li>
+                                    <li><strong>Students:</strong> Unenrolled students will appear as "Not assigned" in student lists</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Change Options -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Change Group Configuration</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-4">Select a new group configuration to see the impact analysis:</p>
+                    
+                    <div class="row">
+                        {% for groups in "12345" %}
+                            {% if groups|add:0 != current_groups %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 {% if groups|add:0 > current_groups %}border-success{% else %}border-warning{% endif %}">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            {% if groups|add:0 > current_groups %}
+                                                <i class="bi bi-arrow-up-circle text-success"></i>
+                                            {% else %}
+                                                <i class="bi bi-arrow-down-circle text-warning"></i>
+                                            {% endif %}
+                                            {{ groups }} Group{{ groups|pluralize }}
+                                        </h5>
+                                        
+                                        {% with impact=impact_analysis|lookup:groups %}
+                                        {% if impact %}
+                                            <p class="card-text">
+                                                {% if impact.change_type == 'increase' %}
+                                                    <span class="text-success">
+                                                        <strong>+{{ impact.affected_classes|length }} new classes</strong><br>
+                                                        <small>Ready for teacher assignment</small>
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-warning">
+                                                        <strong>-{{ impact.affected_classes|length }} classes removed</strong><br>
+                                                        <small>{{ impact.affected_students }} students affected</small><br>
+                                                        <small>{{ impact.affected_teachers|length }} teachers unassigned</small>
+                                                    </span>
+                                                {% endif %}
+                                            </p>
+                                        {% endif %}
+                                        {% endwith %}
+                                        
+                                        <a href="{% url 'core:group_change_confirmation' school_slug=school_slug new_groups=groups %}" 
+                                           class="btn {% if groups|add:0 > current_groups %}btn-success{% else %}btn-warning{% endif %}">
+                                            View Impact & Confirm
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'core:school_update' school_slug=school_slug %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to School Info
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add any JavaScript for enhanced UX if needed
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects or other enhancements
+    const cards = document.querySelectorAll('.card.h-100');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.transition = 'transform 0.2s ease-in-out';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+{% endblock %}

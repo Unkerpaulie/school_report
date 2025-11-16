@@ -22,7 +22,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    must_change_password = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(default=True)
 
     # Fields for all staff types
     title = models.CharField(max_length=10, choices=TITLE_CHOICES, blank=True, null=True)

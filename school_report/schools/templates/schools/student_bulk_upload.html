@@ -38,7 +38,7 @@
                         <select name="standard" id="id_standard" class="form-select" required>
                             <option value="" selected disabled>Select class</option>
                             {% for standard in form.fields.standard.queryset %}
-                            <option value="{{ standard.id }}" {% if form.standard.value == standard.id %}selected{% endif %}>{{ standard.get_name_display }}</option>
+                            <option value="{{ standard.id }}" {% if form.standard.value == standard.id %}selected{% endif %}>{{ standard.get_display_name }}</option>
                             {% endfor %}
                         </select>
                         <div class="form-text">{{ form.standard.help_text }}</div>

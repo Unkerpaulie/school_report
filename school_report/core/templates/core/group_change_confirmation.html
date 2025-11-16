@@ -1,0 +1,245 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Confirm Group Change - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-exclamation-triangle {% if change_type == 'decrease' %}text-warning{% else %}text-success{% endif %}"></i> 
+            Confirm Group Change
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'core:school_update' school_slug=school_slug %}">School Info</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'core:group_management' school_slug=school_slug %}">Group Management</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Confirm Change</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Change Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow {% if change_type == 'decrease' %}border-warning{% else %}border-success{% endif %}">
+                <div class="card-header py-3 {% if change_type == 'decrease' %}bg-warning text-dark{% else %}bg-success text-white{% endif %}">
+                    <h6 class="m-0 font-weight-bold">
+                        {% if change_type == 'decrease' %}
+                            <i class="bi bi-arrow-down-circle"></i> Decreasing Groups
+                        {% else %}
+                            <i class="bi bi-arrow-up-circle"></i> Increasing Groups
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Change Summary</h5>
+                            <p><strong>Current:</strong> {{ current_groups }} group{{ current_groups|pluralize }} per standard</p>
+                            <p><strong>New:</strong> {{ new_groups }} group{{ new_groups|pluralize }} per standard</p>
+                            <p><strong>Action:</strong> 
+                                {% if change_type == 'decrease' %}
+                                    <span class="text-warning">Remove {{ current_groups|add:"-"|add:new_groups }} group{{ current_groups|add:"-"|add:new_groups|pluralize }} from each standard</span>
+                                {% else %}
+                                    <span class="text-success">Add {{ new_groups|add:"-"|add:current_groups }} group{{ new_groups|add:"-"|add:current_groups|pluralize }} to each standard</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            {% if change_type == 'decrease' %}
+                                <div class="alert alert-warning">
+                                    <h6><i class="bi bi-exclamation-triangle"></i> Warning</h6>
+                                    <p class="mb-0">This action will permanently remove classes and cannot be undone. Students will be unenrolled and teachers will be unassigned.</p>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-success">
+                                    <h6><i class="bi bi-check-circle"></i> Safe Operation</h6>
+                                    <p class="mb-0">This action creates new empty classes. No existing data will be affected.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impact Analysis -->
+    {% if change_type == 'decrease' %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-danger">
+                <div class="card-header py-3 bg-danger text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="bi bi-exclamation-octagon"></i> Impact Analysis - Classes to be Removed
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if impact.classes_to_remove %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Class Name</th>
+                                        <th>Assigned Teacher</th>
+                                        <th>Enrolled Students</th>
+                                        <th>Impact</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for class_info in impact.classes_to_remove %}
+                                    <tr>
+                                        <td><strong>{{ class_info.standard.get_display_name }}</strong></td>
+                                        <td>
+                                            {% if class_info.teacher %}
+                                                <span class="text-warning">
+                                                    <i class="bi bi-person-x"></i> {{ class_info.teacher.get_full_name }}
+                                                    <br><small>Will be unassigned</small>
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">No teacher assigned</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if class_info.student_count > 0 %}
+                                                <span class="text-danger">
+                                                    <i class="bi bi-people"></i> {{ class_info.student_count }} student{{ class_info.student_count|pluralize }}
+                                                    <br><small>Will be unenrolled</small>
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">No students enrolled</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-danger">Class Deleted</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-danger">{{ impact.classes_to_remove|length }}</h5>
+                                        <p class="mb-0">Classes Removed</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-warning">{{ impact.teachers_to_unassign|length }}</h5>
+                                        <p class="mb-0">Teachers Unassigned</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-danger">{{ impact.total_students_affected }}</h5>
+                                        <p class="mb-0">Students Unenrolled</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if impact.total_students_affected > 0 %}
+                        <div class="alert alert-info mt-4">
+                            <h6><i class="bi bi-info-circle"></i> What happens to unenrolled students?</h6>
+                            <ul class="mb-0">
+                                <li>Students will appear as "Not assigned" in the student list</li>
+                                <li>You can manually re-enroll them in remaining classes</li>
+                                <li>Their historical data and records are preserved</li>
+                                <li>They remain active students in the school</li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> No classes will be affected by this change.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Increasing groups -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-success">
+                <div class="card-header py-3 bg-success text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="bi bi-plus-circle"></i> New Classes to be Created
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if impact.classes_to_create %}
+                        <div class="row">
+                            {% for class_info in impact.classes_to_create %}
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-success">{{ class_info.display_name }}</h6>
+                                        <small class="text-muted">Ready for teacher assignment</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="alert alert-info mt-4">
+                            <h6><i class="bi bi-info-circle"></i> After creating new classes:</h6>
+                            <ul class="mb-0">
+                                <li>New classes will be empty and ready for teacher assignment</li>
+                                <li>You can assign teachers through the staff management page</li>
+                                <li>Students can be enrolled in the new classes</li>
+                                <li>All existing classes and data remain unchanged</li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Confirmation Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h5>Are you sure you want to proceed?</h5>
+                    <p class="text-muted">This action will {% if change_type == 'decrease' %}permanently modify your school's class structure{% else %}create new classes in your school{% endif %}.</p>
+                    
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'core:group_management' school_slug=school_slug %}" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                        
+                        <form method="post" action="{% url 'core:group_change_execute' school_slug=school_slug new_groups=new_groups %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn {% if change_type == 'decrease' %}btn-warning{% else %}btn-success{% endif %} btn-lg" 
+                                    onclick="return confirm('Are you absolutely sure? This action cannot be undone.')">
+                                <i class="bi bi-check-circle"></i> 
+                                {% if change_type == 'decrease' %}
+                                    Confirm Reduction
+                                {% else %}
+                                    Confirm Increase
+                                {% endif %}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

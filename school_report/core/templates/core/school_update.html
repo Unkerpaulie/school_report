@@ -60,18 +60,7 @@
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="id_groups_per_standard" class="form-label">Groups per Standard</label>
-                            <select name="groups_per_standard" id="id_groups_per_standard" class="form-control" required>
-                                <option value="1" {% if school.groups_per_standard == 1 %}selected{% endif %}>1 Group (Default)</option>
-                                <option value="2" {% if school.groups_per_standard == 2 %}selected{% endif %}>2 Groups</option>
-                                <option value="3" {% if school.groups_per_standard == 3 %}selected{% endif %}>3 Groups</option>
-                                <option value="4" {% if school.groups_per_standard == 4 %}selected{% endif %}>4 Groups</option>
-                                <option value="5" {% if school.groups_per_standard == 5 %}selected{% endif %}>5 Groups</option>
-                            </select>
-                            <div class="form-text">Number of classes per standard level. <strong>Warning:</strong> Changing this will affect class structure.</div>
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <label for="id_logo" class="form-label">School Logo</label>
                             {% if school.logo %}
                             <div class="mb-2">
@@ -81,6 +70,27 @@
                             {% endif %}
                             <input type="file" name="logo" id="id_logo" class="form-control">
                             <div class="form-text">Optional. Upload a new school logo or monogram to replace the current one.</div>
+                        </div>
+                    </div>
+
+                    <!-- Group Management Section -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="bi bi-diagram-3"></i> Class Group Management
+                                    </h6>
+                                    <p class="card-text">
+                                        Current configuration: <strong>{{ school.groups_per_standard }} group{{ school.groups_per_standard|pluralize }} per standard</strong>
+                                        <br>
+                                        <small class="text-muted">This means each grade level (Infant 1, Infant 2, Standard 1-5) has {{ school.groups_per_standard }} class{{ school.groups_per_standard|pluralize }}.</small>
+                                    </p>
+                                    <a href="{% url 'core:group_management' school_slug=school.slug %}" class="btn btn-outline-primary">
+                                        <i class="bi bi-gear"></i> Manage Class Groups
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

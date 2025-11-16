@@ -12,6 +12,7 @@ from .models import UserProfile
 from schools.models import School
 from academics.models import SchoolYear, Term, SchoolStaff, StandardTeacher
 from core.utils import get_user_session_info, user_can_access_view, clear_teacher_session, get_current_year_and_term
+from core.mixins import SchoolAdminRequiredMixin
 
 class HomeView(TemplateView):
     """Home page view"""
@@ -270,38 +271,14 @@ class SchoolRedirectView(LoginRequiredMixin, RedirectView):
         return reverse('core:home')
 
 
-class SchoolUpdateView(LoginRequiredMixin, UpdateView):
+class SchoolUpdateView(SchoolAdminRequiredMixin, UpdateView):
     """
     View for updating school information by principals and admin staff
     """
     model = School
     template_name = 'core/school_update.html'
-    fields = ['name', 'address', 'contact_phone', 'contact_email', 'groups_per_standard', 'logo']
+    fields = ['name', 'address', 'contact_phone', 'contact_email', 'logo']  # Removed groups_per_standard
     context_object_name = 'school'
-
-    def dispatch(self, request, *args, **kwargs):
-        # Get the school by slug
-        school_slug = kwargs.get('school_slug')
-        self.school = get_object_or_404(School, slug=school_slug)
-
-        # Check if user has access to this school and is principal or admin
-        user_profile = request.user.profile
-        if user_profile.user_type not in ['principal', 'administration']:
-            messages.warning(request, "Only principals and administration staff can update school information.")
-            return redirect('core:home')
-
-        # Check if user has access to this school via SchoolStaff
-        school_staff = SchoolStaff.objects.filter(
-            staff=user_profile,
-            school=self.school,
-            is_active=True
-        ).first()
-
-        if not school_staff:
-            messages.warning(request, "You do not have access to this school.")
-            return redirect('core:home')
-
-        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
         return self.school
@@ -382,3 +359,346 @@ def idle_timeout_context(request):
         'IDLE_TIMEOUT_MINUTES': getattr(settings, 'IDLE_TIMEOUT_MINUTES', 30),
         'IDLE_TIMEOUT_SECONDS': getattr(settings, 'IDLE_TIMEOUT_SECONDS', 1800),
     }
+
+
+class GroupManagementView(SchoolAdminRequiredMixin, TemplateView):
+    """
+    View for managing groups per standard with impact analysis
+    """
+    template_name = 'core/group_management.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+        context['current_groups'] = self.school.groups_per_standard
+
+        # Get impact analysis for different group numbers
+        context['impact_analysis'] = self._get_impact_analysis()
+
+        return context
+
+    def _get_impact_analysis(self):
+        """
+        Analyze the impact of changing groups per standard
+        """
+        from schools.models import Standard
+        from academics.models import StandardEnrollment
+        from academics.models import StandardTeacher
+        from core.utils import get_current_year_and_term
+
+        current_year, _, _ = get_current_year_and_term(school=self.school)
+        current_groups = self.school.groups_per_standard
+
+        analysis = {}
+
+        # Analyze impact for different group numbers (1-5)
+        for new_groups in range(1, 6):
+            if new_groups == current_groups:
+                continue
+
+            impact = {
+                'new_groups': new_groups,
+                'change_type': 'increase' if new_groups > current_groups else 'decrease',
+                'affected_classes': [],
+                'affected_teachers': [],
+                'affected_students': 0
+            }
+
+            if new_groups < current_groups:
+                # Decreasing groups - find classes that will be removed
+                for standard_code, standard_name in Standard.STANDARD_CHOICES:
+                    for group_num in range(new_groups + 1, current_groups + 1):
+                        try:
+                            standard = Standard.objects.get(
+                                school=self.school,
+                                name=standard_code,
+                                group_number=group_num
+                            )
+
+                            # Count students in this class
+                            if current_year:
+                                student_count = StandardEnrollment.objects.filter(
+                                    standard=standard,
+                                    year=current_year
+                                ).count()
+                            else:
+                                student_count = 0
+
+                            # Find assigned teacher
+                            teacher_assignment = None
+                            if current_year:
+                                teacher_assignment = StandardTeacher.objects.filter(
+                                    standard=standard,
+                                    year=current_year,
+                                    teacher__isnull=False
+                                ).first()
+
+                            impact['affected_classes'].append({
+                                'standard': standard,
+                                'student_count': student_count,
+                                'teacher': teacher_assignment.teacher if teacher_assignment else None
+                            })
+
+                            if teacher_assignment and teacher_assignment.teacher:
+                                if teacher_assignment.teacher not in impact['affected_teachers']:
+                                    impact['affected_teachers'].append(teacher_assignment.teacher)
+
+                            impact['affected_students'] += student_count
+
+                        except Standard.DoesNotExist:
+                            continue
+
+            elif new_groups > current_groups:
+                # Increasing groups - show new classes that will be created
+                for standard_code, standard_name in Standard.STANDARD_CHOICES:
+                    for group_num in range(current_groups + 1, new_groups + 1):
+                        impact['affected_classes'].append({
+                            'standard_name': standard_name,
+                            'group_number': group_num,
+                            'is_new': True
+                        })
+
+            analysis[new_groups] = impact
+
+        return analysis
+
+
+class GroupChangeConfirmationView(SchoolAdminRequiredMixin, TemplateView):
+    """
+    View for confirming group changes with detailed impact analysis
+    """
+    template_name = 'core/group_change_confirmation.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        # Call parent dispatch first for permission checking
+        response = super().dispatch(request, *args, **kwargs)
+        if response:  # If parent returned a redirect, return it
+            return response
+
+        # Get the new group count from URL
+        self.new_groups = int(kwargs.get('new_groups'))
+
+        # Validate new_groups
+        if self.new_groups < 1 or self.new_groups > 5:
+            messages.error(request, "Invalid number of groups. Must be between 1 and 5.")
+            return redirect('core:group_management', school_slug=self.school_slug)
+
+        return None  # Continue with normal processing
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school'] = self.school
+        context['school_slug'] = self.school_slug
+        context['current_groups'] = self.school.groups_per_standard
+        context['new_groups'] = self.new_groups
+        context['change_type'] = 'increase' if self.new_groups > self.school.groups_per_standard else 'decrease'
+
+        # Get detailed impact analysis for this specific change
+        context['impact'] = self._get_detailed_impact()
+
+        return context
+
+    def _get_detailed_impact(self):
+        """
+        Get detailed impact analysis for the specific group change
+        """
+        from schools.models import Standard, StandardEnrollment
+        from academics.models import StandardTeacher
+        from core.utils import get_current_year_and_term
+
+        current_year, _, _ = get_current_year_and_term(school=self.school)
+        current_groups = self.school.groups_per_standard
+
+        impact = {
+            'change_type': 'increase' if self.new_groups > current_groups else 'decrease',
+            'classes_to_remove': [],
+            'classes_to_create': [],
+            'teachers_to_unassign': [],
+            'total_students_affected': 0
+        }
+
+        if self.new_groups < current_groups:
+            # Decreasing groups - find classes that will be removed
+            for standard_code, standard_name in Standard.STANDARD_CHOICES:
+                for group_num in range(self.new_groups + 1, current_groups + 1):
+                    try:
+                        standard = Standard.objects.get(
+                            school=self.school,
+                            name=standard_code,
+                            group_number=group_num
+                        )
+
+                        # Count students in this class
+                        student_count = 0
+                        if current_year:
+                            student_count = StandardEnrollment.objects.filter(
+                                standard=standard,
+                                year=current_year
+                            ).count()
+
+                        # Find assigned teacher
+                        teacher_assignment = None
+                        if current_year:
+                            teacher_assignment = StandardTeacher.objects.filter(
+                                standard=standard,
+                                year=current_year,
+                                teacher__isnull=False
+                            ).first()
+
+                        class_info = {
+                            'standard': standard,
+                            'student_count': student_count,
+                            'teacher': teacher_assignment.teacher if teacher_assignment else None
+                        }
+
+                        impact['classes_to_remove'].append(class_info)
+                        impact['total_students_affected'] += student_count
+
+                        if teacher_assignment and teacher_assignment.teacher:
+                            teacher_info = {
+                                'teacher': teacher_assignment.teacher,
+                                'class_name': standard.get_display_name()
+                            }
+                            if teacher_info not in impact['teachers_to_unassign']:
+                                impact['teachers_to_unassign'].append(teacher_info)
+
+                    except Standard.DoesNotExist:
+                        continue
+
+        elif self.new_groups > current_groups:
+            # Increasing groups - show new classes that will be created
+            for standard_code, standard_name in Standard.STANDARD_CHOICES:
+                for group_num in range(current_groups + 1, self.new_groups + 1):
+                    impact['classes_to_create'].append({
+                        'standard_name': standard_name,
+                        'group_number': group_num,
+                        'display_name': f"{standard_name} - {group_num}"
+                    })
+
+        return impact
+
+
+class GroupChangeExecuteView(SchoolAdminRequiredMixin, View):
+    """
+    View for executing group changes
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        # Call parent dispatch first for permission checking
+        response = super().dispatch(request, *args, **kwargs)
+        if response:  # If parent returned a redirect, return it
+            return response
+
+        # Get the new group count from URL
+        self.new_groups = int(kwargs.get('new_groups'))
+
+        # Validate new_groups
+        if self.new_groups < 1 or self.new_groups > 5:
+            messages.error(request, "Invalid number of groups. Must be between 1 and 5.")
+            return redirect('core:group_management', school_slug=self.school_slug)
+
+        return None  # Continue with normal processing
+
+    def post(self, request, *args, **kwargs):
+        """
+        Execute the group change
+        """
+        current_groups = self.school.groups_per_standard
+
+        if self.new_groups == current_groups:
+            messages.info(request, "No changes needed - group count is already set to this value.")
+            return redirect('core:group_management', school_slug=self.school_slug)
+
+        try:
+            if self.new_groups < current_groups:
+                # Decreasing groups
+                self._decrease_groups(current_groups, self.new_groups)
+                messages.success(
+                    request,
+                    f"Successfully reduced groups from {current_groups} to {self.new_groups}. "
+                    f"Affected teachers have been unassigned and students are now unenrolled from removed classes."
+                )
+            else:
+                # Increasing groups
+                self._increase_groups(current_groups, self.new_groups)
+                messages.success(
+                    request,
+                    f"Successfully increased groups from {current_groups} to {self.new_groups}. "
+                    f"New classes have been created and are ready for teacher assignment."
+                )
+
+            # Update the school's groups_per_standard
+            self.school.groups_per_standard = self.new_groups
+            self.school.save()
+
+        except Exception as e:
+            messages.error(request, f"Error updating groups: {str(e)}")
+
+        return redirect('core:group_management', school_slug=self.school_slug)
+
+    def _decrease_groups(self, current_groups, new_groups):
+        """
+        Handle decreasing the number of groups
+        """
+        from schools.models import Standard
+        from academics.models import StandardTeacher
+        from core.utils import get_current_year_and_term
+        from django.utils import timezone
+
+        current_year, _, _ = get_current_year_and_term(school=self.school)
+
+        # Remove classes for groups that exceed the new limit
+        for standard_code, _ in Standard.STANDARD_CHOICES:
+            for group_num in range(new_groups + 1, current_groups + 1):
+                try:
+                    standard = Standard.objects.get(
+                        school=self.school,
+                        name=standard_code,
+                        group_number=group_num
+                    )
+
+                    # Unassign teacher if assigned
+                    if current_year:
+                        teacher_assignments = StandardTeacher.objects.filter(
+                            standard=standard,
+                            year=current_year,
+                            teacher__isnull=False
+                        )
+
+                        for assignment in teacher_assignments:
+                            # Create unassignment record (teacher=None)
+                            StandardTeacher.objects.create(
+                                teacher=None,
+                                standard=assignment.standard,
+                                year=assignment.year,
+                                assigned_date=timezone.now().date(),
+                                assigned_by=self.request.user.profile
+                            )
+
+                    # Delete the standard (this will cascade to enrollments)
+                    standard.delete()
+
+                except Standard.DoesNotExist:
+                    continue
+
+    def _increase_groups(self, current_groups, new_groups):
+        """
+        Handle increasing the number of groups
+        """
+        from schools.models import Standard
+
+        # Create new classes for additional groups
+        for standard_code, _ in Standard.STANDARD_CHOICES:
+            for group_num in range(current_groups + 1, new_groups + 1):
+                # Check if standard already exists (shouldn't happen, but safety check)
+                if not Standard.objects.filter(
+                    school=self.school,
+                    name=standard_code,
+                    group_number=group_num
+                ).exists():
+                    Standard.objects.create(
+                        school=self.school,
+                        name=standard_code,
+                        group_number=group_num
+                    )
