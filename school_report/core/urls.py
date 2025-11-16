@@ -1,7 +1,8 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from .views import (
     HomeView, SchoolRegistrationView, CustomLogoutView, SchoolUpdateView, CustomLoginView, SessionDebugView,
-    GroupManagementView, GroupChangeConfirmationView, GroupChangeExecuteView
+    GroupManagementView, GroupChangeConfirmationView, GroupChangeExecuteView, CustomPasswordChangeView
 )
 
 app_name = 'core'
@@ -13,6 +14,10 @@ urlpatterns = [
     # Authentication routes
     path('register/', SchoolRegistrationView.as_view(), name='register_school'),
     path('logout/', CustomLogoutView.as_view(), name='custom_logout'),
+    path('password-change/', CustomPasswordChangeView.as_view(), name='password_change'),
+    path('password-change/done/', auth_views.PasswordChangeDoneView.as_view(
+        template_name='core/password_change_done.html'
+    ), name='password_change_done'),
 
     # School-specific routes
     path('<slug:school_slug>/school-info/', SchoolUpdateView.as_view(), name='school_update'),

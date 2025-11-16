@@ -18,14 +18,24 @@ class PasswordChangeMiddleware:
             # Check if user needs to change password
             try:
                 if request.user.profile.must_change_password:
-                    # Allow access to password change page and logout
-                    if not request.path == reverse('password_change') and not request.path == reverse('logout'):
+                    # Define allowed URLs when password change is required
+                    allowed_urls = [
+                        reverse('core:password_change'),
+                        reverse('core:password_change_done'),
+                        reverse('core:custom_logout'),
+                    ]
+
+                    # Allow access to password change related pages and logout
+                    if request.path not in allowed_urls:
                         messages.warning(request, "You must change your password before continuing.")
-                        return redirect('password_change')
-            except:
+                        return redirect('core:password_change')
+            except AttributeError:
                 # If profile doesn't exist, just continue
                 pass
-                
+            except Exception:
+                # Handle any other exceptions gracefully
+                pass
+
         response = self.get_response(request)
         return response
 

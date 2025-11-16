@@ -38,7 +38,7 @@
                     <li><a class="dropdown-item" href="{% url 'core:school_update' school_slug=school.slug %}"><i class="bi bi-building"></i> School Info</a></li>
                     {% endif %}
                     {% endif %}
-                    <li><a class="dropdown-item" href="{% url 'password_change' %}"><i class="bi bi-key"></i> Change Password</a></li>
+                    <li><a class="dropdown-item" href="{% url 'core:password_change' %}"><i class="bi bi-key"></i> Change Password</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <form method="post" action="{% url 'core:custom_logout' %}" class="d-inline">

@@ -205,9 +205,9 @@ class CustomPasswordChangeView(PasswordChangeView):
     """
     Custom password change view that updates the must_change_password flag
     """
-    template_name = 'registration/password_change_form.html'
+    template_name = 'core/password_change.html'
     form_class = PasswordChangeForm
-    success_url = reverse_lazy('password_change_done')
+    success_url = reverse_lazy('core:password_change_done')
 
     def form_valid(self, form):
         # Call the parent class's form_valid method
@@ -303,6 +303,17 @@ class CustomLoginView(LoginView):
     """
     template_name = 'registration/login.html'
     form_class = AuthenticationForm
+
+    def get_success_url(self):
+        """
+        Override to check if user must change password before redirecting
+        """
+        # Check if user needs to change password
+        if hasattr(self.request.user, 'profile') and self.request.user.profile.must_change_password:
+            return reverse('core:password_change')
+
+        # Otherwise, use the default success URL logic
+        return super().get_success_url()
 
     def form_valid(self, form):
         """Handle successful login with remember me functionality"""
