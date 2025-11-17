@@ -44,13 +44,21 @@ class Test(models.Model):
     def clean(self):
         """
         Validate that test date falls within the term dates and link to the appropriate Term
+        Also validate that tests cannot be created for finalized terms
         """
         from django.core.exceptions import ValidationError
-        
+
         if not (self.term.start_date <= self.test_date <= self.term.end_date):
             raise ValidationError({
                 'test_date': f'Test date must be within {self.term} '
                             f'({self.term.start_date} to {self.term.end_date})'
+            })
+
+        # Prevent test creation for finalized terms
+        if self.term.is_finalized:
+            raise ValidationError({
+                'term': f'Cannot create tests for {self.term} because it has been finalized. '
+                       f'Finalized on {self.term.finalized_at.strftime("%B %d, %Y")} by {self.term.finalized_by}.'
             })
     
     def save(self, *args, **kwargs):
@@ -562,7 +570,8 @@ class StudentTermReview(models.Model):
     def finalize_class_reports(cls, term, standard, user):
         """
         Finalize all reports for a class/standard in a given term
-        Returns: (success_count, error_count, messages)
+        Also checks if all reports for the term are finalized and auto-finalizes the term
+        Returns: (success_count, error_count, messages, term_finalized)
         """
         reports = cls.objects.filter(
             term=term,
@@ -582,7 +591,17 @@ class StudentTermReview(models.Model):
                 error_count += 1
                 messages.append(f"{report.student.get_full_name()}: {message}")
 
-        return success_count, error_count, messages
+        # Check if all reports for the entire term are now finalized
+        term_finalized = False
+        if success_count > 0:  # Only check if we successfully finalized some reports
+            can_finalize_term, term_message = term.can_be_finalized()
+            if can_finalize_term:
+                term_success, term_finalize_message = term.finalize_term(user)
+                if term_success:
+                    term_finalized = True
+                    messages.append(f"🎉 {term_finalize_message}")
+
+        return success_count, error_count, messages, term_finalized
 
 
 class StudentSubjectScore(models.Model):

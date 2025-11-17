@@ -33,6 +33,13 @@ class Term(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     school_days = models.PositiveIntegerField()
+
+    # Term finalization tracking
+    is_finalized = models.BooleanField(default=False, help_text="Whether this term has been finalized (no more tests can be created)")
+    finalized_at = models.DateTimeField(null=True, blank=True, help_text="When this term was finalized")
+    finalized_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='finalized_terms', help_text="Who finalized this term")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -42,6 +49,47 @@ class Term(models.Model):
 
     def __str__(self):
         return f"{self.year} - {self.get_term_number_display()}"
+
+    def can_be_finalized(self):
+        """
+        Check if this term can be finalized
+        A term can be finalized if all reports for all classes in this term are finalized
+        """
+        if self.is_finalized:
+            return False, "Term is already finalized"
+
+        # Import here to avoid circular imports
+        from reports.models import StudentTermReview
+
+        # Get all reports for this term
+        term_reports = StudentTermReview.objects.filter(term=self)
+
+        if not term_reports.exists():
+            return False, "No reports found for this term"
+
+        # Check if all reports are finalized
+        unfinalized_reports = term_reports.filter(is_finalized=False)
+        if unfinalized_reports.exists():
+            return False, f"{unfinalized_reports.count()} reports are not yet finalized"
+
+        return True, "Term can be finalized"
+
+    def finalize_term(self, user):
+        """
+        Finalize this term, preventing new test creation
+        """
+        from django.utils import timezone
+
+        can_finalize, message = self.can_be_finalized()
+        if not can_finalize:
+            return False, message
+
+        self.is_finalized = True
+        self.finalized_at = timezone.now()
+        self.finalized_by = user
+        self.save()
+
+        return True, "Term finalized successfully. No new tests can be created for this term."
     
 class StandardTeacher(models.Model):
     """

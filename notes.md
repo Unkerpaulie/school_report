@@ -70,19 +70,19 @@ Overall average calculation detail?
     [x] increase font of data on report sheets
 [x] review columns listed on finalize page
 [x] disable edit and delete actions for tests that have been finalized
+[x] once a term review has been finalized, disable the ability to create new tests in that term
 [x] fix password change logic
 [x] log out user when browser tab is closed
 [x] incorporate `recommend_for_advancement` in term review
 [x] add 'School reopens' in term review
 [x] all students ordered by last name ascending
 [x] order tests by date ascending
-[ ] once a term review has been finalized, disable the ability to create new tests in that term
 [x] come up with a name and domain
 [ ] decide on what activities I want to capture and log
 [ ] create an activity model and activity history table view
 [ ] Populate recent activity box on dashboard
 [x] allow the creation of multiple standard groups
-[x] princiapls/admin cannot edit term reports
+[x] principals/admin cannot edit term reports
 [x] Teachers should not edit or enroll students from student detail view
 [x] Populate Student detail Academic Performance card with reports
 [ ] work on transition sequence

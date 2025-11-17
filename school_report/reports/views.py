@@ -99,11 +99,12 @@ class TestForm(forms.ModelForm):
         current_year = kwargs.pop('current_year', None)
         super().__init__(*args, **kwargs)
 
-        # Filter terms to only show those for the current school and year
+        # Filter terms to only show non-finalized terms for the current school and year
         if school and current_year:
             from academics.models import Term
             terms_queryset = Term.objects.filter(
-                year=current_year
+                year=current_year,
+                is_finalized=False  # Only show non-finalized terms
             ).order_by('term_number')
 
             self.fields['term'].queryset = terms_queryset
@@ -274,13 +275,32 @@ def test_list(request, school_slug):
     # Get all tests created by this teacher
     tests = Test.objects.filter(created_by=teacher).order_by('-test_date')
 
+    # Get finalized terms for current year to show warnings
+    finalized_terms = []
+    can_create_tests = True
+    if current_year:
+        from academics.models import Term
+        finalized_terms = Term.objects.filter(
+            year=current_year,
+            is_finalized=True
+        ).order_by('term_number')
+
+        # Check if there are any non-finalized terms available
+        non_finalized_terms = Term.objects.filter(
+            year=current_year,
+            is_finalized=False
+        ).exists()
+        can_create_tests = non_finalized_terms
+
     # Use the current_year we already got above (with school parameter)
     return render(request, 'reports/test_list.html', {
         'tests': tests,
         'school': school,
         'school_slug': school_slug,
         'teacher_standard': teacher_standard,
-        'current_year': current_year
+        'current_year': current_year,
+        'finalized_terms': finalized_terms,
+        'can_create_tests': can_create_tests
     })
 
 @login_required
@@ -330,6 +350,18 @@ def test_create(request, school_slug):
     if request.method == 'POST':
         form = TestForm(request.POST, school=school, current_year=current_year)
         if form.is_valid():
+            # Additional validation: Check if selected term is finalized
+            selected_term = form.cleaned_data.get('term')
+            if selected_term and selected_term.is_finalized:
+                messages.error(request, f"Cannot create test for {selected_term} because it has been finalized.")
+                return render(request, 'reports/test_form.html', {
+                    'form': form,
+                    'school': school,
+                    'school_slug': school_slug,
+                    'teacher_standard': teacher_standard,
+                    'is_edit': False
+                })
+
             test = form.save(commit=False)
             test.created_by = teacher
             test.standard = teacher_standard
@@ -2029,12 +2061,16 @@ def finalize_class_reports(request, school_slug, term_id, class_id):
                            school_slug=school_slug, term_id=term_id, class_id=class_id)
 
         # Finalize all reports
-        success_count, error_count, error_messages = StudentTermReview.finalize_class_reports(
+        success_count, error_count, error_messages, term_finalized = StudentTermReview.finalize_class_reports(
             term, standard, teacher
         )
 
         if success_count > 0:
             messages.success(request, f"Successfully finalized {success_count} reports.")
+
+        # Show term finalization message if applicable
+        if term_finalized:
+            messages.success(request, f"🎉 {term} has been automatically finalized! No new tests can be created for this term.")
 
             # Generate PDFs for finalized reports
             try:

@@ -10,15 +10,36 @@
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="h3 mb-0 text-gray-800">{{ teacher_standard.get_name_display }} Tests</h1>
         <div class="btn-group">
-            <a href="{% url 'reports:test_create' school_slug=school_slug %}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Create New Test
-            </a>
+            {% if can_create_tests %}
+                <a href="{% url 'reports:test_create' school_slug=school_slug %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Create New Test
+                </a>
+            {% else %}
+                <button class="btn btn-secondary" disabled title="All terms are finalized">
+                    <i class="bi bi-plus-circle"></i> Create New Test
+                </button>
+            {% endif %}
             <a href="{% url 'reports:subject_list' school_slug=school_slug %}" class="btn btn-outline-secondary">
                 <i class="bi bi-book"></i> Manage Subjects
             </a>
         </div>
     </div>
 </div>
+
+{% if finalized_terms %}
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Finalized Terms:</strong>
+            {% for term in finalized_terms %}
+                <span class="badge bg-warning text-dark me-2">{{ term }}</span>
+            {% endfor %}
+            <br><small>No new tests can be created for finalized terms.</small>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="row">
     <div class="col-12">
