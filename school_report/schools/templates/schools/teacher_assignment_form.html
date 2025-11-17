@@ -34,7 +34,7 @@
                             <select name="standard" id="id_standard" class="form-select" required>
                                 <option value="">Select Class</option>
                                 {% for standard in form.fields.standard.queryset %}
-                                <option value="{{ standard.id }}">{{ standard.name }} {% if standard.section %}({{ standard.section }}){% endif %}</option>
+                                <option value="{{ standard.id }}">{{ standard.get_display_name }} {% if standard.section %}({{ standard.section }}){% endif %}</option>
                                 {% endfor %}
                             </select>
                         </div>

@@ -53,10 +53,10 @@ docker-compose -f docker-compose.dev.yml exec web python manage.py shell -c "fro
 echo ================================
 echo Development Environment Ready!
 echo ================================
-echo Django App: http://localhost:8000
+echo Django App: http://localhost:8020
 echo pgAdmin: http://localhost:5050 (admin@example.com / admin123)
 echo Database: localhost:5432 (school_admin / school_dev_password_2024)
-echo Admin Panel: http://localhost:8000/admin (admin / admin123)
+echo Admin Panel: http://localhost:8020/admin (admin / admin123)
 goto end
 
 :stop

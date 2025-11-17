@@ -30,4 +30,4 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 
 # Run gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "school_report.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8020", "school_report.wsgi:application"]

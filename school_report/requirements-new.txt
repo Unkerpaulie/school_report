@@ -18,3 +18,4 @@ psycopg2-binary>=2.9.9  # PostgreSQL adapter
 gunicorn>=21.2.0  # WSGI HTTP Server
 django-storages>=1.14.2  # Storage backends
 boto3>=1.34.0  # AWS S3 integration
+dj-database-url>=2.1.0  # Database URL parsing for cloud deployments

@@ -50,7 +50,7 @@ RUN useradd --create-home --shell /bin/bash devuser && \
 USER devuser
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8020
 
 # Default command (can be overridden in docker-compose)
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8020"]

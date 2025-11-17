@@ -70,10 +70,10 @@ else:
 "
         
         print_header "Development Environment Ready!"
-        echo -e "${GREEN}🌐 Django App:${NC} http://localhost:8000"
+        echo -e "${GREEN}🌐 Django App:${NC} http://localhost:8020"
         echo -e "${GREEN}🗄️  pgAdmin:${NC} http://localhost:5050 (admin@school.local / admin123)"
         echo -e "${GREEN}📊 Database:${NC} localhost:5432 (school_admin / school_dev_password_2024)"
-        echo -e "${GREEN}🔧 Admin Panel:${NC} http://localhost:8000/admin (admin / admin123)"
+        echo -e "${GREEN}🔧 Admin Panel:${NC} http://localhost:8020/admin (admin / admin123)"
         ;;
         
     "stop"|"down")

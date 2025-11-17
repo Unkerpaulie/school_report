@@ -32,8 +32,8 @@ chmod +x docker-dev.sh
 
 ### 2. Access Your Application
 
-- **Django App**: http://localhost:8000
-- **Admin Panel**: http://localhost:8000/admin (admin / admin123)
+- **Django App**: http://localhost:8020
+- **Admin Panel**: http://localhost:8020/admin (admin / admin123)
 - **pgAdmin**: http://localhost:5050 (admin@school.local / admin123)
 - **Database**: localhost:5432 (school_admin / school_dev_password_2024)
 
@@ -149,7 +149,7 @@ DJANGO_SUPERUSER_PASSWORD=admin123
 ## 📊 Services
 
 ### Web (Django)
-- **Port**: 8000
+- **Port**: 8020
 - **Features**: Hot reloading, WeasyPrint, Debug Toolbar
 - **Volumes**: Source code, media, static files, report archives
 
@@ -195,7 +195,7 @@ DJANGO_SUPERUSER_PASSWORD=admin123
 # Generate demo data
 ./docker-dev.sh demo
 
-# Navigate to http://localhost:8000
+# Navigate to http://localhost:8020
 # Login with admin/admin123
 # Go to Reports > Class Reports
 # Click "Print All Reports" button
