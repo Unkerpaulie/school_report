@@ -68,6 +68,14 @@ class Command(BaseCommand):
             self.stdout.write(f'Selected Term: {term}')
             self.stdout.write(f'Term Period: {term.start_date} to {term.end_date}')
 
+            # Check if term is finalized
+            if term.is_finalized:
+                raise CommandError(
+                    f'Cannot populate tests for {term} because it has been finalized.\n'
+                    f'Finalized on {term.finalized_at.strftime("%B %d, %Y")} by {term.finalized_by}.\n'
+                    f'Choose a different term or unfinalize this term first.'
+                )
+
             if options['dry_run']:
                 self.stdout.write(self.style.WARNING('\n--- DRY RUN MODE ---'))
 

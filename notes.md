@@ -90,9 +90,6 @@ Overall average calculation detail?
 [ ] work on optimizing queries that are duplicated
 [ ] Write unit tests for the functionality as it is now
 [ ] "Preferences" link for users to customize their experience (fixed header, dark mode, etc.)
-[ ] Set up a skool.com forum for teachers to discuss and request features and bug fixes
-[ ] Create demo video
-[ ] Enhance school landing page
 
 ### Documentation list
 
@@ -124,3 +121,12 @@ Overall average calculation detail?
 - pdf generation 
 - finalize flag for entire class
 - possible refactor of long views.py files
+
+### Marketing for the launch
+- [ ] Optimize and redesign landing page
+- [ ] Create a demo video
+- [ ] Create a press release (contact Angelo)
+- [ ] Create a social media campaign
+- [ ] Set up a skool.com forum for teachers to discuss and request features and bug fixes
+- [ ] Create a contact page
+- [ ] Create a about page
