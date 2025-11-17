@@ -36,7 +36,7 @@ class Test(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-test_date']
+        ordering = ['test_date']
 
     def __str__(self):
         return f"{self.term} - {self.test_type} - {self.standard}"
@@ -286,6 +286,7 @@ class TestScore(models.Model):
 
     class Meta:
         unique_together = ['test_subject', 'student']
+        ordering = ['student__last_name', 'student__first_name']
         verbose_name = "Test Score"
         verbose_name_plural = "Test Scores"
 
@@ -364,6 +365,7 @@ class StudentTermReview(models.Model):
 
     class Meta:
         unique_together = ['term', 'student']
+        ordering = ['student__last_name', 'student__first_name']
 
     def __str__(self):
         return f"{self.term} - {self.student} - {self.days_present} days present"

@@ -74,8 +74,8 @@ Overall average calculation detail?
 [x] log out user when browser tab is closed
 [x] incorporate `recommend_for_advancement` in term review
 [x] add 'School reopens' in term review
-[ ] all students ordered by last name ascending
-[ ] order tests by date ascending
+[x] all students ordered by last name ascending
+[x] order tests by date ascending
 [ ] once a term review has been finalized, disable the ability to create new tests in that term
 [x] come up with a name and domain
 [ ] decide on what activities I want to capture and log
