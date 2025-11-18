@@ -4,6 +4,12 @@
 set -e
 
 echo "🚀 Starting Seenode deployment build..."
+echo "=== Environment Variable Check ==="
+python -c "
+import os
+print('ENVIRONMENT:', os.environ.get('ENVIRONMENT', 'NOT SET'))
+print('ALLOWED_HOSTS:', os.environ.get('ALLOWED_HOSTS', 'NOT SET'))
+print('DATABASE_URL:', 'SET' if os.environ.get('DATABASE_URL') else 'NOT SET')
 
 # Install dependencies
 echo "📦 Installing Python dependencies..."

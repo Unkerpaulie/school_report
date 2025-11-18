@@ -73,6 +73,7 @@ Overall average calculation detail?
 [x] once a term review has been finalized, disable the ability to create new tests in that term
 [x] fix password change logic
 [x] log out user when browser tab is closed
+[ ] add show/hide password on login form
 [x] incorporate `recommend_for_advancement` in term review
 [x] add 'School reopens' in term review
 [x] all students ordered by last name ascending
