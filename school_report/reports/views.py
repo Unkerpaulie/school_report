@@ -11,6 +11,7 @@ from academics.models import StandardSubject, StandardTeacher, SchoolStaff, Scho
 from schools.models import Student, School, Standard
 from core.models import UserProfile
 from core.utils import get_current_year_and_term, get_teacher_class_from_session, get_current_teacher_assignment, cleanup_old_pdf_files
+from core.activity_utils import create_test_activity, create_report_finalization_activity
 import json
 import os
 import zipfile
@@ -367,6 +368,9 @@ def test_create(request, school_slug):
             test.standard = teacher_standard
             test.save()
 
+            # Create activity stream entry
+            create_test_activity(teacher, test, verb='created')
+
             messages.success(request, f"Test has been created successfully. Now add subjects to this test.")
             return redirect('reports:test_subject_add', school_slug=school_slug, test_id=test.id)
     else:
@@ -588,6 +592,9 @@ def test_delete(request, school_slug, test_id):
         return redirect('reports:test_detail', school_slug=school_slug, test_id=test_id)
 
     if request.method == 'POST':
+        # Create activity before deleting (need to capture test info first)
+        create_test_activity(teacher, test, verb='deleted')
+
         test.delete()
         messages.success(request, f"Test has been deleted successfully.")
         return redirect('reports:test_list', school_slug=school_slug)
@@ -2066,6 +2073,9 @@ def finalize_class_reports(request, school_slug, term_id, class_id):
         )
 
         if success_count > 0:
+            # Create activity stream entry
+            create_report_finalization_activity(teacher, term, standard, success_count)
+
             messages.success(request, f"Successfully finalized {success_count} reports.")
 
         # Show term finalization message if applicable

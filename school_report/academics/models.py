@@ -105,6 +105,8 @@ class StandardTeacher(models.Model):
                                related_name='standard_assignments',
                                limit_choices_to={'user_type': 'teacher'},
                                null=True, blank=True)  # Null = unassigned
+    assigned_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='teacher_assignments_made', help_text="User who made this assignment")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -134,6 +136,8 @@ class SchoolEnrollment(models.Model):
     graduation_date = models.DateField(null=True, blank=True, help_text="Date when student graduated or left")
     transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about student transfers or status changes")
     is_active = models.BooleanField(default=True, help_text="False if student has graduated or left the school")
+    enrolled_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='school_enrollments_made', help_text="User who enrolled this student")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -159,6 +163,8 @@ class StandardEnrollment(models.Model):
                                related_name='student_assignments',
                                null=True, blank=True)  # Null = unassigned
     student = models.ForeignKey('schools.Student', on_delete=models.CASCADE, related_name='standard_enrollments') # renamed from class_assignments
+    enrolled_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='class_enrollments_made', help_text="User who enrolled this student in the class")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -211,6 +217,8 @@ class SchoolStaff(models.Model):
     hire_date = models.DateField(null=True, blank=True, help_text="Date when staff member was hired")
     transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about staff transfers or role changes")
     is_active = models.BooleanField(default=True, help_text="False if staff member has left the school")
+    added_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='staff_additions_made', help_text="User who added this staff member")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

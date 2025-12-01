@@ -11,6 +11,7 @@ from django.core.validators import FileExtensionValidator
 from core.models import UserProfile
 from core.utils import get_current_year_and_term, unassign_teacher, get_current_teacher_assignment, unenroll_student, get_current_student_enrollment
 from core.mixins import SchoolAccessRequiredMixin
+from core.activity_utils import create_student_enrollment_activity, create_teacher_assignment_activity
 from academics.models import SchoolYear, Term, StandardTeacher, SchoolEnrollment, StandardEnrollment, SchoolStaff
 # Backward compatibility alias
 Enrollment = StandardEnrollment
@@ -212,7 +213,8 @@ class TeacherCreateView(LoginRequiredMixin, FormView):
                 school=self.school,
                 staff=profile,
                 position=form.cleaned_data.get('position', 'Teacher'),
-                is_active=True
+                is_active=True,
+                added_by=self.request.user.profile
             )
         except Exception as e:
             messages.error(self.request, f"Error creating school staff: {e}")
@@ -604,7 +606,16 @@ class TeacherAssignmentCreateView(LoginRequiredMixin, CreateView):
         assignment = form.save(commit=False)
         assignment.year = current_year
         assignment.teacher = teacher
+        assignment.assigned_by = self.request.user.profile
         assignment.save()
+
+        # Create activity stream entry
+        create_teacher_assignment_activity(
+            self.request.user.profile,
+            teacher,
+            standard,
+            verb='assigned'
+        )
 
         messages.success(self.request, f"Teacher {teacher.get_full_name()} has been assigned to {standard} successfully!")
         return redirect(self.get_success_url())
@@ -702,7 +713,7 @@ class TeacherUnassignView(LoginRequiredMixin, View):
         standard = assignment.standard
 
         # Create bidirectional unassignment records
-        unassign_teacher(teacher, standard, assignment.year)
+        unassign_teacher(teacher, standard, assignment.year, assigned_by=request.user.profile)
 
         messages.success(request, f"Teacher {teacher.get_full_name()} has been unassigned from {standard} successfully!")
         return redirect('schools:staff_list', school_slug=school_slug)
@@ -774,6 +785,7 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
         # Create the student
         student = form.save(commit=False)
         student.is_active = True
+        student.created_by = self.request.user.profile
         student.save()
 
         # Enroll the student if a standard was selected
@@ -789,7 +801,8 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
                 student=student,
                 defaults={
                     'enrollment_date': enrollment_date,
-                    'is_active': True
+                    'is_active': True,
+                    'enrolled_by': self.request.user.profile
                 }
             )
 
@@ -797,7 +810,8 @@ class StudentCreateView(LoginRequiredMixin, CreateView):
             class_assignment = StandardEnrollment.objects.create(
                 year=academic_year,
                 standard=standard,
-                student=student
+                student=student,
+                enrolled_by=self.request.user.profile
             )
 
             messages.success(self.request, f"Student {student} has been added and enrolled in {standard.get_name_display()} for the {academic_year} academic year.")
@@ -1019,7 +1033,7 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
         if current_enrollment:
             # If changing to a different class, create unenrollment record first
             if current_enrollment.standard != new_standard:
-                unenroll_student(self.student, academic_year)
+                unenroll_student(self.student, academic_year, enrolled_by=self.request.user.profile)
                 messages.info(self.request, f"Student {self.student} has been unenrolled from {current_enrollment.standard.get_name_display()}.")
 
         # Ensure student is enrolled in the school first
@@ -1030,7 +1044,8 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
             student=self.student,
             defaults={
                 'enrollment_date': enrollment_date,
-                'is_active': True
+                'is_active': True,
+                'enrolled_by': self.request.user.profile
             }
         )
 
@@ -1038,7 +1053,16 @@ class EnrollmentCreateView(LoginRequiredMixin, CreateView):
         class_assignment = StandardEnrollment.objects.create(
             year=academic_year,
             student=self.student,
-            standard=new_standard
+            standard=new_standard,
+            enrolled_by=self.request.user.profile
+        )
+
+        # Create activity stream entry
+        create_student_enrollment_activity(
+            self.request.user.profile,
+            self.student,
+            new_standard,
+            verb='enrolled'
         )
 
         messages.success(self.request, f"Student {self.student} has been enrolled in {new_standard.get_name_display()} for the {academic_year} academic year.")
@@ -1223,7 +1247,8 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                         date_of_birth=date_of_birth,
                         parent_name=parent_name,
                         contact_phone=row.get('contact_phone', '').strip(),
-                        is_active=True
+                        is_active=True,
+                        created_by=self.request.user.profile
                     )
 
                     # First, enroll student in the school (persistent relationship)
@@ -1234,7 +1259,8 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                         student=student,
                         defaults={
                             'enrollment_date': enrollment_date,
-                            'is_active': True
+                            'is_active': True,
+                            'enrolled_by': self.request.user.profile
                         }
                     )
 
@@ -1242,7 +1268,8 @@ class StudentBulkUploadView(LoginRequiredMixin, FormView):
                     StandardEnrollment.objects.create(
                         year=academic_year,
                         standard=standard,
-                        student=student
+                        student=student,
+                        enrolled_by=self.request.user.profile
                     )
 
                 # Increment success count
@@ -1481,7 +1508,8 @@ class AdminStaffCreateView(LoginRequiredMixin, FormView):
                 school=self.school,
                 staff=profile,
                 position=form.cleaned_data.get('position', 'Administration'),
-                is_active=True
+                is_active=True,
+                added_by=self.request.user.profile
             )
         except Exception as e:
             messages.error(self.request, f"Error creating school staff: {e}")

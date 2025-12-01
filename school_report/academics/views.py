@@ -708,7 +708,8 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
                 StandardEnrollment.objects.create(
                     year=to_year,
                     standard=next_standard,
-                    student=student
+                    student=student,
+                    enrolled_by=self.request.user.profile
                 )
         except Standard.DoesNotExist:
             messages.error(self.request, f"Next standard {next_standard_code} not found.")
@@ -719,7 +720,8 @@ class GraduateStudentsView(SchoolAdminRequiredMixin, TemplateView):
             StandardEnrollment.objects.create(
                 year=to_year,
                 standard=current_standard,
-                student=student
+                student=student,
+                enrolled_by=self.request.user.profile
             )
 
     def _update_transition_status(self, from_year, to_year):

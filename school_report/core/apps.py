@@ -7,3 +7,5 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         import core.signals
+        import core.auditlog_registry  # Register models for audit logging
+        import core.activity_signals  # Register activity stream signals

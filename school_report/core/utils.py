@@ -349,7 +349,7 @@ def get_next_term_start_date(current_term):
     return None
 
 
-def unassign_teacher(teacher, standard, school_year):
+def unassign_teacher(teacher, standard, school_year, assigned_by=None):
     """
     Unassign a teacher by creating bidirectional unassignment records.
 
@@ -364,6 +364,7 @@ def unassign_teacher(teacher, standard, school_year):
         teacher: UserProfile instance of the teacher to unassign
         standard: Standard instance to unassign the teacher from
         school_year: SchoolYear instance for the academic year
+        assigned_by: UserProfile instance of the user performing the unassignment (optional)
     """
     from academics.models import StandardTeacher
 
@@ -371,14 +372,16 @@ def unassign_teacher(teacher, standard, school_year):
     StandardTeacher.objects.create(
         teacher=teacher,
         year=school_year,
-        standard=None  # Teacher is unassigned from any standard
+        standard=None,  # Teacher is unassigned from any standard
+        assigned_by=assigned_by
     )
 
     # Create standard unassignment record
     StandardTeacher.objects.create(
         teacher=None,  # Standard has no teacher assigned
         year=school_year,
-        standard=standard
+        standard=standard,
+        assigned_by=assigned_by
     )
 
 
@@ -426,16 +429,22 @@ def unassign_all_teachers_for_school(school, from_year):
                 processed_pairs.add(pair_key)
 
 
-def unenroll_student(student, school_year):
+def unenroll_student(student, school_year, enrolled_by=None):
     """
     Unassign a student from their class by creating a new record with null standard.
+
+    Args:
+        student: Student instance to unenroll
+        school_year: SchoolYear instance for the academic year
+        enrolled_by: UserProfile instance of the user performing the unenrollment (optional)
     """
     from academics.models import StandardEnrollment
 
     StandardEnrollment.objects.create(
         student=student,
         year=school_year,
-        standard=None  # Null = unassigned
+        standard=None,  # Null = unassigned
+        enrolled_by=enrolled_by
     )
 
 

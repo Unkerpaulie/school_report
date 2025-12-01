@@ -18,6 +18,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # Third-party apps
+    'auditlog',  # Complete audit trail for compliance
+    'actstream',  # User-facing activity feeds
+
     # Custom apps
     'core',
     'schools',
@@ -33,6 +37,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'auditlog.middleware.AuditlogMiddleware',  # Automatic audit logging
     'core.middleware.PasswordChangeMiddleware',
     'core.middleware.IdleTimeoutMiddleware',
 ]
@@ -104,3 +109,22 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Default behavior when "Remember me" is
 # Idle timeout settings (in seconds)
 IDLE_TIMEOUT_MINUTES = 30  # 30 minutes of inactivity
 IDLE_TIMEOUT_SECONDS = IDLE_TIMEOUT_MINUTES * 60
+
+# ============================================================================
+# AUDIT LOGGING & ACTIVITY TRACKING SETTINGS
+# ============================================================================
+
+# Django Auditlog - Complete audit trail for compliance
+# Automatically tracks all changes to registered models
+AUDITLOG_INCLUDE_ALL_MODELS = False  # We'll register models explicitly
+AUDITLOG_DISABLE_REMOTE_ADDR = False  # Capture IP addresses
+
+# Django Activity Stream - User-facing activity feeds
+# Configure which models can be actors, targets, or action objects
+ACTSTREAM_SETTINGS = {
+    'MANAGER': 'actstream.managers.ActionManager',
+    'FETCH_RELATIONS': True,
+    'USE_PREFETCH': True,
+    'USE_JSONFIELD': True,
+    'GFK_FETCH_DEPTH': 1,
+}

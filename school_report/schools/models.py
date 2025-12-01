@@ -105,6 +105,8 @@ class Student(models.Model):
     parent_name = models.CharField(max_length=200, help_text="Full name of parent or guardian")
     transfer_notes = models.TextField(blank=True, null=True, help_text="Notes about student transfers")
     is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey('core.UserProfile', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='created_students', help_text="User who created this student record")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

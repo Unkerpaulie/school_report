@@ -1,6 +1,7 @@
 {% extends 'layout/base.html' %}
 {% load static %}
 {% load custom_filters %}
+{% load activity_display %}
 
 {% block title %}{{ school.name }} Dashboard - School Report System{% endblock %}
 
@@ -112,16 +113,7 @@
 
     <!-- Recent Activity -->
     <div class="col-lg-6">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold">Recent Activity</h6>
-            </div>
-            <div class="card-body">
-                <div class="text-center py-4">
-                    <p class="text-muted">No recent activity to display.</p>
-                </div>
-            </div>
-        </div>
+        {% show_recent_activities 10 %}
     </div>
 </div>
 {% endblock %}
